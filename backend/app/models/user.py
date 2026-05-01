@@ -8,14 +8,15 @@ from datetime import datetime
 from app.utils.time import current_datetime
 
 
-if TYPE_CHECKING:
-  from app.models.file import File
+
+from app.models.file import File
 
 
 class User(SQLModel, table=True):
   __tablename__ = "users"
 
   id: UUID = Field(default_factory=uuid7, primary_key=True)
+  name: str = Field(nullable=False)
   email: Email = Field(index=True, unique=True, nullable=False)
   hashed_password: str = Field(nullable=False)
 

@@ -7,7 +7,8 @@ from datetime import datetime
 from app.utils.time import current_datetime
 
 
-from app.models.user import User
+if TYPE_CHECKING:
+  from app.models.user import User
 
 
 class File(SQLModel, table=True):
@@ -25,4 +26,4 @@ class File(SQLModel, table=True):
   created_at: datetime = Field(default_factory=current_datetime, nullable=False)
   deleted_at: Optional[datetime] = Field(default=None)
 
-  user: User = Relationship(back_populates="files")
+  user: "User" = Relationship(back_populates="files")
