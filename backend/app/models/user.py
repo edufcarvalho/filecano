@@ -1,9 +1,9 @@
-from datetime import datetime
 from typing import Optional
 from uuid import UUID
+from datetime import datetime
 
 from pydantic import EmailStr as Email
-from sqlmodel import Field, Relationship, SQLModel
+from sqlmodel import DateTime, Field, Relationship, SQLModel
 from uuid6 import uuid7
 
 from app.models.file import File
@@ -18,7 +18,14 @@ class User(SQLModel, table=True):
   email: Email = Field(index=True, unique=True, nullable=False)
   hashed_password: str = Field(nullable=False)
 
-  created_at: datetime = Field(default_factory=current_datetime, nullable=False)
-  deleted_at: Optional[datetime] = Field(default=None)
+  created_at: datetime = Field(
+    default_factory=current_datetime,
+    nullable=False,
+    sa_type=DateTime(timezone=True),
+  )
+  deleted_at: Optional[datetime] = Field(
+    default=None,
+    sa_type=DateTime(timezone=True),
+  )
 
   files: list["File"] = Relationship(back_populates="user")
