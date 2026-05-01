@@ -1,0 +1,51 @@
+# Alembic migrations
+
+Alembic tracks database schema changes. This project runs `alembic upgrade head`
+automatically when the backend starts, so committed migrations are applied before
+the API begins serving requests.
+
+## Common commands
+
+Run commands from the `backend` directory.
+
+Create a new migration after changing SQLModel models:
+
+```sh
+uv run alembic revision --autogenerate -m "describe the change"
+```
+
+Review the generated file in `migrations/versions/`. Autogenerate is useful, but
+it can produce unsafe operations, miss data migrations, or include unrelated
+changes. Edit the `upgrade()` and `downgrade()` functions before committing.
+
+Apply all pending migrations:
+
+```sh
+uv run alembic upgrade head
+```
+
+Roll back one migration:
+
+```sh
+uv run alembic downgrade -1
+```
+
+Show the current database revision:
+
+```sh
+uv run alembic current
+```
+
+Show migration history:
+
+```sh
+uv run alembic history
+```
+
+## Workflow
+
+1. Update the models in `app/models`.
+2. Generate a migration with `uv run alembic revision --autogenerate -m "..."`
+3. Inspect and edit the generated migration.
+4. Run `uv run alembic upgrade head` locally.
+5. Commit the model changes and the new migration file together.
