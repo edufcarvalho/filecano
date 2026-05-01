@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     minio_bucket: str = "pelifiles"
     minio_secure: bool = False
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    jwt_secret_key: str = "change-me-in-production"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_seconds: int = 3600
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
