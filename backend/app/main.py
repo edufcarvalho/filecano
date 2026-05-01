@@ -1,9 +1,9 @@
 
 from fastapi import FastAPI
 
-from app.api.exception_handling import register_exception_handlers
+from app.api.dependencies import register_exception_handlers
 from app.api.v1.api import router as v1_router
-from app.core.config import get_settings
+from app.core import get_settings
 
 settings = get_settings()
 
