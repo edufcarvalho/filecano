@@ -1,14 +1,15 @@
 from uuid import UUID
 
-from app.core.config import Settings
-from app.core.security import (
+from app.core import (
+  AuthenticationError,
+  Settings,
   create_access_token,
   decode_access_token,
   verify_password,
 )
-from app.models.user import User
-from app.repositories.user_repository import UserRepository
-from app.schemas.params import UserLoginParams
+from app.models import User
+from app.repositories import UserRepository
+from app.schemas import UserLoginParams
 
 
 class AuthService:
@@ -20,7 +21,7 @@ class AuthService:
     user = self.repository.get_by_email(params.email)
 
     if user is None or not verify_password(params.password, user.hashed_password):
-      raise ValueError("Invalid email or password")
+      raise AuthenticationError("Invalid email or password")
 
     access_token = create_access_token(
       {"sub": str(user.id)},
@@ -39,24 +40,28 @@ class AuthService:
     user = self.repository.get_by_id(user_id)
 
     if user is None:
-      raise ValueError("User not found")
+      raise AuthenticationError("User not found")
 
     return user
 
   def authenticate_token(self, token: str) -> User:
-    payload = decode_access_token(
-      token,
-      secret_key=self.settings.jwt_secret_key,
-      algorithm=self.settings.jwt_algorithm,
-    )
+    try:
+      payload = decode_access_token(
+        token,
+        secret_key=self.settings.jwt_secret_key,
+        algorithm=self.settings.jwt_algorithm,
+      )
+    except ValueError as error:
+      raise AuthenticationError(str(error)) from error
+
     user_id = payload.get("sub")
 
     if not isinstance(user_id, str):
-      raise ValueError("Invalid access token")
+      raise AuthenticationError("Invalid access token")
 
     try:
       parsed_user_id = UUID(user_id)
     except ValueError as error:
-      raise ValueError("Invalid access token") from error
+      raise AuthenticationError("Invalid access token") from error
 
     return self.get_authenticated_user(parsed_user_id)
