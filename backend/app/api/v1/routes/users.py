@@ -1,45 +1,42 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Body, Depends, status
 
-from app.api.auth_middleware import AuthMiddleware
-from app.api.dependencies import get_auth_service, get_user_service
-from app.models.user import User
-from app.schemas.params import (
+from app.api.dependencies import get_auth_service, get_current_user, get_user_service
+from app.models import User
+from app.schemas import (
+  TokenResponse,
   UserCreationParams,
   UserLoginParams,
+  UserResponse,
   UserUpdateParams,
 )
-from app.services.auth_service import AuthService
-from app.services.user_service import UserService as Service
+from app.services import AuthService
+from app.services import UserService as Service
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.post("")
+@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def create_user(
   params: Annotated[UserCreationParams, Body()],
   service: Service = Depends(get_user_service),
-) -> dict[str, str]:
-  service.create_user(params)
-
-  return {"message": "User created"}
+) -> UserResponse:
+  return service.create_user(params)
 
 
-@router.post("/login")
+@router.post("/login", response_model=TokenResponse)
 def login_user(
   params: Annotated[UserLoginParams, Body()],
   service: AuthService = Depends(get_auth_service),
-) -> dict[str, object]:
+) -> TokenResponse:
   return service.login_user(params)
 
 
-@router.put("")
+@router.put("", response_model=UserResponse)
 def update_user(
   params: Annotated[UserUpdateParams, Body()],
-  current_user: User = Depends(AuthMiddleware()),
+  current_user: User = Depends(get_current_user),
   service: Service = Depends(get_user_service),
-) -> dict[str, str]:
-  service.update_user(current_user, params)
-
-  return {"message": "User updated"}
+) -> UserResponse:
+  return service.update_user(current_user, params)

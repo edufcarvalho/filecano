@@ -3,22 +3,30 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from app.core import AppError
 
-def value_error_handler(request: Request, error: ValueError) -> JSONResponse:
-  return _unprocessable_content(request, error, message=str(error))
+
+def app_error_handler(request: Request, error: AppError) -> JSONResponse:
+  return _error_response(request, status_code=error.status_code, message=str(error))
 
 
 def request_validation_error_handler(
   request: Request, error: RequestValidationError
 ) -> JSONResponse:
-  return _unprocessable_content(request, error, message=str(error))
+  return _error_response(
+    request,
+    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+    message=str(error),
+  )
 
 
-def _unprocessable_content(
-  request: Request, error: ValueError | RequestValidationError, message: str
+def _error_response(
+  request: Request,
+  status_code: int,
+  message: str,
 ) -> JSONResponse:
   return JSONResponse(
-    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+    status_code=status_code,
     content=jsonable_encoder(
       {
         "message": message,
@@ -29,5 +37,5 @@ def _unprocessable_content(
 
 
 def register_exception_handlers(app: FastAPI) -> None:
-  app.add_exception_handler(ValueError, value_error_handler)
+  app.add_exception_handler(AppError, app_error_handler)
   app.add_exception_handler(RequestValidationError, request_validation_error_handler)

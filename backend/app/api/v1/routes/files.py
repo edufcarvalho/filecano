@@ -1,0 +1,83 @@
+from typing import Annotated
+from urllib.parse import quote
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, File, UploadFile, status
+from fastapi.responses import StreamingResponse
+
+from app.api.dependencies import get_current_user, get_file_service
+from app.models import User
+from app.schemas import FileResponse, MessageResponse
+from app.services import FileService as Service
+
+router = APIRouter(prefix="/files", tags=["files"])
+
+
+@router.post("", response_model=FileResponse, status_code=status.HTTP_201_CREATED)
+def upload_file(
+  file: Annotated[UploadFile, File()],
+  current_user: User = Depends(get_current_user),
+  service: Service = Depends(get_file_service),
+) -> FileResponse:
+  return service.create_file(current_user, file)
+
+
+@router.get("", response_model=list[FileResponse])
+def list_files(
+  current_user: User = Depends(get_current_user),
+  service: Service = Depends(get_file_service),
+) -> list[FileResponse]:
+  return service.list_files(current_user)
+
+
+@router.get("/deleted", response_model=list[FileResponse])
+def list_deleted_files(
+  current_user: User = Depends(get_current_user),
+  service: Service = Depends(get_file_service),
+) -> list[FileResponse]:
+  return service.list_deleted_files(current_user)
+
+
+@router.get("/{file_id}")
+def download_file(
+  file_id: UUID,
+  current_user: User = Depends(get_current_user),
+  service: Service = Depends(get_file_service),
+) -> StreamingResponse:
+  file, response = service.get_download(current_user, file_id)
+  encoded_name = quote(file.original_name, safe="")
+  headers = {
+    "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_name}",
+    "X-Checksum-SHA256": file.checksum or "",
+  }
+
+  if file.size_bytes is not None:
+    headers["Content-Length"] = str(file.size_bytes)
+
+  return StreamingResponse(
+    service.stream_response(response),
+    media_type=file.content_type or "application/octet-stream",
+    headers=headers,
+  )
+
+
+@router.delete("/{file_id}", response_model=MessageResponse)
+def delete_file(
+  file_id: UUID,
+  current_user: User = Depends(get_current_user),
+  service: Service = Depends(get_file_service),
+) -> MessageResponse:
+  service.delete_file(current_user, file_id)
+
+  return MessageResponse(message="File deleted")
+
+
+@router.delete("/{file_id}/permanent", response_model=MessageResponse)
+def delete_file_permanently(
+  file_id: UUID,
+  current_user: User = Depends(get_current_user),
+  service: Service = Depends(get_file_service),
+) -> MessageResponse:
+  service.delete_file_permanently(current_user, file_id)
+
+  return MessageResponse(message="File permanently deleted")
