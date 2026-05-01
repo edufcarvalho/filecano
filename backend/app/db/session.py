@@ -1,4 +1,3 @@
-from collections.abc import Generator
 
 from sqlmodel import Session, create_engine
 

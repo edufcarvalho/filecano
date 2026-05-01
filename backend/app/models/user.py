@@ -1,15 +1,13 @@
+from datetime import datetime
+from typing import Optional
+from uuid import UUID
+
+from pydantic import EmailStr as Email
 from sqlmodel import Field, Relationship, SQLModel
 from uuid6 import uuid7
-from uuid import UUID
-from pydantic import EmailStr as Email
-from typing import TYPE_CHECKING, Optional
-from datetime import datetime
-
-from app.utils.time import current_datetime
-
-
 
 from app.models.file import File
+from app.utils.time import current_datetime
 
 
 class User(SQLModel, table=True):

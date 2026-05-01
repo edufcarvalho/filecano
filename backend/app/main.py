@@ -1,13 +1,9 @@
-from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from sqlmodel import SQLModel
 
-from app.core.config import get_settings
-from app.db.session import engine
-from app.api.v1.api import router as v1_router
 from app.api.exception_handling import register_exception_handlers
+from app.api.v1.api import router as v1_router
+from app.core.config import get_settings
 
 settings = get_settings()
 

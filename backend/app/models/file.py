@@ -1,11 +1,11 @@
+from datetime import datetime
+from typing import TYPE_CHECKING, Optional
+from uuid import UUID
+
 from sqlmodel import Field, Relationship, SQLModel
 from uuid6 import uuid7
-from uuid import UUID
-from typing import TYPE_CHECKING, Optional
-from datetime import datetime
 
 from app.utils.time import current_datetime
-
 
 if TYPE_CHECKING:
   from app.models.user import User
@@ -21,7 +21,7 @@ class File(SQLModel, table=True):
 
   content_type: Optional[str] = Field(default=None)
   size_bytes: Optional[int] = Field(default=None)
-  checksum: Optional[str] = Field(default=None) 
+  checksum: Optional[str] = Field(default=None)
 
   created_at: datetime = Field(default_factory=current_datetime, nullable=False)
   deleted_at: Optional[datetime] = Field(default=None)
