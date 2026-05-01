@@ -4,6 +4,8 @@ from typing import Optional
 from pydantic import BaseModel, field_validator
 from pydantic import EmailStr as Email
 
+from app.core import PasswordValidationError
+
 
 def _validate_password(password: str) -> str:
   errors: list[str] = []
@@ -32,7 +34,7 @@ def _validate_password(password: str) -> str:
     )
 
   if errors:
-    raise ValueError("; ".join(errors))
+    raise PasswordValidationError("; ".join(errors))
 
   return password
 
