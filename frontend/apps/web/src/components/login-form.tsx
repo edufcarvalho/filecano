@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { LoaderCircleIcon } from "lucide-react"
+import { LoaderCircleIcon, EyeIcon, EyeOffIcon } from "lucide-react"
 
 import { cn } from "@workspace/ui/lib/utils"
 import { Button } from "@workspace/ui/components/button"
@@ -67,6 +67,7 @@ export function LoginForm({
 }) {
   const [error, setError] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -125,15 +126,26 @@ export function LoginForm({
               </Field>
               <Field data-invalid={error ? true : undefined}>
                 <FieldLabel htmlFor="password">Password</FieldLabel>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  aria-invalid={error ? true : undefined}
-                  disabled={isPending}
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    placeholder="your password"
+                    required
+                    aria-invalid={error ? true : undefined}
+                    disabled={isPending}
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    onClick={() => setShowPassword(!showPassword)}
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                  </button>
+                </div>
               </Field>
               <Field>
                 <Button type="submit" disabled={isPending}>

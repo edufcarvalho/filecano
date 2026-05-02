@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { LoaderCircleIcon } from "lucide-react"
+import { LoaderCircleIcon, EyeIcon, EyeOffIcon, XIcon, CheckIcon } from "lucide-react"
 
 import { cn } from "@workspace/ui/lib/utils"
 import { Button } from "@workspace/ui/components/button"
@@ -56,6 +56,21 @@ function FilecanoLogo() {
   )
 }
 
+const passwordRequirements = [
+  { test: (p: string) => p.length >= 8 && p.length <= 128, label: "Between 8 and 128 characters" },
+  { test: (p: string) => /[a-z]/.test(p), label: "At least one lowercase letter" },
+  { test: (p: string) => /[A-Z]/.test(p), label: "At least one uppercase letter" },
+  { test: (p: string) => /\d/.test(p), label: "At least one digit" },
+  { test: (p: string) => /[@$!%*#?&.,]/.test(p), label: "At least one special character: @$!%*#?&.," },
+  { test: (p: string) => /^[A-Za-z\d@$!#%*?&.,]+$/.test(p), label: "No invalid characters" },
+]
+
+function validatePassword(password: string): string[] {
+  return passwordRequirements
+    .filter((req) => !req.test(password))
+    .map((req) => req.label)
+}
+
 export function SignupForm({
   className,
   onLogin,
@@ -65,6 +80,11 @@ export function SignupForm({
 }) {
   const [error, setError] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [password, setPassword] = useState("")
+  const [passwordTouched, setPasswordTouched] = useState(false)
+
+  const passwordErrors = validatePassword(password)
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -72,7 +92,12 @@ export function SignupForm({
     const formData = new FormData(event.currentTarget)
     const name = String(formData.get("name") ?? "")
     const email = String(formData.get("email") ?? "")
-    const password = String(formData.get("password") ?? "")
+
+    const validationErrors = validatePassword(password)
+    if (validationErrors.length > 0) {
+      setError("Password does not meet the requirements")
+      return
+    }
 
     setError(null)
     setIsPending(true)
@@ -116,7 +141,7 @@ export function SignupForm({
                   name="name"
                   type="text"
                   autoComplete="name"
-                  placeholder="John Doe"
+                  placeholder="Eduardo de Carvalho"
                   required
                   aria-invalid={error ? true : undefined}
                   disabled={isPending}
@@ -129,7 +154,7 @@ export function SignupForm({
                   name="email"
                   type="email"
                   autoComplete="email"
-                  placeholder="you@example.com"
+                  placeholder="your@email.com"
                   required
                   aria-invalid={error ? true : undefined}
                   disabled={isPending}
@@ -137,18 +162,52 @@ export function SignupForm({
               </Field>
               <Field data-invalid={error ? true : undefined}>
                 <FieldLabel htmlFor="password">Password</FieldLabel>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                  aria-invalid={error ? true : undefined}
-                  disabled={isPending}
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    placeholder="your password"
+                    required
+                    aria-invalid={error ? true : undefined}
+                    disabled={isPending}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onBlur={() => setPasswordTouched(true)}
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    onClick={() => setShowPassword(!showPassword)}
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                  </button>
+                </div>
+                <div className="min-h-[140px] pl-4 mt-1">
+                  <div className="flex flex-col gap-0.5">
+                    {passwordRequirements.map((req, i) => {
+                      const met = req.test(password)
+                      return (
+                        <div
+                          key={i}
+                          className={`flex items-center gap-2 text-sm ${met ? "text-green-600" : "text-destructive"}`}
+                        >
+                          {met ? (
+                            <CheckIcon size={14} />
+                          ) : (
+                            <XIcon size={14} />
+                          )}
+                          {req.label}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
               </Field>
               <Field>
-                <Button type="submit" disabled={isPending}>
+                <Button type="submit" disabled={isPending || (passwordTouched && passwordErrors.length > 0)}>
                   {isPending ? (
                     <LoaderCircleIcon
                       data-icon="inline-start"
