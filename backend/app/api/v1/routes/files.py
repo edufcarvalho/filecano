@@ -2,12 +2,12 @@ from typing import Annotated
 from urllib.parse import quote
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, UploadFile, status
+from fastapi import APIRouter, Body, Depends, File, UploadFile, status
 from fastapi.responses import StreamingResponse
 
 from app.api.dependencies import get_current_user, get_file_service
 from app.models import User
-from app.schemas import FileResponse, MessageResponse
+from app.schemas import FileResponse, FileUpdateParams, MessageResponse
 from app.services import FileService as Service
 
 router = APIRouter(prefix="/files", tags=["files"])
@@ -36,6 +36,16 @@ def list_deleted_files(
   service: Service = Depends(get_file_service),
 ) -> list[FileResponse]:
   return service.list_deleted_files(current_user)
+
+
+@router.put("/{file_id}", response_model=FileResponse)
+def update_file(
+  file_id: UUID,
+  params: Annotated[FileUpdateParams, Body()],
+  current_user: User = Depends(get_current_user),
+  service: Service = Depends(get_file_service),
+) -> FileResponse:
+  return service.update_file(current_user, file_id, params)
 
 
 @router.get("/{file_id}")

@@ -2,18 +2,13 @@ import { useState, useEffect } from "react"
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card"
-import {
   SidebarInset,
   SidebarProvider,
 } from "@workspace/ui/components/sidebar"
 
 import { AppSidebar } from "@/components/app-sidebar"
 import { EditUserForm } from "@/components/edit-user-form"
+import { FilesScreen } from "@/components/files-screen"
 import { LoginForm } from "@/components/login-form"
 import { SiteHeader } from "@/components/site-header"
 import { SignupForm } from "@/components/signup-form"
@@ -65,12 +60,6 @@ function SignedInScreen({
   onSignOut: () => void
   onTokenUpdate: (token: StoredToken) => void
 }) {
-  const expiresAt = token.issued_at
-    ? token.issued_at + token.expires_in * 1000
-    : 0
-  const [now] = useState(() => Date.now())
-  const secondsLeft = Math.max(0, Math.floor((expiresAt - now) / 1000))
-  const minutesLeft = Math.max(0, Math.ceil(secondsLeft / 60))
   const user = decodeTokenPayload(token.access_token)
   const displayUser = {
     name: token.user?.name ?? user.name ?? "Filecano user",
@@ -103,26 +92,7 @@ function SignedInScreen({
           />
           <Route
             path="*"
-            element={
-              <main className="flex flex-1 items-center justify-center bg-muted/40 p-6">
-                <Card className="w-full max-w-md">
-                  <CardHeader>
-                    <CardTitle>Filecano session ready</CardTitle>
-                  </CardHeader>
-                  <CardContent className="flex flex-col gap-3">
-                    <p className="text-sm text-muted-foreground">
-                      Signed in as {displayUser.name} with a {token.token_type}{" "}
-                      session that expires in {minutesLeft} minute
-                      {minutesLeft !== 1 ? "s" : ""}.
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Use the account menu at the bottom of the sidebar for
-                      docs, support, and logout.
-                    </p>
-                  </CardContent>
-                </Card>
-              </main>
-            }
+            element={<FilesScreen accessToken={token.access_token} />}
           />
         </Routes>
       </SidebarInset>

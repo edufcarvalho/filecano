@@ -11,6 +11,7 @@ from urllib3.response import BaseHTTPResponse
 from app.core import GoneError, NotFoundError, StorageError
 from app.models import File, User
 from app.repositories import FileRepository
+from app.schemas import FileUpdateParams
 from app.services.file_storage_service import FileStorageService
 from app.utils.time import current_datetime
 
@@ -72,6 +73,20 @@ class FileService:
 
   def list_deleted_files(self, user: User) -> list[File]:
     return self.repository.list_deleted_by_user(user.id)
+
+  def update_file(self, user: User, file_id: UUID, params: FileUpdateParams) -> File:
+    file = self._get_user_file(user, file_id)
+
+    if file.deleted_at is not None:
+      raise GoneError("File has been deleted")
+
+    file.original_name = params.original_name
+
+    self.repository.add(file)
+    self.session.commit()
+    self.session.refresh(file)
+
+    return file
 
   def delete_file(self, user: User, file_id: UUID) -> File:
     file = self._get_user_file(user, file_id)
