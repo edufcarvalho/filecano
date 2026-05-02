@@ -33,7 +33,7 @@ function SignedInScreen({
   const expiresAt = token.issued_at
     ? token.issued_at + token.expires_in * 1000
     : 0
-  const now = Date.now()
+  const [now] = useState(() => Date.now());
   const secondsLeft = Math.max(0, Math.floor((expiresAt - now) / 1000))
   const minutesLeft = Math.max(0, Math.ceil(secondsLeft / 60))
 
