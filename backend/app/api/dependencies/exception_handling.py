@@ -2,12 +2,13 @@ from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from typing import Optional
 
 from app.core import AppError
 
 
 def app_error_handler(request: Request, error: AppError) -> JSONResponse:
-  return _error_response(request, status_code=error.status_code, message=str(error))
+  return _error_response(request, status_code=error.status_code, message=error.detail, headers=error.headers)
 
 
 def request_validation_error_handler(
@@ -24,6 +25,7 @@ def _error_response(
   request: Request,
   status_code: int,
   message: str,
+  headers: Optional[dict] = None,
 ) -> JSONResponse:
   return JSONResponse(
     status_code=status_code,
@@ -33,6 +35,7 @@ def _error_response(
         "path": request.url.path,
       }
     ),
+    headers=headers,
   )
 
 

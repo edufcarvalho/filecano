@@ -1,11 +1,12 @@
-from fastapi import status
+from fastapi import HTTPException, status
+from typing import Optional
 
 
-class AppError(Exception):
+class AppError(HTTPException):
   status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
 
-  def __init__(self, message: str):
-    super().__init__(message)
+  def __init__(self, message: str, headers: Optional[dict] = None):
+    super().__init__(status_code=self.status_code, detail=message, headers=headers)
 
 class PasswordValidationError(AppError):
   status_code = status.HTTP_400_BAD_REQUEST
