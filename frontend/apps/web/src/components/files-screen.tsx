@@ -13,6 +13,7 @@ import {
   SaveIcon,
   Trash2Icon,
   UploadIcon,
+  DownloadIcon,
   XIcon,
 } from "lucide-react"
 
@@ -33,6 +34,8 @@ import { Input } from "@workspace/ui/components/input"
 
 import {
   deleteFile,
+  downloadFile,
+  downloadMultipleFiles,
   listFiles,
   updateFile,
   uploadFile,
@@ -403,6 +406,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         currentFiles.filter((f) => !selectedFileIds.has(f.id))
       )
       setSelectedFileIds(new Set())
+      setIsSelectMode(false)
     } catch (error) {
       setError(error instanceof Error ? error.message : "Unable to delete files.")
     } finally {
@@ -410,9 +414,41 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     }
   }
 
+  async function handleDownload(file: FileResponse) {
+    setError(null)
+    setPendingFileId(`download-${file.id}`)
+
+    try {
+      await downloadFile(accessToken, file.id, file.original_name)
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Unable to download file.")
+    } finally {
+      setPendingFileId(null)
+    }
+  }
+
+  async function handleBulkDownload() {
+    if (selectedFileIds.size === 0) return
+
+    setError(null)
+    setPendingFileId("bulk-download")
+
+    const filesToDownload = files.filter((f) => selectedFileIds.has(f.id))
+
+    try {
+      await downloadMultipleFiles(
+        accessToken,
+        filesToDownload.map((f) => ({ id: f.id, original_name: f.original_name }))
+      )
+      } catch (error) {
+        setError(error instanceof Error ? error.message : "Unable to download files.")
+      } finally {
+        setPendingFileId(null)
+      }
+    }
+
   return (
     <main className="flex flex-1 flex-col gap-4 bg-muted/40 p-6">
-
       <div
         role="region"
         aria-label="File upload area"
@@ -503,23 +539,39 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
                 </span>
               </CardTitle>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {selectedFileIds.size > 0 && (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleBulkDelete}
-                  disabled={pendingFileId !== null}
-                >
-                  {pendingFileId === "bulk-delete" ? (
-                    <LoaderCircleIcon data-icon="inline-start" className="animate-spin" />
-                  ) : (
-                    <Trash2Icon data-icon="inline-start" />
-                  )}
-                  Delete ({selectedFileIds.size})
-                </Button>
-              )}
+              <div className="flex flex-wrap gap-2">
+                {selectedFileIds.size > 0 && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleBulkDownload}
+                      disabled={pendingFileId !== null}
+                    >
+                      {pendingFileId === "bulk-download" ? (
+                        <LoaderCircleIcon data-icon="inline-start" className="animate-spin" />
+                      ) : (
+                        <DownloadIcon data-icon="inline-start" />
+                      )}
+                      Download ({selectedFileIds.size})
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleBulkDelete}
+                      disabled={pendingFileId !== null}
+                    >
+                      {pendingFileId === "bulk-delete" ? (
+                        <LoaderCircleIcon data-icon="inline-start" className="animate-spin" />
+                      ) : (
+                        <Trash2Icon data-icon="inline-start" />
+                      )}
+                      Delete ({selectedFileIds.size})
+                    </Button>
+                  </>
+                )}
               <Button
                 type="button"
                 variant="outline"
@@ -560,6 +612,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
                   const isEditing = editingFileId === file.id
                   const isPending = pendingFileId === file.id
                   const isSelected = selectedFileIds.has(file.id)
+                  const isDownloading = pendingFileId === `download-${file.id}`
 
                   const Icon = getFileIcon(file.content_type)
 
@@ -662,23 +715,42 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
                             </Button>
                           </>
                         ) : (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleDelete(file)}
-                            disabled={pendingFileId !== null}
-                          >
-                            {isPending && !isEditing ? (
-                              <LoaderCircleIcon
-                                data-icon="inline-start"
-                                className="animate-spin"
-                              />
-                            ) : (
-                              <Trash2Icon data-icon="inline-start" />
-                            )}
-                            Delete
-                          </Button>
+                          <>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDownload(file)}
+                              disabled={pendingFileId !== null}
+                            >
+                              {isDownloading ? (
+                                <LoaderCircleIcon
+                                  data-icon="inline-start"
+                                  className="animate-spin"
+                                />
+                              ) : (
+                                <DownloadIcon data-icon="inline-start" />
+                              )}
+                              Download
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleDelete(file)}
+                              disabled={pendingFileId !== null}
+                            >
+                              {isPending && !isEditing ? (
+                                <LoaderCircleIcon
+                                  data-icon="inline-start"
+                                  className="animate-spin"
+                                />
+                              ) : (
+                                <Trash2Icon data-icon="inline-start" />
+                              )}
+                              Delete
+                            </Button>
+                          </>
                         )}
                       </div>
                     </div>

@@ -152,6 +152,51 @@ export async function deleteFile(
   if (!response.ok) await readError(response, "Unable to delete file.")
 }
 
+export async function downloadFile(
+  accessToken: string,
+  fileId: string,
+  fileName: string
+): Promise<void> {
+  const response = await fetch(`${API_URL}/v1/files/${fileId}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+
+  if (!response.ok) await readError(response, "Unable to download file.")
+
+  // Check for checksum mismatch
+  const checksumError = response.headers.get("X-Checksum-Error")
+  if (checksumError === "true") {
+    throw new Error("File integrity check failed: checksums do not match.")
+  }
+
+  const blob = await response.blob()
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement("a")
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  window.URL.revokeObjectURL(url)
+}
+
+export async function downloadMultipleFiles(
+  accessToken: string,
+  files: Array<{ id: string; original_name: string }>
+): Promise<void> {
+  const downloadPromises = files.map((file) =>
+    downloadFile(accessToken, file.id, file.original_name)
+  )
+
+  try {
+    await Promise.all(downloadPromises)
+  } catch {
+    throw new Error("Some files failed to download.")
+  }
+}
+
 export async function uploadFile(
   accessToken: string,
   file: File,
