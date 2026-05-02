@@ -18,6 +18,7 @@ import {
 } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
 
+import { PasswordInput } from "@/components/password-input"
 import { PasswordRequirementsList } from "@/components/password-requirements-list"
 import { updateUser, type UserResponse } from "@/lib/api"
 import type { FormSubmitHandler } from "@/lib/form-types"
@@ -42,6 +43,7 @@ export function EditUserForm({
   const [isPending, setIsPending] = useState(false)
   const [password, setPassword] = useState("")
   const [passwordTouched, setPasswordTouched] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const passwordErrors = password ? validatePassword(password) : []
 
@@ -145,10 +147,9 @@ export function EditUserForm({
               </Field>
               <Field data-invalid={error ? true : undefined}>
                 <FieldLabel htmlFor="password">New password</FieldLabel>
-                <Input
+                <PasswordInput
                   id="password"
                   name="password"
-                  type="password"
                   autoComplete="new-password"
                   placeholder="Leave blank to keep current password"
                   disabled={isPending}
@@ -156,6 +157,8 @@ export function EditUserForm({
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   onBlur={() => setPasswordTouched(true)}
+                  isVisible={showPassword}
+                  onVisibilityChange={setShowPassword}
                 />
                 {passwordTouched || password.length > 0 ? (
                   <PasswordRequirementsList password={password} />
