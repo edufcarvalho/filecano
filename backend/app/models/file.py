@@ -23,6 +23,10 @@ class File(SQLModel, table=True):
   size_bytes: Optional[int] = Field(default=None)
   checksum: Optional[str] = Field(default=None)
 
+  preview_object_key: Optional[str] = Field(default=None)
+  preview_content_type: Optional[str] = Field(default=None)
+  preview_size_bytes: Optional[int] = Field(default=None)
+
   created_at: datetime = Field(
     default_factory=current_datetime,
     nullable=False,

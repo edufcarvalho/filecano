@@ -1,8 +1,10 @@
 import hashlib
 from contextlib import suppress
+from io import BytesIO
 from typing import BinaryIO
 from uuid import UUID
 
+import PIL.Image
 from fastapi import UploadFile
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
@@ -47,6 +49,23 @@ class FileService:
       upload.content_type,
     )
 
+    if upload.content_type and upload.content_type.startswith("image/"):
+      preview_data, preview_size, preview_checksum, preview_content_type = self._generate_preview(
+        upload.file, upload.content_type
+      )
+      file.preview_object_key = f"users/{user.id}/previews/{file.id}"
+      file.preview_content_type = preview_content_type
+      file.preview_size_bytes = preview_size
+      file.preview_checksum = preview_checksum
+
+      preview_data.seek(0)
+      self.storage.upload(
+        file.preview_object_key,
+        preview_data,
+        preview_size,
+        preview_content_type,
+      )
+
     self.repository.add(file)
 
     try:
@@ -56,6 +75,8 @@ class FileService:
       self.session.rollback()
       with suppress(StorageError):
         self.storage.delete_all_versions(file.object_key)
+        if file.preview_object_key:
+          self.storage.delete_all_versions(file.preview_object_key)
       raise
 
     return file
@@ -67,6 +88,15 @@ class FileService:
       raise GoneError("File has been deleted")
 
     return file, self.storage.download(file.object_key)
+
+  def get_file_for_preview(self, user: User, file_id: UUID) -> File:
+    return self._get_user_file(user, file_id)
+
+  def get_preview_download(self, file: File) -> BaseHTTPResponse:
+    if not file.preview_object_key:
+      raise NotFoundError("Preview not available")
+
+    return self.storage.download(file.preview_object_key)
 
   def list_files(self, user: User) -> list[File]:
     return self.repository.list_by_user(user.id)
@@ -107,6 +137,8 @@ class FileService:
     file = self._get_user_file(user, file_id)
 
     self.storage.delete_all_versions(file.object_key)
+    if file.preview_object_key:
+      self.storage.delete_all_versions(file.preview_object_key)
     self.repository.delete(file)
     self.session.commit()
 
@@ -133,3 +165,29 @@ class FileService:
     data.seek(0)
 
     return checksum.hexdigest(), size_bytes
+
+  def _generate_preview(self, data: BinaryIO, content_type: str) -> tuple[BinaryIO, int, str, str]:
+    """Generate a thumbnail preview for images."""
+    data.seek(0)
+    img = PIL.Image.open(data)
+
+    # Convert to RGB if necessary (for PNG with alpha, etc.)
+    if img.mode in ("RGBA", "P"):
+      img = img.convert("RGB")
+
+    # Create thumbnail (max 200x200)
+    img.thumbnail((200, 200))
+
+    preview_data = BytesIO()
+    preview_content_type = "image/jpeg"
+    img.save(preview_data, format="JPEG", quality=85)
+    preview_data.seek(0)
+
+    preview_checksum = hashlib.sha256(preview_data.read()).hexdigest()
+    preview_data.seek(0)
+    preview_size = preview_data.getbuffer().nbytes
+
+    # Reset original data
+    data.seek(0)
+
+    return preview_data, preview_size, preview_checksum, preview_content_type

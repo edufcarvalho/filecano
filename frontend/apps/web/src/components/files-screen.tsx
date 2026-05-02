@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import {
-  FileIcon,
+  File,
+  FileImage,
+  FileText,
+  FileCode,
+  FileVideo,
+  FileAudio,
+  FileArchive,
   LoaderCircleIcon,
   PencilIcon,
   RefreshCwIcon,
@@ -59,6 +65,95 @@ function formatCreatedAt(createdAt: string) {
   }).format(new Date(createdAt))
 }
 
+function getFileIcon(contentType: string | null) {
+  if (!contentType) return File
+
+  // Image files
+  if (contentType.startsWith("image/")) return FileImage
+
+  // Video files
+  if (contentType.startsWith("video/")) return FileVideo
+
+  // Audio files
+  if (contentType.startsWith("audio/")) return FileAudio
+
+  // Text files (plain text, markdown, etc.)
+  if (contentType === "text/plain" || contentType === "text/markdown" || contentType === "text/csv")
+    return FileText
+
+  // Code and markup languages
+  const codeTypes = [
+    "javascript", "typescript", "json", "xml", "html", "css", "yaml", "yml",
+    "python", "java", "c", "cpp", "csharp", "go", "rust", "ruby", "php",
+    "swift", "kotlin", "scala", "perl", "lua", "r", "matlab", "sql",
+    "shell", "bash", "powershell", "dockerfile", "makefile"
+  ]
+
+  const codeMimePatterns = [
+    "application/javascript", "application/json", "application/xml",
+    "application/xhtml", "application/x-javascript", "application/typescript",
+    "text/javascript", "text/typescript", "text/html", "text/css",
+    "text/x-python", "text/x-java", "text/x-c", "text/x-c++",
+    "text/x-ruby", "text/x-php", "text/x-go", "text/x-rust",
+    "text/x-sql", "text/x-shellscript", "text/markdown", "text/yaml",
+    "text/x-yaml"
+  ]
+
+  if (codeTypes.some(t => contentType.includes(t)))
+    return FileCode
+
+  if (codeMimePatterns.some(pattern => contentType === pattern || contentType.startsWith(pattern)))
+    return FileCode
+
+  // Archive and compressed files
+  const archiveTypes = [
+    "zip", "tar", "gz", "bz2", "xz", "7z", "rar", "lz", "zst",
+    "compress", "deflate", "br"
+  ]
+
+  const archiveMimeTypes = [
+    "application/zip", "application/x-tar", "application/gzip",
+    "application/x-bzip2", "application/x-xz", "application/x-7z-compressed",
+    "application/vnd.rar", "application/x-compress", "application/zstd"
+  ]
+
+  if (archiveTypes.some(t => contentType.includes(t)))
+    return FileArchive
+
+  if (archiveMimeTypes.includes(contentType))
+    return FileArchive
+
+  return File
+}
+
+function getFilePreviewUrl(fileId: string) {
+  const API_URL = (import.meta.env.VITE_API_URL ?? "http://localhost:8000/api").replace(
+    /\/+$/,
+    ""
+  )
+  return `${API_URL}/v1/files/${fileId}/preview`
+}
+
+async function fetchPreviewAsDataUrl(fileId: string, accessToken: string): Promise<string> {
+  const response = await fetch(getFilePreviewUrl(fileId), {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error("Failed to load preview")
+  }
+
+  const blob = await response.blob()
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
+}
+
 export function FilesScreen({ accessToken }: FilesScreenProps) {
   const [files, setFiles] = useState<FileResponse[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -66,10 +161,11 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   const [editingName, setEditingName] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [pendingFileId, setPendingFileId] = useState<string | null>(null)
-   const [isDragOver, setIsDragOver] = useState(false)
+  const [isDragOver, setIsDragOver] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadingFiles, setUploadingFiles] = useState<Array<{ name: string; progress: number; done: boolean; error: boolean }>>([])
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set())
+  const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const loadFiles = useCallback(async () => {
@@ -89,11 +185,23 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     let isCurrent = true
 
     listFiles(accessToken)
-      .then((loadedFiles) => {
+      .then(async (loadedFiles) => {
         if (!isCurrent) return
 
         setFiles(loadedFiles)
         setError(null)
+
+        // Fetch previews for image files
+        const imageFiles = loadedFiles.filter(f => f.content_type?.startsWith("image/"))
+        for (const file of imageFiles) {
+          try {
+            const dataUrl = await fetchPreviewAsDataUrl(file.id, accessToken)
+            if (!isCurrent) return
+            setPreviewUrls(prev => ({ ...prev, [file.id]: dataUrl }))
+          } catch {
+            // Ignore preview fetch errors
+          }
+        }
       })
       .catch((error) => {
         if (!isCurrent) return
@@ -141,15 +249,20 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     setPendingFileId(file.id)
 
     try {
-      const updatedFile = await updateFile(accessToken, file.id, {
-        original_name: originalName,
+      const uploadedFile = await uploadFile(accessToken, file, (percent) => {
+        setUploadProgress(percent)
       })
-      setFiles((currentFiles) =>
-        currentFiles.map((currentFile) =>
-          currentFile.id === updatedFile.id ? updatedFile : currentFile
-        )
-      )
-      stopEditing()
+      setFiles((currentFiles) => [uploadedFile, ...currentFiles])
+
+      // Fetch preview for image files
+      if (file.type.startsWith("image/")) {
+        try {
+          const dataUrl = await fetchPreviewAsDataUrl(uploadedFile.id, accessToken)
+          setPreviewUrls((prev) => ({ ...prev, [uploadedFile.id]: dataUrl }))
+        } catch {
+          // Ignore preview fetch errors
+        }
+      }
     } catch (error) {
       setError(error instanceof Error ? error.message : "Unable to update file.")
     } finally {
@@ -448,6 +561,8 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
                   const isPending = pendingFileId === file.id
                   const isSelected = selectedFileIds.has(file.id)
 
+                  const Icon = getFileIcon(file.content_type)
+
                   return (
                     <div
                       key={file.id}
@@ -462,13 +577,25 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
                           onChange={() => toggleFileSelection(file.id)}
                           className="h-4 w-4"
                         />
-                        <FileIcon className="text-muted-foreground" />
+                        {file.content_type?.startsWith("image/") ? (
+                          previewUrls[file.id] ? (
+                            <img
+                              src={previewUrls[file.id]}
+                              alt={file.original_name}
+                              className="h-10 w-10 rounded object-cover"
+                            />
+                          ) : (
+                            <FileImage className="text-muted-foreground" />
+                          )
+                        ) : (
+                          <Icon className="text-muted-foreground" />
+                        )}
                         <div className="min-w-0 flex-1">
                           {isEditing ? (
                             <FieldGroup>
                               <Field data-invalid={error ? true : undefined}>
-                                <FieldLabel htmlFor={`file-name-${file.id}`}>
-                                  {file.original_name}
+                                 <FieldLabel htmlFor={`file-name-${file.id}`}>
+                                  Original name
                                 </FieldLabel>
                                 <Input
                                   id={`file-name-${file.id}`}

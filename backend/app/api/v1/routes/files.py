@@ -9,6 +9,7 @@ from app.api.dependencies import get_current_user, get_file_service
 from app.models import User
 from app.schemas import FileResponse, FileUpdateParams, MessageResponse
 from app.services import FileService as Service
+from app.core import NotFoundError
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -67,6 +68,30 @@ def download_file(
   return StreamingResponse(
     service.stream_response(response),
     media_type=file.content_type or "application/octet-stream",
+    headers=headers,
+  )
+
+
+@router.get("/{file_id}/preview")
+def preview_file(
+  file_id: UUID,
+  current_user: User = Depends(get_current_user),
+  service: Service = Depends(get_file_service),
+) -> StreamingResponse:
+  file = service.get_file_for_preview(current_user, file_id)
+
+  if not file.preview_object_key:
+    raise NotFoundError("Preview not available for this file")
+
+  response = service.get_preview_download(file)
+  headers = {}
+
+  if file.preview_size_bytes is not None:
+    headers["Content-Length"] = str(file.preview_size_bytes)
+
+  return StreamingResponse(
+    service.stream_response(response),
+    media_type=file.preview_content_type or "image/jpeg",
     headers=headers,
   )
 
