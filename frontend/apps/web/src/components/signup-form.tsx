@@ -13,7 +13,7 @@ import {
 } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
 
-import { loginUser, type TokenResponse } from "@/lib/api"
+import { signupUser, type TokenResponse } from "@/lib/api"
 
 function FilecanoLogo() {
   return (
@@ -56,14 +56,12 @@ function FilecanoLogo() {
   )
 }
 
-export function LoginForm({
+export function SignupForm({
   className,
   onLogin,
-  onSignup,
   ...props
 }: React.ComponentProps<"div"> & {
   onLogin?: (token: TokenResponse) => void
-  onSignup?: () => void
 }) {
   const [error, setError] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
@@ -72,6 +70,7 @@ export function LoginForm({
     event.preventDefault()
 
     const formData = new FormData(event.currentTarget)
+    const name = String(formData.get("name") ?? "")
     const email = String(formData.get("email") ?? "")
     const password = String(formData.get("password") ?? "")
 
@@ -79,11 +78,11 @@ export function LoginForm({
     setIsPending(true)
 
     try {
-      const token = await loginUser({ email, password })
+      const token = await signupUser({ name, email, password })
       onLogin?.(token)
     } catch (error) {
       setError(
-        error instanceof Error ? error.message : "Unable to sign in."
+        error instanceof Error ? error.message : "Unable to sign up."
       )
     } finally {
       setIsPending(false)
@@ -99,9 +98,9 @@ export function LoginForm({
               <div className="flex flex-col items-center gap-3 text-center">
                 <FilecanoLogo />
                 <div className="flex flex-col gap-1">
-                  <h1 className="text-2xl font-bold">Welcome to Filecano</h1>
+                  <h1 className="text-2xl font-bold">Create your account</h1>
                   <p className="text-balance text-muted-foreground">
-                    Sign in to manage your files.
+                    Sign up to manage your files.
                   </p>
                 </div>
               </div>
@@ -110,6 +109,19 @@ export function LoginForm({
                   <FieldError>{error}</FieldError>
                 </Field>
               ) : null}
+              <Field data-invalid={error ? true : undefined}>
+                <FieldLabel htmlFor="name">Name</FieldLabel>
+                <Input
+                  id="name"
+                  name="name"
+                  type="text"
+                  autoComplete="name"
+                  placeholder="John Doe"
+                  required
+                  aria-invalid={error ? true : undefined}
+                  disabled={isPending}
+                />
+              </Field>
               <Field data-invalid={error ? true : undefined}>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
                 <Input
@@ -129,7 +141,7 @@ export function LoginForm({
                   id="password"
                   name="password"
                   type="password"
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                   required
                   aria-invalid={error ? true : undefined}
                   disabled={isPending}
@@ -143,21 +155,11 @@ export function LoginForm({
                       className="animate-spin"
                     />
                   ) : null}
-                  Sign in
+                  Create Account
                 </Button>
               </Field>
               <FieldDescription className="text-center">
-                Use your Filecano account credentials.
-              </FieldDescription>
-              <FieldDescription className="text-center">
-                Don&apos;t have an account?{" "}
-                <button
-                  type="button"
-                  className="text-primary underline underline-offset-4 hover:text-primary/90"
-                  onClick={onSignup}
-                >
-                  Sign up
-                </button>
+                Already have an account? <a href="#">Sign in</a>
               </FieldDescription>
             </FieldGroup>
           </form>
@@ -178,7 +180,7 @@ export function LoginForm({
         </CardContent>
       </Card>
       <FieldDescription className="px-6 text-center">
-        Your session is kept on this device after sign in.
+        Your session is kept on this device after sign up.
       </FieldDescription>
     </div>
   )

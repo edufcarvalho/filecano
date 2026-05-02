@@ -44,3 +44,33 @@ export async function loginUser(credentials: {
 
   return response.json()
 }
+
+export async function signupUser(data: {
+  name: string
+  email: string
+  password: string
+}): Promise<TokenResponse> {
+  const response = await fetch(`${API_URL}/v1/users`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  })
+
+  if (!response.ok) {
+    let errorBody: ApiErrorBody = {}
+
+    try {
+      errorBody = await response.json()
+    } catch {
+      throw new Error("Unable to sign up. Please try again.")
+    }
+
+    throw new Error(
+      errorBody.message ?? errorBody.detail ?? "Unable to sign up."
+    )
+  }
+
+  return response.json()
+}
