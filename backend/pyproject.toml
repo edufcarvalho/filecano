@@ -1,7 +1,7 @@
 [project]
-name = "pelifiles-backend"
+name = "filecano-backend"
 version = "0.1.0"
-description = "FastAPI backend for Pelifiles."
+description = "FastAPI backend for Filecano."
 requires-python = ">=3.14"
 dependencies = [
     "fastapi>=0.115,<1.0",

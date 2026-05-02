@@ -4,14 +4,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = "Pelifiles API"
+    app_name: str = "Filecano API"
     database_url: str = (
-        "postgresql+psycopg://pelifiles:pelifiles@database:5432/pelifiles"
+        "postgresql+psycopg://filecano:filecano@database:5432/filecano"
     )
     minio_endpoint: str = "data:9000"
     minio_access_key: str = "minioadmin"
     minio_secret_key: str = "minioadmin"
-    minio_bucket: str = "pelifiles"
+    minio_bucket: str = "filecano"
     minio_secure: bool = False
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     jwt_secret_key: str = "change-me-in-production"

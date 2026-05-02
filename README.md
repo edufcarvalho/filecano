@@ -1,7 +1,7 @@
-# Pelifiles 🦩
-The file management system that eats files like a pelican 🦩
+# Filecano
+Store, organize, and retrieve files with a clean workspace.
 
-Basic FastAPI + Vite stack with Postgres database and MinIO object storage
+Basic FastAPI + SQLModel on back-end Vite + React + Typescript on front-end with Postgres database and MinIO object storage
 
 ## Services
 

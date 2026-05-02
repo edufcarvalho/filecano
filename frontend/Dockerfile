@@ -2,7 +2,7 @@ FROM node:25-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY package.json package-lock.json ./
 COPY apps/web/package.json ./apps/web/package.json
 COPY packages/ui/package.json ./packages/ui/package.json
 RUN npm install
@@ -13,4 +13,4 @@ COPY . .
 
 EXPOSE 5173
 
-CMD ["npm", "run", "dev", "--", "--filter=web", "--", "--host", "0.0.0.0"]
+CMD ["npm", "--workspace", "web", "run", "dev", "--", "--host", "0.0.0.0"]
