@@ -17,12 +17,15 @@ from app.services import UserService as Service
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 def create_user(
   params: Annotated[UserCreationParams, Body()],
-  service: Service = Depends(get_user_service),
-) -> UserResponse:
-  return service.create_user(params)
+  user_service: Service = Depends(get_user_service),
+  auth_service: AuthService = Depends(get_auth_service)
+) -> TokenResponse:
+  user_service.create_user(params)
+
+  return auth_service.login_user(params)
 
 
 @router.post("/login", response_model=TokenResponse)
