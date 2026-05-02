@@ -51,7 +51,7 @@ class AuthService:
 
   def _create_user_access_token(self, user: User) -> str:
     return create_access_token(
-      sub=str(user.id),
+      payload={"sub": str(user.id)},
       secret_key=self.settings.jwt_secret_key,
       algorithm=self.settings.jwt_algorithm,
       expire_in=self.settings.access_token_expire_seconds,
