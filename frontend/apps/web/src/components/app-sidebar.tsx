@@ -32,7 +32,6 @@ export function AppSidebar({ user, onSignOut, ...props }: AppSidebarProps) {
                 />
                 <div className="grid flex-1 text-start text-sm leading-tight">
                   <span className="truncate font-medium">Filecano</span>
-                  <span className="truncate text-xs">Files</span>
                 </div>
               </a>
             </SidebarMenuButton>

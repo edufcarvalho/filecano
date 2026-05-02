@@ -12,7 +12,7 @@ export function SiteHeader() {
       <div className="flex min-w-0 flex-col">
         <span className="truncate text-sm font-medium">Filecano</span>
         <span className="truncate text-xs text-muted-foreground">
-          Logged-in workspace
+          File administration
         </span>
       </div>
     </header>

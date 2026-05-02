@@ -1,0 +1,35 @@
+<svg
+  role="img"
+  aria-label="Pelifiles"
+  viewBox="0 0 64 64"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <rect width="64" height="64" rx="14" fill="#2563eb" />
+  <g transform="translate(9.6 9.6) scale(0.7)">
+    <path
+      d="M19 42c0-10.5 8.5-19 19-19h6.5c2.7 0 5.2-1.2 6.9-3.3l2.6-3.2v6.8c0 7.6-6.1 13.7-13.7 13.7H34"
+      stroke="#fafafa"
+      stroke-width="4"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M31 37c-2.1 6.4-7.6 10.5-14.2 10.5H11c3.7 4.7 9.4 7.5 15.4 7.5 10.3 0 18.8-7.9 19.6-18"
+      stroke="#fafafa"
+      stroke-width="4"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M44 23.5c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2Z"
+      fill="#fafafa"
+    />
+    <path
+      d="M45 30h13"
+      stroke="#fafafa"
+      stroke-width="4"
+      stroke-linecap="round"
+    />
+  </g>
+</svg>
