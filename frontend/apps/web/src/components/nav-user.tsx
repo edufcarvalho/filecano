@@ -1,9 +1,11 @@
 import {
   BookOpenIcon,
   ChevronsUpDownIcon,
+  EditIcon,
   LifeBuoyIcon,
   LogOutIcon,
 } from "lucide-react"
+import { Link } from "react-router-dom"
 
 import {
   Avatar,
@@ -14,7 +16,6 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu"
@@ -77,17 +78,23 @@ export function NavUser({
             align="end"
             sideOffset={4}
           >
-            <DropdownMenuLabel className="p-0 font-normal">
-              <div className="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
+            <DropdownMenuItem asChild className="p-0">
+              <Link
+                to="/account"
+                className="group/user flex items-center gap-2 px-1 py-1.5 text-start text-sm"
+              >
                 <Avatar className="size-8 rounded-lg">
-                  <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
+                  <AvatarFallback className="rounded-lg">
+                    <span className="group-hover/user:hidden">{initials}</span>
+                    <EditIcon className="hidden group-hover/user:block" />
+                  </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-start text-sm leading-tight">
                   <span className="truncate font-medium">{user.name}</span>
                   <span className="truncate text-xs">{user.email}</span>
                 </div>
-              </div>
-            </DropdownMenuLabel>
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>

@@ -16,6 +16,26 @@ export type TokenResponse = {
   expires_in: number
 }
 
+export type UserResponse = {
+  id: string
+  name: string
+  email: string
+  created_at: string
+  deleted_at: string | null
+}
+
+async function readError(response: Response, fallback: string) {
+  let errorBody: ApiErrorBody = {}
+
+  try {
+    errorBody = await response.json()
+  } catch {
+    throw new Error(fallback)
+  }
+
+  throw new Error(errorBody.message ?? errorBody.detail ?? fallback)
+}
+
 export async function loginUser(credentials: {
   email: string
   password: string
@@ -28,19 +48,7 @@ export async function loginUser(credentials: {
     body: JSON.stringify(credentials),
   })
 
-  if (!response.ok) {
-    let errorBody: ApiErrorBody = {}
-
-    try {
-      errorBody = await response.json()
-    } catch {
-      throw new Error("Unable to sign in. Please try again.")
-    }
-
-    throw new Error(
-      errorBody.message ?? errorBody.detail ?? "Unable to sign in."
-    )
-  }
+  if (!response.ok) await readError(response, "Unable to sign in.")
 
   return response.json()
 }
@@ -58,19 +66,30 @@ export async function signupUser(data: {
     body: JSON.stringify(data),
   })
 
-  if (!response.ok) {
-    let errorBody: ApiErrorBody = {}
+  if (!response.ok) await readError(response, "Unable to sign up.")
 
-    try {
-      errorBody = await response.json()
-    } catch {
-      throw new Error("Unable to sign up. Please try again.")
-    }
+  return response.json()
+}
 
-    throw new Error(
-      errorBody.message ?? errorBody.detail ?? "Unable to sign up."
-    )
+export async function updateUser(
+  accessToken: string,
+  data: {
+    current_password: string
+    name?: string
+    email?: string
+    password?: string
   }
+): Promise<UserResponse> {
+  const response = await fetch(`${API_URL}/v1/users`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  })
+
+  if (!response.ok) await readError(response, "Unable to update user.")
 
   return response.json()
 }

@@ -13,12 +13,19 @@ import {
 } from "@workspace/ui/components/sidebar"
 
 import { AppSidebar } from "@/components/app-sidebar"
+import { EditUserForm } from "@/components/edit-user-form"
 import { LoginForm } from "@/components/login-form"
 import { SiteHeader } from "@/components/site-header"
 import { SignupForm } from "@/components/signup-form"
 import type { TokenResponse } from "@/lib/api"
 
-type StoredToken = TokenResponse & { issued_at?: number }
+type StoredToken = TokenResponse & {
+  issued_at?: number
+  user?: {
+    name: string
+    email: string
+  }
+}
 
 type JwtPayload = {
   name?: string
@@ -52,9 +59,11 @@ function getStoredToken(): StoredToken | null {
 function SignedInScreen({
   token,
   onSignOut,
+  onTokenUpdate,
 }: {
   token: StoredToken
   onSignOut: () => void
+  onTokenUpdate: (token: StoredToken) => void
 }) {
   const expiresAt = token.issued_at
     ? token.issued_at + token.expires_in * 1000
@@ -64,8 +73,8 @@ function SignedInScreen({
   const minutesLeft = Math.max(0, Math.ceil(secondsLeft / 60))
   const user = decodeTokenPayload(token.access_token)
   const displayUser = {
-    name: user.name ?? "Filecano user",
-    email: user.email ?? "No email in token",
+    name: token.user?.name ?? user.name ?? "Filecano user",
+    email: token.user?.email ?? user.email ?? "No email in token",
   }
 
   return (
@@ -73,24 +82,49 @@ function SignedInScreen({
       <AppSidebar user={displayUser} onSignOut={onSignOut} />
       <SidebarInset>
         <SiteHeader />
-        <main className="flex flex-1 items-center justify-center bg-muted/40 p-6">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>Filecano session ready</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              <p className="text-sm text-muted-foreground">
-                Signed in as {displayUser.name} with a {token.token_type}{" "}
-                session that expires in {minutesLeft} minute
-                {minutesLeft !== 1 ? "s" : ""}.
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Use the account menu at the bottom of the sidebar for docs,
-                support, and logout.
-              </p>
-            </CardContent>
-          </Card>
-        </main>
+        <Routes>
+          <Route
+            path="/account"
+            element={
+              <EditUserForm
+                accessToken={token.access_token}
+                user={displayUser}
+                onUserUpdate={(user) => {
+                  onTokenUpdate({
+                    ...token,
+                    user: {
+                      name: user.name,
+                      email: user.email,
+                    },
+                  })
+                }}
+              />
+            }
+          />
+          <Route
+            path="*"
+            element={
+              <main className="flex flex-1 items-center justify-center bg-muted/40 p-6">
+                <Card className="w-full max-w-md">
+                  <CardHeader>
+                    <CardTitle>Filecano session ready</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-3">
+                    <p className="text-sm text-muted-foreground">
+                      Signed in as {displayUser.name} with a {token.token_type}{" "}
+                      session that expires in {minutesLeft} minute
+                      {minutesLeft !== 1 ? "s" : ""}.
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Use the account menu at the bottom of the sidebar for
+                      docs, support, and logout.
+                    </p>
+                  </CardContent>
+                </Card>
+              </main>
+            }
+          />
+        </Routes>
       </SidebarInset>
     </SidebarProvider>
   )
@@ -111,7 +145,15 @@ export function App() {
   }
 
   if (token) {
-    return <SignedInScreen token={token} onSignOut={handleSignOut} />
+    return (
+      <BrowserRouter>
+        <SignedInScreen
+          token={token}
+          onSignOut={handleSignOut}
+          onTokenUpdate={setToken}
+        />
+      </BrowserRouter>
+    )
   }
 
   return (

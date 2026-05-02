@@ -16,21 +16,7 @@ import { Input } from "@workspace/ui/components/input"
 
 import { Icon } from "@/components/icon"
 import { signupUser, type TokenResponse } from "@/lib/api"
-
-const passwordRequirements = [
-  { test: (p: string) => p.length >= 8 && p.length <= 128, label: "Between 8 and 128 characters" },
-  { test: (p: string) => /[a-z]/.test(p), label: "At least one lowercase letter" },
-  { test: (p: string) => /[A-Z]/.test(p), label: "At least one uppercase letter" },
-  { test: (p: string) => /\d/.test(p), label: "At least one digit" },
-  { test: (p: string) => /[@$!%*#?&.,]/.test(p), label: "At least one special character: @$!%*#?&.," },
-  { test: (p: string) => /^[A-Za-z\d@$!#%*?&.,]+$/.test(p), label: "No invalid characters" },
-]
-
-function validatePassword(password: string): string[] {
-  return passwordRequirements
-    .filter((req) => !req.test(password))
-    .map((req) => req.label)
-}
+import { passwordRequirements, validatePassword } from "@/lib/password"
 
 export function SignupForm({
   className,
