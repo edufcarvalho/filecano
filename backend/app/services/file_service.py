@@ -50,13 +50,12 @@ class FileService:
     )
 
     if upload.content_type and upload.content_type.startswith("image/"):
-      preview_data, preview_size, preview_checksum, preview_content_type = self._generate_preview(
+      preview_data, preview_size, preview_content_type = self._generate_preview(
         upload.file, upload.content_type
       )
       file.preview_object_key = f"users/{user.id}/previews/{file.id}"
       file.preview_content_type = preview_content_type
       file.preview_size_bytes = preview_size
-      file.preview_checksum = preview_checksum
 
       preview_data.seek(0)
       self.storage.upload(
@@ -183,11 +182,10 @@ class FileService:
     img.save(preview_data, format="JPEG", quality=85)
     preview_data.seek(0)
 
-    preview_checksum = hashlib.sha256(preview_data.read()).hexdigest()
     preview_data.seek(0)
     preview_size = preview_data.getbuffer().nbytes
 
     # Reset original data
     data.seek(0)
 
-    return preview_data, preview_size, preview_checksum, preview_content_type
+    return preview_data, preview_size, preview_content_type
