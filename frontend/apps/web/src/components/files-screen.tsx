@@ -69,6 +69,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
    const [isDragOver, setIsDragOver] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadingFiles, setUploadingFiles] = useState<Array<{ name: string; progress: number; done: boolean; error: boolean }>>([])
+  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set())
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const loadFiles = useCallback(async () => {
@@ -255,6 +256,47 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     fileInputRef.current?.click()
   }
 
+  function toggleFileSelection(fileId: string) {
+    setSelectedFileIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(fileId)) {
+        next.delete(fileId)
+      } else {
+        next.add(fileId)
+      }
+      return next
+    })
+  }
+
+  function selectAllFiles() {
+    setSelectedFileIds(new Set(files.map((f) => f.id)))
+  }
+
+  function deselectAllFiles() {
+    setSelectedFileIds(new Set())
+  }
+
+  async function handleBulkDelete() {
+    if (selectedFileIds.size === 0) return
+
+    setError(null)
+    setPendingFileId("bulk-delete")
+
+    try {
+      await Promise.all(
+        Array.from(selectedFileIds).map((id) => deleteFile(accessToken, id))
+      )
+      setFiles((currentFiles) =>
+        currentFiles.filter((f) => !selectedFileIds.has(f.id))
+      )
+      setSelectedFileIds(new Set())
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Unable to delete files.")
+    } finally {
+      setPendingFileId(null)
+    }
+  }
+
   return (
     <main className="flex flex-1 flex-col gap-4 bg-muted/40 p-6">
 
@@ -331,27 +373,68 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         </Card>
       ) : (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>
-              Files
-              <span className="ml-2 text-sm font-normal text-muted-foreground">
-                ({files.length})
-              </span>
-            </CardTitle>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={loadFiles}
-              disabled={isLoading || isUploading}
-            >
-              {isLoading ? (
-                <LoaderCircleIcon data-icon="inline-start" className="animate-spin" />
-              ) : (
-                <RefreshCwIcon data-icon="inline-start" />
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={selectedFileIds.size === files.length && files.length > 0}
+                onChange={(e) =>
+                  e.target.checked ? selectAllFiles() : deselectAllFiles()
+                }
+                className="h-4 w-4"
+              />
+              <CardTitle>
+                Files
+                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                  ({files.length})
+                </span>
+              </CardTitle>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {selectedFileIds.size > 0 && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBulkDelete}
+                  disabled={pendingFileId !== null}
+                >
+                  {pendingFileId === "bulk-delete" ? (
+                    <LoaderCircleIcon data-icon="inline-start" className="animate-spin" />
+                  ) : (
+                    <Trash2Icon data-icon="inline-start" />
+                  )}
+                  Delete ({selectedFileIds.size})
+                </Button>
               )}
-              Refresh
-            </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  deselectAllFiles()
+                  setSelectedFileIds(new Set())
+                }}
+                disabled={selectedFileIds.size === 0}
+              >
+                <XIcon data-icon="inline-start" />
+                Clear
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={loadFiles}
+                disabled={isLoading || isUploading}
+              >
+                {isLoading ? (
+                  <LoaderCircleIcon data-icon="inline-start" className="animate-spin" />
+                ) : (
+                  <RefreshCwIcon data-icon="inline-start" />
+                )}
+                Refresh
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {files.length === 0 ? (
@@ -363,20 +446,29 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
                 {files.map((file) => {
                   const isEditing = editingFileId === file.id
                   const isPending = pendingFileId === file.id
+                  const isSelected = selectedFileIds.has(file.id)
 
                   return (
                     <div
                       key={file.id}
-                      className="flex flex-col gap-4 rounded-lg border p-4 md:flex-row md:items-center md:justify-between"
+                      className={`flex flex-col gap-4 rounded-lg border p-4 md:flex-row md:items-center md:justify-between ${
+                        isSelected ? "bg-muted/50" : ""
+                      }`}
                     >
-                      <div className="flex min-w-0 items-start gap-3">
-                        <FileIcon className="mt-0.5 text-muted-foreground" />
+                      <div className="flex min-w-0 items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleFileSelection(file.id)}
+                          className="h-4 w-4"
+                        />
+                        <FileIcon className="text-muted-foreground" />
                         <div className="min-w-0 flex-1">
                           {isEditing ? (
                             <FieldGroup>
                               <Field data-invalid={error ? true : undefined}>
                                 <FieldLabel htmlFor={`file-name-${file.id}`}>
-                                  Original name
+                                  {file.original_name}
                                 </FieldLabel>
                                 <Input
                                   id={`file-name-${file.id}`}
@@ -390,9 +482,19 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
                               </Field>
                             </FieldGroup>
                           ) : (
-                            <h2 className="truncate text-base font-medium">
-                              {file.original_name}
-                            </h2>
+                            <div className="flex items-center gap-2">
+                              <h2 className="truncate text-base font-medium">
+                                {file.original_name}
+                              </h2>
+                              <button
+                                type="button"
+                                onClick={() => startEditing(file)}
+                                disabled={pendingFileId !== null || editingFileId !== null}
+                                className="text-muted-foreground hover:text-foreground disabled:opacity-50"
+                              >
+                                <PencilIcon size={14} />
+                              </button>
+                            </div>
                           )}
                           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
                             <span>{formatFileSize(file.size_bytes)}</span>
@@ -436,31 +538,21 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
                           <Button
                             type="button"
                             size="sm"
-                            variant="outline"
-                            onClick={() => startEditing(file)}
+                            variant="destructive"
+                            onClick={() => handleDelete(file)}
                             disabled={pendingFileId !== null}
                           >
-                            <PencilIcon data-icon="inline-start" />
-                            Rename
+                            {isPending && !isEditing ? (
+                              <LoaderCircleIcon
+                                data-icon="inline-start"
+                                className="animate-spin"
+                              />
+                            ) : (
+                              <Trash2Icon data-icon="inline-start" />
+                            )}
+                            Delete
                           </Button>
                         )}
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleDelete(file)}
-                          disabled={pendingFileId !== null}
-                        >
-                          {isPending && !isEditing ? (
-                            <LoaderCircleIcon
-                              data-icon="inline-start"
-                              className="animate-spin"
-                            />
-                          ) : (
-                            <Trash2Icon data-icon="inline-start" />
-                          )}
-                          Delete
-                        </Button>
                       </div>
                     </div>
                   )
