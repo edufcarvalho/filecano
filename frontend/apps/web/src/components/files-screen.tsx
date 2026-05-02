@@ -68,7 +68,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   const [pendingFileId, setPendingFileId] = useState<string | null>(null)
    const [isDragOver, setIsDragOver] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploadingFiles, setUploadingFiles] = useState<Array<{ name: string; progress: number; done: boolean; error: boolean }>>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const loadFiles = useCallback(async () => {
@@ -174,21 +174,56 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     }
   }
 
-  async function handleUpload(file: File) {
+  async function handleUpload(files: File[]) {
     setError(null)
     setIsUploading(true)
-    setUploadProgress(0)
+
+    const initialUploadingFiles = files.map((f) => ({
+      name: f.name,
+      progress: 0,
+      done: false,
+      error: false,
+    }))
+    setUploadingFiles(initialUploadingFiles)
+
+    const uploadPromises = files.map((file, index) => {
+      return uploadFile(accessToken, file, (percent) => {
+        setUploadingFiles((current) =>
+          current.map((f, i) => (i === index ? { ...f, progress: percent } : f))
+        )
+      })
+        .then((uploadedFile) => {
+          setUploadingFiles((current) =>
+            current.map((f, i) => (i === index ? { ...f, done: true } : f))
+          )
+          return uploadedFile
+        })
+        .catch((error) => {
+          setUploadingFiles((current) =>
+            current.map((f, i) => (i === index ? { ...f, error: true, done: true } : f))
+          )
+          throw error
+        })
+    })
 
     try {
-      const uploadedFile = await uploadFile(accessToken, file, (percent) => {
-        setUploadProgress(percent)
+      const results = await Promise.allSettled(uploadPromises)
+
+      results.forEach((result) => {
+        if (result.status === "fulfilled") {
+          setFiles((currentFiles) => [result.value, ...currentFiles])
+        }
       })
-      setFiles((currentFiles) => [uploadedFile, ...currentFiles])
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Unable to upload file.")
+
+      const hasErrors = results.some((r) => r.status === "rejected")
+      if (hasErrors) {
+        setError("Some files failed to upload.")
+      }
+    } catch {
+      setError("Unable to upload files.")
     } finally {
       setIsUploading(false)
-      setUploadProgress(0)
+      setUploadingFiles([])
     }
   }
 
@@ -206,13 +241,13 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     event.preventDefault()
     setIsDragOver(false)
 
-    const file = event.dataTransfer.files[0]
-    if (file) handleUpload(file)
+    const files = Array.from(event.dataTransfer.files)
+    if (files.length > 0) handleUpload(files)
   }
 
   function handleFileSelect(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    if (file) handleUpload(file)
+    const files = Array.from(event.target.files || [])
+    if (files.length > 0) handleUpload(files)
     if (event.target.value) event.target.value = ""
   }
 
@@ -222,12 +257,6 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
 
   return (
     <main className="flex flex-1 flex-col gap-4 bg-muted/40 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold">Files</h1>
-        <p className="text-sm text-muted-foreground">
-          {files.length} active file{files.length !== 1 ? "s" : ""}
-        </p>
-      </div>
 
       <div
         role="region"
@@ -244,15 +273,29 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       >
         {isUploading ? (
           <>
-            <LoaderCircleIcon className="mx-auto mb-2 animate-spin text-muted-foreground" size={32} />
+            <LoaderCircleIcon className="mx-auto mb-4 animate-spin text-muted-foreground" size={32} />
             <p className="mb-3 text-sm text-muted-foreground">
-              Uploading... {uploadProgress}%
+              Uploading {uploadingFiles.length} file{uploadingFiles.length !== 1 ? "s" : ""}...
             </p>
-            <div className="mx-auto h-2 w-full max-w-xs overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full bg-primary transition-all duration-300"
-                style={{ width: `${uploadProgress}%` }}
-              />
+            <div className="mx-auto w-full max-w-md space-y-3">
+              {uploadingFiles.map((file, index) => (
+                <div key={index} className="text-left">
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <span className="truncate text-muted-foreground">{file.name}</span>
+                    <span className="ml-2 text-muted-foreground">
+                      {file.error ? "Failed" : file.done ? "Done" : `${file.progress}%`}
+                    </span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={`h-full transition-all duration-300 ${
+                        file.error ? "bg-destructive" : "bg-primary"
+                      }`}
+                      style={{ width: `${file.error ? 100 : file.progress}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           </>
         ) : (
@@ -266,6 +309,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         <input
           ref={fileInputRef}
           type="file"
+          multiple
           className="hidden"
           onChange={handleFileSelect}
           disabled={isUploading}
@@ -285,10 +329,15 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
             Loading files
           </CardContent>
         </Card>
-      ) : files.length === 0 ? (
+      ) : (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>No files found</CardTitle>
+            <CardTitle>
+              Files
+              <span className="ml-2 text-sm font-normal text-muted-foreground">
+                ({files.length})
+              </span>
+            </CardTitle>
             <Button
               type="button"
               variant="outline"
@@ -305,137 +354,121 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
             </Button>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Uploaded files will appear here.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Files</CardTitle>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={loadFiles}
-                disabled={isLoading || isUploading}
-              >
-                {isLoading ? (
-                  <LoaderCircleIcon data-icon="inline-start" className="animate-spin" />
-                ) : (
-                  <RefreshCwIcon data-icon="inline-start" />
-                )}
-                Refresh
-              </Button>
-            </CardHeader>
-          </Card>
-          {files.map((file) => {
-            const isEditing = editingFileId === file.id
-            const isPending = pendingFileId === file.id
+            {files.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Uploaded files will appear here.
+              </p>
+            ) : (
+              <div className="grid gap-3">
+                {files.map((file) => {
+                  const isEditing = editingFileId === file.id
+                  const isPending = pendingFileId === file.id
 
-            return (
-              <Card key={file.id}>
-                <CardContent className="flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between">
-                  <div className="flex min-w-0 items-start gap-3">
-                    <FileIcon className="mt-0.5 text-muted-foreground" />
-                    <div className="min-w-0 flex-1">
-                      {isEditing ? (
-                        <FieldGroup>
-                          <Field data-invalid={error ? true : undefined}>
-                            <FieldLabel htmlFor={`file-name-${file.id}`}>
-                              Original name
-                            </FieldLabel>
-                            <Input
-                              id={`file-name-${file.id}`}
-                              value={editingName}
-                              onChange={(event) =>
-                                setEditingName(event.target.value)
-                              }
-                              disabled={isPending}
-                              aria-invalid={error ? true : undefined}
-                            />
-                          </Field>
-                        </FieldGroup>
-                      ) : (
-                        <h2 className="truncate text-base font-medium">
-                          {file.original_name}
-                        </h2>
-                      )}
-                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                        <span>{formatFileSize(file.size_bytes)}</span>
-                        <span>{file.content_type ?? "Unknown type"}</span>
-                        <span>{formatCreatedAt(file.created_at)}</span>
+                  return (
+                    <div
+                      key={file.id}
+                      className="flex flex-col gap-4 rounded-lg border p-4 md:flex-row md:items-center md:justify-between"
+                    >
+                      <div className="flex min-w-0 items-start gap-3">
+                        <FileIcon className="mt-0.5 text-muted-foreground" />
+                        <div className="min-w-0 flex-1">
+                          {isEditing ? (
+                            <FieldGroup>
+                              <Field data-invalid={error ? true : undefined}>
+                                <FieldLabel htmlFor={`file-name-${file.id}`}>
+                                  Original name
+                                </FieldLabel>
+                                <Input
+                                  id={`file-name-${file.id}`}
+                                  value={editingName}
+                                  onChange={(event) =>
+                                    setEditingName(event.target.value)
+                                  }
+                                  disabled={isPending}
+                                  aria-invalid={error ? true : undefined}
+                                />
+                              </Field>
+                            </FieldGroup>
+                          ) : (
+                            <h2 className="truncate text-base font-medium">
+                              {file.original_name}
+                            </h2>
+                          )}
+                          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                            <span>{formatFileSize(file.size_bytes)}</span>
+                            <span>{file.content_type ?? "Unknown type"}</span>
+                            <span>{formatCreatedAt(file.created_at)}</span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
 
-                  <div className="flex shrink-0 flex-wrap gap-2">
-                    {isEditing ? (
-                      <>
+                      <div className="flex shrink-0 flex-wrap gap-2">
+                        {isEditing ? (
+                          <>
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => handleRename(file)}
+                              disabled={isPending}
+                            >
+                              {isPending ? (
+                                <LoaderCircleIcon
+                                  data-icon="inline-start"
+                                  className="animate-spin"
+                                />
+                              ) : (
+                                <SaveIcon data-icon="inline-start" />
+                              )}
+                              Save
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={stopEditing}
+                              disabled={isPending}
+                            >
+                              <XIcon data-icon="inline-start" />
+                              Cancel
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => startEditing(file)}
+                            disabled={pendingFileId !== null}
+                          >
+                            <PencilIcon data-icon="inline-start" />
+                            Rename
+                          </Button>
+                        )}
                         <Button
                           type="button"
                           size="sm"
-                          onClick={() => handleRename(file)}
-                          disabled={isPending}
+                          variant="destructive"
+                          onClick={() => handleDelete(file)}
+                          disabled={pendingFileId !== null}
                         >
-                          {isPending ? (
+                          {isPending && !isEditing ? (
                             <LoaderCircleIcon
                               data-icon="inline-start"
                               className="animate-spin"
                             />
                           ) : (
-                            <SaveIcon data-icon="inline-start" />
+                            <Trash2Icon data-icon="inline-start" />
                           )}
-                          Save
+                          Delete
                         </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={stopEditing}
-                          disabled={isPending}
-                        >
-                          <XIcon data-icon="inline-start" />
-                          Cancel
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => startEditing(file)}
-                        disabled={pendingFileId !== null}
-                      >
-                        <PencilIcon data-icon="inline-start" />
-                        Rename
-                      </Button>
-                    )}
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleDelete(file)}
-                      disabled={pendingFileId !== null}
-                    >
-                      {isPending && !isEditing ? (
-                        <LoaderCircleIcon
-                          data-icon="inline-start"
-                          className="animate-spin"
-                        />
-                      ) : (
-                        <Trash2Icon data-icon="inline-start" />
-                      )}
-                      Delete
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
     </main>
   )
