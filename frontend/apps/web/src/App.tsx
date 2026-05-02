@@ -1,10 +1,8 @@
-import { useState, useEffect } from "react"
+import type { ReactNode } from "react"
+import { useEffect, useState } from "react"
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 
-import {
-  SidebarInset,
-  SidebarProvider,
-} from "@workspace/ui/components/sidebar"
+import { SidebarInset, SidebarProvider } from "@workspace/ui/components/sidebar"
 
 import { AppSidebar } from "@/components/app-sidebar"
 import { EditUserForm } from "@/components/edit-user-form"
@@ -12,44 +10,14 @@ import { FilesScreen } from "@/components/files-screen"
 import { LoginForm } from "@/components/login-form"
 import { SiteHeader } from "@/components/site-header"
 import { SignupForm } from "@/components/signup-form"
-import type { TokenResponse } from "@/lib/api"
-
-type StoredToken = TokenResponse & {
-  issued_at?: number
-  user?: {
-    name: string
-    email: string
-  }
-}
-
-type JwtPayload = {
-  name?: string
-  email?: string
-}
-
-function decodeTokenPayload(token: string): JwtPayload {
-  const [, payload] = token.split(".")
-  if (!payload) return {}
-
-  try {
-    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/")
-    const decoded = atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "="))
-
-    return JSON.parse(decoded) as JwtPayload
-  } catch {
-    return {}
-  }
-}
-
-function getStoredToken(): StoredToken | null {
-  const stored = localStorage.getItem("filecano:access-token")
-  if (!stored) return null
-  try {
-    return JSON.parse(stored) as StoredToken
-  } catch {
-    return null
-  }
-}
+import {
+  clearStoredToken,
+  createStoredToken,
+  getDisplayUser,
+  getStoredToken,
+  persistStoredToken,
+  type StoredToken,
+} from "@/lib/session"
 
 function SignedInScreen({
   token,
@@ -60,11 +28,7 @@ function SignedInScreen({
   onSignOut: () => void
   onTokenUpdate: (token: StoredToken) => void
 }) {
-  const user = decodeTokenPayload(token.access_token)
-  const displayUser = {
-    name: token.user?.name ?? user.name ?? "Filecano user",
-    email: token.user?.email ?? user.email ?? "No email in token",
-  }
+  const displayUser = getDisplayUser(token)
 
   return (
     <SidebarProvider>
@@ -100,59 +64,73 @@ function SignedInScreen({
   )
 }
 
+function AuthPage({ children }: { children: ReactNode }) {
+  return (
+    <main className="flex min-h-svh items-center justify-center bg-muted p-6 md:p-10">
+      {children}
+    </main>
+  )
+}
+
+function SignedOutRoutes({
+  onLogin,
+}: {
+  onLogin: (token: StoredToken) => void
+}) {
+  return (
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          <AuthPage>
+            <LoginForm
+              className="w-full max-w-4xl"
+              onLogin={(token) => onLogin(createStoredToken(token))}
+            />
+          </AuthPage>
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          <AuthPage>
+            <SignupForm
+              className="w-full max-w-4xl"
+              onLogin={(token) => onLogin(createStoredToken(token))}
+            />
+          </AuthPage>
+        }
+      />
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
+  )
+}
+
 export function App() {
   const [token, setToken] = useState<StoredToken | null>(getStoredToken)
 
   useEffect(() => {
     if (token) {
-      localStorage.setItem("filecano:access-token", JSON.stringify(token))
+      persistStoredToken(token)
     }
   }, [token])
 
   const handleSignOut = () => {
-    localStorage.removeItem("filecano:access-token")
+    clearStoredToken()
     setToken(null)
   }
 
-  if (token) {
-    return (
-      <BrowserRouter>
+  return (
+    <BrowserRouter>
+      {token ? (
         <SignedInScreen
           token={token}
           onSignOut={handleSignOut}
           onTokenUpdate={setToken}
         />
-      </BrowserRouter>
-    )
-  }
-
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route
-          path="/login"
-          element={
-            <main className="flex min-h-svh items-center justify-center bg-muted p-6 md:p-10">
-              <LoginForm
-                className="w-full max-w-4xl"
-                onLogin={(token) => setToken({ ...token, issued_at: Date.now() })}
-              />
-            </main>
-          }
-        />
-        <Route
-          path="/register"
-          element={
-            <main className="flex min-h-svh items-center justify-center bg-muted p-6 md:p-10">
-              <SignupForm
-                className="w-full max-w-4xl"
-                onLogin={(token) => setToken({ ...token, issued_at: Date.now() })}
-              />
-            </main>
-          }
-        />
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
+      ) : (
+        <SignedOutRoutes onLogin={setToken} />
+      )}
     </BrowserRouter>
   )
 }

@@ -1,9 +1,8 @@
 const DEFAULT_API_URL = "http://localhost:8000/api"
 
-const API_URL = (import.meta.env.VITE_API_URL ?? DEFAULT_API_URL).replace(
-  /\/+$/,
-  ""
-)
+export const API_URL = (
+  import.meta.env.VITE_API_URL ?? DEFAULT_API_URL
+).replace(/\/+$/, "")
 
 type ApiErrorBody = {
   message?: string
@@ -115,6 +114,32 @@ export async function listFiles(accessToken: string): Promise<FileResponse[]> {
   if (!response.ok) await readError(response, "Unable to load files.")
 
   return response.json()
+}
+
+export function getFilePreviewUrl(fileId: string) {
+  return `${API_URL}/v1/files/${fileId}/preview`
+}
+
+export async function fetchFilePreviewAsDataUrl(
+  accessToken: string,
+  fileId: string
+): Promise<string> {
+  const response = await fetch(getFilePreviewUrl(fileId), {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+
+  if (!response.ok) await readError(response, "Failed to load preview.")
+
+  const blob = await response.blob()
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
 }
 
 export async function updateFile(

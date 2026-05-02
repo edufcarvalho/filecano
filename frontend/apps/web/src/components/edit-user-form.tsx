@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
-import { CheckIcon, LoaderCircleIcon, XIcon } from "lucide-react"
+import { LoaderCircleIcon } from "lucide-react"
 
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -18,8 +18,10 @@ import {
 } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
 
+import { PasswordRequirementsList } from "@/components/password-requirements-list"
 import { updateUser, type UserResponse } from "@/lib/api"
-import { passwordRequirements, validatePassword } from "@/lib/password"
+import type { FormSubmitHandler } from "@/lib/form-types"
+import { validatePassword } from "@/lib/password"
 
 type EditUserFormProps = {
   accessToken: string
@@ -43,7 +45,7 @@ export function EditUserForm({
 
   const passwordErrors = password ? validatePassword(password) : []
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  const handleSubmit: FormSubmitHandler = async (event) => {
     event.preventDefault()
 
     const formData = new FormData(event.currentTarget)
@@ -156,37 +158,15 @@ export function EditUserForm({
                   onBlur={() => setPasswordTouched(true)}
                 />
                 {passwordTouched || password.length > 0 ? (
-                  <div className="min-h-[140px] ps-4">
-                    <div className="flex flex-col gap-0.5">
-                      {passwordRequirements.map((requirement) => {
-                        const met = requirement.test(password)
-
-                        return (
-                          <div
-                            key={requirement.label}
-                            className={
-                              met
-                                ? "flex items-center gap-2 text-sm text-green-600"
-                                : "flex items-center gap-2 text-sm text-destructive"
-                            }
-                          >
-                            {met ? (
-                              <CheckIcon className="size-3.5" />
-                            ) : (
-                              <XIcon className="size-3.5" />
-                            )}
-                            {requirement.label}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
+                  <PasswordRequirementsList password={password} />
                 ) : null}
               </Field>
               <Field className="flex-column justify-between">
                 <Button
                   type="submit"
-                  disabled={isPending || (passwordTouched && passwordErrors.length > 0)}
+                  disabled={
+                    isPending || (passwordTouched && passwordErrors.length > 0)
+                  }
                 >
                   {isPending ? (
                     <LoaderCircleIcon
