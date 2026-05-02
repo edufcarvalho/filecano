@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { LoaderCircleIcon, EyeIcon, EyeOffIcon } from "lucide-react"
+import { Link } from "react-router-dom"
 
 import { cn } from "@workspace/ui/lib/utils"
 import { Button } from "@workspace/ui/components/button"
@@ -59,11 +60,9 @@ function FilecanoLogo() {
 export function LoginForm({
   className,
   onLogin,
-  onSignup,
   ...props
 }: React.ComponentProps<"div"> & {
   onLogin?: (token: TokenResponse) => void
-  onSignup?: () => void
 }) {
   const [error, setError] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
@@ -163,13 +162,12 @@ export function LoginForm({
               </FieldDescription>
               <FieldDescription className="text-center">
                 Don&apos;t have an account?{" "}
-                <button
-                  type="button"
+                <Link
+                  to="/register"
                   className="text-primary underline underline-offset-4 hover:text-primary/90"
-                  onClick={onSignup}
                 >
                   Sign up
-                </button>
+                </Link>
               </FieldDescription>
             </FieldGroup>
           </form>

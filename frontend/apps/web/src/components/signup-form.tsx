@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { LoaderCircleIcon, EyeIcon, EyeOffIcon, XIcon, CheckIcon } from "lucide-react"
+import { Link } from "react-router-dom"
 
 import { cn } from "@workspace/ui/lib/utils"
 import { Button } from "@workspace/ui/components/button"
@@ -185,26 +186,28 @@ export function SignupForm({
                     {showPassword ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
                   </button>
                 </div>
-                <div className="min-h-[140px] pl-4 mt-1">
-                  <div className="flex flex-col gap-0.5">
-                    {passwordRequirements.map((req, i) => {
-                      const met = req.test(password)
-                      return (
-                        <div
-                          key={i}
-                          className={`flex items-center gap-2 text-sm ${met ? "text-green-600" : "text-destructive"}`}
-                        >
-                          {met ? (
-                            <CheckIcon size={14} />
-                          ) : (
-                            <XIcon size={14} />
-                          )}
-                          {req.label}
-                        </div>
-                      )
-                    })}
+                {(passwordTouched || password.length > 0) ? (
+                  <div className="min-h-[140px] pl-4 mt-1">
+                    <div className="flex flex-col gap-0.5">
+                      {passwordRequirements.map((req, i) => {
+                        const met = req.test(password)
+                        return (
+                          <div
+                            key={i}
+                            className={`flex items-center gap-2 text-sm ${met ? "text-green-600" : "text-destructive"}`}
+                          >
+                            {met ? (
+                              <CheckIcon size={14} />
+                            ) : (
+                              <XIcon size={14} />
+                            )}
+                            {req.label}
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
-                </div>
+                ) : null}
               </Field>
               <Field>
                 <Button type="submit" disabled={isPending || (passwordTouched && passwordErrors.length > 0)}>
@@ -218,7 +221,10 @@ export function SignupForm({
                 </Button>
               </Field>
               <FieldDescription className="text-center">
-                Already have an account? <a href="#">Sign in</a>
+                Already have an account?{" "}
+                <Link to="/login" className="text-primary underline underline-offset-4 hover:text-primary/90">
+                  Sign in
+                </Link>
               </FieldDescription>
             </FieldGroup>
           </form>
