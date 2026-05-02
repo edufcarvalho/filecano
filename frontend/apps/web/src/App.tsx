@@ -1,19 +1,49 @@
+import { useState } from "react"
+
 import { Button } from "@workspace/ui/components/button"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/card"
+
+import { LoginForm } from "@/components/login-form"
+import type { TokenResponse } from "@/lib/api"
 
 export function App() {
+  const [token, setToken] = useState<TokenResponse | null>(null)
+
+  if (token) {
+    return (
+      <main className="flex min-h-svh items-center justify-center bg-muted p-6">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Filecano session ready</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <p className="text-sm text-muted-foreground">
+              Signed in with a {token.token_type} session that expires in{" "}
+              {token.expires_in} seconds.
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => {
+                localStorage.removeItem("filecano:access-token")
+                setToken(null)
+              }}
+            >
+              Sign out
+            </Button>
+          </CardContent>
+        </Card>
+      </main>
+    )
+  }
+
   return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
-        </div>
-        <div className="text-muted-foreground font-mono text-xs">
-          (Press <kbd>d</kbd> to toggle dark mode)
-        </div>
-      </div>
-    </div>
+    <main className="flex min-h-svh items-center justify-center bg-muted p-6 md:p-10">
+      <LoginForm className="w-full max-w-4xl" onLogin={setToken} />
+    </main>
   )
 }
