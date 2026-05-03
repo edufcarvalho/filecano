@@ -1,4 +1,7 @@
 const DEFAULT_API_URL = "http://localhost:8000/api"
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+}
 
 export const API_URL = (
   import.meta.env.VITE_API_URL ?? DEFAULT_API_URL
@@ -34,6 +37,12 @@ export type FileResponse = {
   deleted_at: string | null
 }
 
+let onUnauthorized: (() => void) | null = null
+
+export function setUnauthorizedCallback(cb: (() => void) | null) {
+  onUnauthorized = cb
+}
+
 async function readError(response: Response, fallback: string) {
   let errorBody: ApiErrorBody = {}
 
@@ -46,6 +55,24 @@ async function readError(response: Response, fallback: string) {
   throw new Error(errorBody.message ?? errorBody.detail ?? fallback)
 }
 
+async function authFetch(url: string, accessToken: string, options: RequestInit = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      ...CORS_HEADERS,
+      Authorization: `Bearer ${accessToken}`,
+      ...options.headers,
+    },
+  })
+
+  if (response.status === 401) {
+    onUnauthorized?.()
+    throw new Error("Access token expired.")
+  }
+
+  return response
+}
+
 export async function loginUser(credentials: {
   email: string
   password: string
@@ -53,6 +80,7 @@ export async function loginUser(credentials: {
   const response = await fetch(`${API_URL}/v1/users/login`, {
     method: "POST",
     headers: {
+      ...CORS_HEADERS,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(credentials),
@@ -71,6 +99,7 @@ export async function signupUser(data: {
   const response = await fetch(`${API_URL}/v1/users`, {
     method: "POST",
     headers: {
+      ...CORS_HEADERS,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(data),
@@ -93,6 +122,7 @@ export async function updateUser(
   const response = await fetch(`${API_URL}/v1/users`, {
     method: "PUT",
     headers: {
+      ...CORS_HEADERS,
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
@@ -105,11 +135,7 @@ export async function updateUser(
 }
 
 export async function listFiles(accessToken: string): Promise<FileResponse[]> {
-  const response = await fetch(`${API_URL}/v1/files`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  })
+  const response = await authFetch(`${API_URL}/v1/files`, accessToken)
 
   if (!response.ok) await readError(response, "Unable to load files.")
 
@@ -124,11 +150,7 @@ export async function fetchFilePreviewAsDataUrl(
   accessToken: string,
   fileId: string
 ): Promise<string> {
-  const response = await fetch(getFilePreviewUrl(fileId), {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  })
+  const response = await authFetch(getFilePreviewUrl(fileId), accessToken)
 
   if (!response.ok) await readError(response, "Failed to load preview.")
 
@@ -149,10 +171,9 @@ export async function updateFile(
     original_name: string
   }
 ): Promise<FileResponse> {
-  const response = await fetch(`${API_URL}/v1/files/${fileId}`, {
+  const response = await authFetch(`${API_URL}/v1/files/${fileId}`, accessToken, {
     method: "PUT",
     headers: {
-      Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(data),
@@ -167,11 +188,8 @@ export async function deleteFile(
   accessToken: string,
   fileId: string
 ): Promise<void> {
-  const response = await fetch(`${API_URL}/v1/files/${fileId}`, {
+  const response = await authFetch(`${API_URL}/v1/files/${fileId}`, accessToken, {
     method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
   })
 
   if (!response.ok) await readError(response, "Unable to delete file.")
@@ -182,11 +200,7 @@ export async function downloadFile(
   fileId: string,
   fileName: string
 ): Promise<void> {
-  const response = await fetch(`${API_URL}/v1/files/${fileId}`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  })
+  const response = await authFetch(`${API_URL}/v1/files/${fileId}`, accessToken)
 
   if (!response.ok) await readError(response, "Unable to download file.")
 
@@ -240,6 +254,12 @@ export async function uploadFile(
     })
 
     xhr.addEventListener("load", () => {
+      if (xhr.status === 401) {
+        onUnauthorized?.()
+        reject(new Error("Access token expired."))
+        return
+      }
+
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           const data = JSON.parse(xhr.responseText)
@@ -264,6 +284,7 @@ export async function uploadFile(
     })
 
     xhr.open("POST", `${API_URL}/v1/files`)
+    xhr.setRequestHeader("Access-Control-Allow-Origin", "*")
     xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`)
     xhr.send(formData)
   })

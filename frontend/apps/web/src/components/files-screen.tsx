@@ -62,6 +62,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([])
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set())
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({})
+  const [searchQuery, setSearchQuery] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const loadPreviews = useCallback(
@@ -348,19 +349,6 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     }
   }
 
-  async function handleDownload(file: FileResponse) {
-    setError(null)
-    setPendingFileId(`download-${file.id}`)
-
-    try {
-      await downloadFile(accessToken, file.id, file.original_name)
-    } catch (error) {
-      setError(getErrorMessage(error, "Unable to download file."))
-    } finally {
-      setPendingFileId(null)
-    }
-  }
-
   async function handleBulkDownload() {
     if (selectedFileIds.size === 0) return
 
@@ -384,8 +372,21 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     }
   }
 
+  async function handleDownload(file: FileResponse) {
+    setError(null)
+    setPendingFileId(`download-${file.id}`)
+
+    try {
+      await downloadFile(accessToken, file.id, file.original_name)
+    } catch (error) {
+      setError(getErrorMessage(error, "Unable to download file."))
+    } finally {
+      setPendingFileId(null)
+    }
+  }
+
   return (
-    <main className="flex flex-1 flex-col gap-4 bg-muted/40 p-6">
+    <main className="flex flex-1 flex-col gap-4 bg-muted/40 p-4">
       <FileUploadDropzone
         fileInputRef={fileInputRef}
         isDragOver={isDragOver}
@@ -422,6 +423,8 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
           error={error}
           isLoading={isLoading}
           isUploading={isUploading}
+          searchQuery={searchQuery}
+          onSearch={setSearchQuery}
           onBulkDelete={handleBulkDelete}
           onBulkDownload={handleBulkDownload}
           onClearSelection={clearFileSelection}

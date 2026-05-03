@@ -2,9 +2,6 @@ import type { ReactNode } from "react"
 import { useEffect, useState } from "react"
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 
-import { SidebarInset, SidebarProvider } from "@workspace/ui/components/sidebar"
-
-import { AppSidebar } from "@/components/app-sidebar"
 import { EditUserForm } from "@/components/edit-user-form"
 import { FilesScreen } from "@/components/files-screen"
 import { LoginForm } from "@/components/login-form"
@@ -18,6 +15,7 @@ import {
   persistStoredToken,
   type StoredToken,
 } from "@/lib/session"
+import { setUnauthorizedCallback } from "@/lib/api"
 
 function SignedInScreen({
   token,
@@ -31,36 +29,40 @@ function SignedInScreen({
   const displayUser = getDisplayUser(token)
 
   return (
-    <SidebarProvider>
-      <AppSidebar user={displayUser} onSignOut={onSignOut} />
-      <SidebarInset>
-        <SiteHeader />
-        <Routes>
-          <Route
-            path="/account"
-            element={
-              <EditUserForm
-                accessToken={token.access_token}
-                user={displayUser}
-                onUserUpdate={(user) => {
-                  onTokenUpdate({
-                    ...token,
-                    user: {
-                      name: user.name,
-                      email: user.email,
-                    },
-                  })
-                }}
-              />
-            }
-          />
-          <Route
-            path="*"
-            element={<FilesScreen accessToken={token.access_token} />}
-          />
-        </Routes>
-      </SidebarInset>
-    </SidebarProvider>
+    <>
+      <SiteHeader
+        user={displayUser}
+        onSignOut={onSignOut}
+      />
+      <Routes>
+        <Route
+          path="/account"
+          element={
+            <EditUserForm
+              accessToken={token.access_token}
+              user={displayUser}
+              onUserUpdate={(user) => {
+                onTokenUpdate({
+                  ...token,
+                  user: {
+                    name: user.name,
+                    email: user.email,
+                  },
+                })
+              }}
+            />
+          }
+        />
+        <Route
+          path="*"
+          element={
+            <FilesScreen
+              accessToken={token.access_token}
+            />
+          }
+        />
+      </Routes>
+    </>
   )
 }
 
@@ -108,6 +110,7 @@ function SignedOutRoutes({
 
 export function App() {
   const [token, setToken] = useState<StoredToken | null>(getStoredToken)
+  const [redirectKey, setRedirectKey] = useState(0)
 
   useEffect(() => {
     if (token) {
@@ -115,13 +118,22 @@ export function App() {
     }
   }, [token])
 
+  useEffect(() => {
+    setUnauthorizedCallback(() => {
+      clearStoredToken()
+      setToken(null)
+      setRedirectKey(k => k + 1)
+    })
+    return () => setUnauthorizedCallback(null)
+  }, [])
+
   const handleSignOut = () => {
     clearStoredToken()
     setToken(null)
   }
 
   return (
-    <BrowserRouter>
+    <BrowserRouter key={redirectKey}>
       {token ? (
         <SignedInScreen
           token={token}

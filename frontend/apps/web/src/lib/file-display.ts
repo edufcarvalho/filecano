@@ -127,20 +127,20 @@ export function getFileKind(contentType: string | null): FileKind {
   if (isImageFile(contentType)) return "image"
   if (contentType.startsWith("video/")) return "video"
   if (contentType.startsWith("audio/")) return "audio"
-  if (TEXT_MIME_TYPES.has(contentType)) return "text"
-
-  if (
-    CODE_TYPE_PARTS.some((type) => contentType.includes(type)) ||
-    CODE_MIME_PREFIXES.some((pattern) => contentType.startsWith(pattern))
-  ) {
-    return "code"
-  }
+  if (contentType.startsWith("video/")) return "text"
 
   if (
     ARCHIVE_TYPE_PARTS.some((type) => contentType.includes(type)) ||
     ARCHIVE_MIME_TYPES.has(contentType)
   ) {
     return "archive"
+  }
+
+  if (
+    CODE_TYPE_PARTS.some((type) => contentType.includes(type)) ||
+    CODE_MIME_PREFIXES.some((pattern) => contentType.startsWith(pattern))
+  ) {
+    return "code"
   }
 
   return "file"

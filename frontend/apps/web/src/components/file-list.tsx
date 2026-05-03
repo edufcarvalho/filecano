@@ -26,6 +26,8 @@ import { Field, FieldGroup, FieldLabel } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
 import { cn } from "@workspace/ui/lib/utils"
 
+import { SearchForm } from "@/components/search-form"
+
 import type { FileResponse } from "@/lib/api"
 import {
   formatCreatedAt,
@@ -44,6 +46,8 @@ type FileListProps = {
   error: string | null
   isLoading: boolean
   isUploading: boolean
+  searchQuery?: string
+  onSearch?: (query: string) => void
   onBulkDelete: () => void
   onBulkDownload: () => void
   onClearSelection: () => void
@@ -110,6 +114,8 @@ export function FileList({
   error,
   isLoading,
   isUploading,
+  searchQuery = "",
+  onSearch,
   onBulkDelete,
   onBulkDownload,
   onClearSelection,
@@ -127,9 +133,17 @@ export function FileList({
   const hasSelectedFiles = selectedCount > 0
   const allFilesSelected = selectedCount === files.length && files.length > 0
 
+  function handleSearch(query: string) {
+    onSearch?.(query)
+  }
+
+  const filteredFiles = files.filter((file) =>
+    !searchQuery.trim() || file.original_name.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
   return (
     <Card>
-      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="flex items-center gap-3 ps-4">
           <input
             type="checkbox"
@@ -142,50 +156,53 @@ export function FileList({
           />
           <CardTitle>
             Files
-            <span className="ml-2 text-sm font-normal text-muted-foreground">
+            <span className="ml-1 text-sm font-normal text-muted-foreground">
               ({files.length})
             </span>
           </CardTitle>
         </div>
+        <div className="flex flex-1 items-center gap-2 min-w-0">
+          <SearchForm
+            value={searchQuery}
+            onChange={handleSearch}
+            className="flex-1 min-w-[315px]"
+          />
+        </div>
         <div className="flex flex-wrap gap-2">
-          {hasSelectedFiles ? (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onBulkDownload}
-                disabled={pendingFileId !== null}
-              >
-                {pendingFileId === "bulk-download" ? (
-                  <LoaderCircleIcon
-                    data-icon="inline-start"
-                    className="animate-spin"
-                  />
-                ) : (
-                  <DownloadIcon data-icon="inline-start" />
-                )}
-                Download ({selectedCount})
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={onBulkDelete}
-                disabled={pendingFileId !== null}
-              >
-                {pendingFileId === "bulk-delete" ? (
-                  <LoaderCircleIcon
-                    data-icon="inline-start"
-                    className="animate-spin"
-                  />
-                ) : (
-                  <Trash2Icon data-icon="inline-start" />
-                )}
-                Delete ({selectedCount})
-              </Button>
-            </>
-          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onBulkDownload}
+            disabled={!hasSelectedFiles || pendingFileId !== null}
+          >
+            {pendingFileId === "bulk-download" ? (
+              <LoaderCircleIcon
+                data-icon="inline-start"
+                className="animate-spin"
+              />
+            ) : (
+              <DownloadIcon data-icon="inline-start" />
+            )}
+            Download ({selectedCount})
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            onClick={onBulkDelete}
+            disabled={!hasSelectedFiles || pendingFileId !== null}
+          >
+            {pendingFileId === "bulk-delete" ? (
+              <LoaderCircleIcon
+                data-icon="inline-start"
+                className="animate-spin"
+              />
+            ) : (
+              <Trash2Icon data-icon="inline-start" />
+            )}
+            Delete ({selectedCount})
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -206,13 +223,13 @@ export function FileList({
         </div>
       </CardHeader>
       <CardContent>
-        {files.length === 0 ? (
+        {filteredFiles.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Uploaded files will appear here.
+            {files.length === 0 ? "Uploaded files will appear here." : "No files match your search."}
           </p>
         ) : (
           <div className="grid gap-3">
-            {files.map((file) => (
+            {filteredFiles.map((file) => (
               <FileListItem
                 key={file.id}
                 file={file}
