@@ -1,7 +1,4 @@
 const DEFAULT_API_URL = "http://localhost:8000/api"
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-}
 
 export const API_URL = (
   import.meta.env.VITE_API_URL ?? DEFAULT_API_URL
@@ -55,11 +52,14 @@ async function readError(response: Response, fallback: string) {
   throw new Error(errorBody.message ?? errorBody.detail ?? fallback)
 }
 
-async function authFetch(url: string, accessToken: string, options: RequestInit = {}) {
+async function authFetch(
+  url: string,
+  accessToken: string,
+  options: RequestInit = {}
+) {
   const response = await fetch(url, {
     ...options,
     headers: {
-      ...CORS_HEADERS,
       Authorization: `Bearer ${accessToken}`,
       ...options.headers,
     },
@@ -73,6 +73,18 @@ async function authFetch(url: string, accessToken: string, options: RequestInit 
   return response
 }
 
+async function downloadResponse(response: Response, fileName: string) {
+  const blob = await response.blob()
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement("a")
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  window.URL.revokeObjectURL(url)
+}
+
 export async function loginUser(credentials: {
   email: string
   password: string
@@ -80,7 +92,6 @@ export async function loginUser(credentials: {
   const response = await fetch(`${API_URL}/v1/users/login`, {
     method: "POST",
     headers: {
-      ...CORS_HEADERS,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(credentials),
@@ -99,7 +110,6 @@ export async function signupUser(data: {
   const response = await fetch(`${API_URL}/v1/users`, {
     method: "POST",
     headers: {
-      ...CORS_HEADERS,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(data),
@@ -122,7 +132,6 @@ export async function updateUser(
   const response = await fetch(`${API_URL}/v1/users`, {
     method: "PUT",
     headers: {
-      ...CORS_HEADERS,
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
@@ -171,13 +180,17 @@ export async function updateFile(
     original_name: string
   }
 ): Promise<FileResponse> {
-  const response = await authFetch(`${API_URL}/v1/files/${fileId}`, accessToken, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data),
-  })
+  const response = await authFetch(
+    `${API_URL}/v1/files/${fileId}`,
+    accessToken,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    }
+  )
 
   if (!response.ok) await readError(response, "Unable to update file.")
 
@@ -188,9 +201,13 @@ export async function deleteFile(
   accessToken: string,
   fileId: string
 ): Promise<void> {
-  const response = await authFetch(`${API_URL}/v1/files/${fileId}`, accessToken, {
-    method: "DELETE",
-  })
+  const response = await authFetch(
+    `${API_URL}/v1/files/${fileId}`,
+    accessToken,
+    {
+      method: "DELETE",
+    }
+  )
 
   if (!response.ok) await readError(response, "Unable to delete file.")
 }
@@ -210,15 +227,7 @@ export async function downloadFile(
     throw new Error("File integrity check failed: checksums do not match.")
   }
 
-  const blob = await response.blob()
-  const url = window.URL.createObjectURL(blob)
-  const link = document.createElement("a")
-  link.href = url
-  link.download = fileName
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  window.URL.revokeObjectURL(url)
+  await downloadResponse(response, fileName)
 }
 
 export async function downloadMultipleFiles(
@@ -234,6 +243,23 @@ export async function downloadMultipleFiles(
   } catch {
     throw new Error("Some files failed to download.")
   }
+}
+
+export async function shareFiles(
+  accessToken: string,
+  fileIds: string[]
+): Promise<TokenResponse> {
+  const response = await authFetch(`${API_URL}/v1/files/share`, accessToken, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(fileIds),
+  })
+
+  if (!response.ok) await readError(response, "Unable to share files.")
+
+  return response.json()
 }
 
 export async function uploadFile(
@@ -284,7 +310,6 @@ export async function uploadFile(
     })
 
     xhr.open("POST", `${API_URL}/v1/files`)
-    xhr.setRequestHeader("Access-Control-Allow-Origin", "*")
     xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`)
     xhr.send(formData)
   })

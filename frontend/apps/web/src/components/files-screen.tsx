@@ -16,6 +16,7 @@ import {
   downloadMultipleFiles,
   fetchFilePreviewAsDataUrl,
   listFiles,
+  shareFiles,
   updateFile,
   uploadFile,
   type FileResponse,
@@ -372,6 +373,21 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     }
   }
 
+  async function handleBulkShare() {
+    if (selectedFileIds.size === 0) return
+
+    setError(null)
+    setPendingFileId("bulk-share")
+
+    try {
+      await shareFiles(accessToken, Array.from(selectedFileIds))
+    } catch (error) {
+      setError(getErrorMessage(error, "Unable to share files."))
+    } finally {
+      setPendingFileId(null)
+    }
+  }
+
   async function handleDownload(file: FileResponse) {
     setError(null)
     setPendingFileId(`download-${file.id}`)
@@ -380,6 +396,19 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       await downloadFile(accessToken, file.id, file.original_name)
     } catch (error) {
       setError(getErrorMessage(error, "Unable to download file."))
+    } finally {
+      setPendingFileId(null)
+    }
+  }
+
+  async function handleShare(file: FileResponse) {
+    setError(null)
+    setPendingFileId(`share-${file.id}`)
+
+    try {
+      await shareFiles(accessToken, [file.id])
+    } catch (error) {
+      setError(getErrorMessage(error, "Unable to share file."))
     } finally {
       setPendingFileId(null)
     }
@@ -427,12 +456,14 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
           onSearch={setSearchQuery}
           onBulkDelete={handleBulkDelete}
           onBulkDownload={handleBulkDownload}
+          onBulkShare={handleBulkShare}
           onClearSelection={clearFileSelection}
           onDelete={handleDelete}
           onDownload={handleDownload}
           onEditingNameChange={setEditingName}
           onRefresh={() => loadFiles()}
           onRename={handleRename}
+          onShare={handleShare}
           onSelectAll={selectAllFiles}
           onStartEditing={startEditing}
           onStopEditing={stopEditing}

@@ -8,9 +8,11 @@ import {
   FileTextIcon,
   FileVideoIcon,
   LoaderCircleIcon,
+  MoreVerticalIcon,
   PencilIcon,
   RefreshCwIcon,
   SaveIcon,
+  Share2Icon,
   Trash2Icon,
   XIcon,
 } from "lucide-react"
@@ -22,6 +24,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu"
 import { Field, FieldGroup, FieldLabel } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
 import { cn } from "@workspace/ui/lib/utils"
@@ -50,12 +59,14 @@ type FileListProps = {
   onSearch?: (query: string) => void
   onBulkDelete: () => void
   onBulkDownload: () => void
+  onBulkShare: () => void
   onClearSelection: () => void
   onDelete: (file: FileResponse) => void
   onDownload: (file: FileResponse) => void
   onEditingNameChange: (name: string) => void
   onRefresh: () => void
   onRename: (file: FileResponse) => void
+  onShare: (file: FileResponse) => void
   onSelectAll: () => void
   onStartEditing: (file: FileResponse) => void
   onStopEditing: () => void
@@ -74,6 +85,7 @@ type FileListItemProps = Pick<
   | "onDownload"
   | "onEditingNameChange"
   | "onRename"
+  | "onShare"
   | "onStartEditing"
   | "onStopEditing"
   | "onToggleSelection"
@@ -118,12 +130,14 @@ export function FileList({
   onSearch,
   onBulkDelete,
   onBulkDownload,
+  onBulkShare,
   onClearSelection,
   onDelete,
   onDownload,
   onEditingNameChange,
   onRefresh,
   onRename,
+  onShare,
   onSelectAll,
   onStartEditing,
   onStopEditing,
@@ -188,6 +202,23 @@ export function FileList({
           </Button>
           <Button
             type="button"
+            variant="outline"
+            size="sm"
+            onClick={onBulkShare}
+            disabled
+          >
+            {pendingFileId === "bulk-share" ? (
+              <LoaderCircleIcon
+                data-icon="inline-start"
+                className="animate-spin"
+              />
+            ) : (
+              <Share2Icon data-icon="inline-start" />
+            )}
+            Share ({selectedCount})
+          </Button>
+          <Button
+            type="button"
             variant="destructive"
             size="sm"
             onClick={onBulkDelete}
@@ -244,6 +275,7 @@ export function FileList({
                   onDownload={onDownload}
                   onEditingNameChange={onEditingNameChange}
                   onRename={onRename}
+                  onShare={onShare}
                   onStartEditing={onStartEditing}
                   onStopEditing={onStopEditing}
                   onToggleSelection={onToggleSelection}
@@ -269,6 +301,7 @@ function FileListItem({
   onDownload,
   onEditingNameChange,
   onRename,
+  onShare,
   onStartEditing,
   onStopEditing,
   onToggleSelection,
@@ -277,6 +310,7 @@ function FileListItem({
   const isPending = pendingFileId === file.id
   const isSelected = selectedFileIds.has(file.id)
   const isDownloading = pendingFileId === `download-${file.id}`
+  const isSharing = pendingFileId === `share-${file.id}`
 
   return (
     <div
@@ -372,42 +406,50 @@ function FileListItem({
             </Button>
           </>
         ) : (
-          <>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => onDownload(file)}
-              disabled={pendingFileId !== null}
-            >
-              {isDownloading ? (
-                <LoaderCircleIcon
-                  data-icon="inline-start"
-                  className="animate-spin"
-                />
-              ) : (
-                <DownloadIcon data-icon="inline-start" />
-              )}
-              Download
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="destructive"
-              onClick={() => onDelete(file)}
-              disabled={pendingFileId !== null}
-            >
-              {isPending ? (
-                <LoaderCircleIcon
-                  data-icon="inline-start"
-                  className="animate-spin"
-                />
-              ) : (
-                <Trash2Icon data-icon="inline-start" />
-              )}
-              Delete
-            </Button>
-          </>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="outline"
+                disabled={pendingFileId !== null}
+                aria-label={`Open actions for ${file.original_name}`}
+              >
+                <MoreVerticalIcon />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuGroup>
+                <DropdownMenuItem onSelect={() => onDownload(file)}>
+                  {isDownloading ? (
+                    <LoaderCircleIcon className="animate-spin" />
+                  ) : (
+                    <DownloadIcon />
+                  )}
+                  Download
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled onSelect={() => onShare(file)}>
+                  {isSharing ? (
+                    <LoaderCircleIcon className="animate-spin" />
+                  ) : (
+                    <Share2Icon />
+                  )}
+                  Share
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={() => onDelete(file)}
+                >
+                  {isPending ? (
+                    <LoaderCircleIcon className="animate-spin" />
+                  ) : (
+                    <Trash2Icon />
+                  )}
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
     </div>
