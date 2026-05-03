@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_seconds: int = 3600
     shared_url_expire_seconds: int = 604800
+    share_token_length: int = 8
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

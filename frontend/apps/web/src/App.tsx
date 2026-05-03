@@ -31,11 +31,8 @@ function SignedInScreen({
 
   return (
     <div className="fixed inset-0 flex min-h-0 flex-col overflow-hidden">
-      <SiteHeader
-        user={displayUser}
-        onSignOut={onSignOut}
-      />
-      <div className="flex min-h-0 flex-1">
+      <SiteHeader user={displayUser} onSignOut={onSignOut} />
+      <div className="flex min-h-0 w-full flex-1">
         <Routes>
           <Route
             path="/account"
@@ -57,11 +54,7 @@ function SignedInScreen({
           />
           <Route
             path="*"
-            element={
-              <FilesScreen
-                accessToken={token.access_token}
-              />
-            }
+            element={<FilesScreen accessToken={token.access_token} />}
           />
         </Routes>
       </div>
@@ -125,7 +118,7 @@ export function App() {
     setUnauthorizedCallback(() => {
       clearStoredToken()
       setToken(null)
-      setRedirectKey(k => k + 1)
+      setRedirectKey((k) => k + 1)
     })
     return () => setUnauthorizedCallback(null)
   }, [])

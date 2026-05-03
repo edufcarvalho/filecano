@@ -1,6 +1,6 @@
 from uuid import UUID
 from typing import Optional
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.models import Link
 
@@ -22,3 +22,8 @@ class LinkRepository:
 
   def get_by_id(self, link_id: UUID) -> Optional[Link]:
     return self.session.get(Link, link_id)
+
+  def get_by_token(self, token: str) -> Optional[Link]:
+    query = select(Link).where(Link.token == token)
+
+    return self.session.exec(query).first()

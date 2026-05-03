@@ -8,6 +8,7 @@ import { Field, FieldError } from "@workspace/ui/components/field"
 import { FileList } from "@/components/file-list"
 import {
   FileUploadDropzone,
+  UploadActivityPanel,
   type UploadingFile,
 } from "@/components/file-upload-dropzone"
 import {
@@ -37,11 +38,11 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 function updateUploadingFile(
   files: UploadingFile[],
-  index: number,
+  fileId: string,
   patch: Partial<UploadingFile>
 ) {
-  return files.map((file, currentIndex) =>
-    currentIndex === index ? { ...file, ...patch } : file
+  return files.map((file) =>
+    file.id === fileId ? { ...file, ...patch } : file
   )
 }
 
@@ -63,6 +64,25 @@ async function copyShareUrl(shareToken: string) {
   }
 }
 
+function createUploadId(file: File) {
+  if (window.crypto.randomUUID) return window.crypto.randomUUID()
+
+  return `${file.name}-${file.size}-${file.lastModified}-${Math.random()}`
+}
+
+function getPastedFiles(event: ClipboardEvent) {
+  if (!event.clipboardData) return []
+
+  const files = Array.from(event.clipboardData.files)
+
+  if (files.length > 0) return files
+
+  return Array.from(event.clipboardData.items).flatMap((item) => {
+    const file = item.kind === "file" ? item.getAsFile() : null
+    return file ? [file] : []
+  })
+}
+
 export function FilesScreen({ accessToken }: FilesScreenProps) {
   const [files, setFiles] = useState<FileResponse[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -71,13 +91,14 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [pendingFileId, setPendingFileId] = useState<string | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
-  const [isUploading, setIsUploading] = useState(false)
+  const [isUploadPanelCollapsed, setIsUploadPanelCollapsed] = useState(false)
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([])
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set())
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({})
   const [searchQuery, setSearchQuery] = useState("")
   const [notice, setNotice] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const isUploading = uploadingFiles.some((file) => !file.done)
 
   const loadPreviews = useCallback(
     async (
@@ -233,42 +254,57 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     }
   }
 
-  async function handleUpload(filesToUpload: File[]) {
-    setError(null)
-    setIsUploading(true)
-    setUploadingFiles(
-      filesToUpload.map((file) => ({
-        name: file.name,
-        progress: 0,
-        done: false,
-        error: false,
+  const handleUpload = useCallback(
+    async (filesToUpload: File[]) => {
+      if (filesToUpload.length === 0) return
+
+      setError(null)
+      setIsUploadPanelCollapsed(false)
+
+      const uploadEntries = filesToUpload.map((file) => ({
+        file,
+        status: {
+          id: createUploadId(file),
+          name: file.name,
+          progress: 0,
+          done: false,
+          error: false,
+        },
       }))
-    )
 
-    const uploadPromises = filesToUpload.map((file, index) =>
-      uploadFile(accessToken, file, (progress) => {
-        setUploadingFiles((currentFiles) =>
-          updateUploadingFile(currentFiles, index, { progress })
-        )
-      })
-        .then((uploadedFile) => {
-          setUploadingFiles((currentFiles) =>
-            updateUploadingFile(currentFiles, index, { done: true })
-          )
-          return uploadedFile
-        })
-        .catch((error) => {
-          setUploadingFiles((currentFiles) =>
-            updateUploadingFile(currentFiles, index, {
-              done: true,
-              error: true,
-            })
-          )
-          throw error
-        })
-    )
+      setUploadingFiles((currentFiles) => [
+        ...uploadEntries.map((entry) => entry.status),
+        ...currentFiles,
+      ])
 
-    try {
+      const uploadPromises = uploadEntries.map(({ file, status }) =>
+        uploadFile(accessToken, file, (progress) => {
+          setUploadingFiles((currentFiles) =>
+            updateUploadingFile(currentFiles, status.id, { progress })
+          )
+        })
+          .then((uploadedFile) => {
+            setUploadingFiles((currentFiles) =>
+              updateUploadingFile(currentFiles, status.id, {
+                done: true,
+                progress: 100,
+              })
+            )
+            return uploadedFile
+          })
+          .catch((error) => {
+            const message = getErrorMessage(error, "Unable to upload file.")
+            setUploadingFiles((currentFiles) =>
+              updateUploadingFile(currentFiles, status.id, {
+                done: true,
+                error: true,
+                message,
+              })
+            )
+            throw error
+          })
+      )
+
       const results = await Promise.allSettled(uploadPromises)
       const uploadedFiles = getFulfilledValues(results)
 
@@ -283,11 +319,29 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       if (results.some((result) => result.status === "rejected")) {
         setError("Some files failed to upload.")
       }
-    } finally {
-      setIsUploading(false)
-      setUploadingFiles([])
+
+      setUploadingFiles((currentFiles) =>
+        currentFiles.filter((file) => file.error || !file.done)
+      )
+    },
+    [accessToken, loadPreviews]
+  )
+
+  useEffect(() => {
+    function handlePaste(event: ClipboardEvent) {
+      const pastedFiles = getPastedFiles(event)
+      if (pastedFiles.length === 0) return
+
+      event.preventDefault()
+      void handleUpload(pastedFiles)
     }
-  }
+
+    window.addEventListener("paste", handlePaste)
+
+    return () => {
+      window.removeEventListener("paste", handlePaste)
+    }
+  }, [handleUpload])
 
   const handleDragOver: DragHandler = (event) => {
     event.preventDefault()
@@ -311,6 +365,16 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     const selectedFiles = Array.from(event.target.files ?? [])
     if (selectedFiles.length > 0) handleUpload(selectedFiles)
     if (event.target.value) event.target.value = ""
+  }
+
+  function clearUploadActivity() {
+    setUploadingFiles([])
+  }
+
+  function dismissUploadingFile(fileId: string) {
+    setUploadingFiles((currentFiles) =>
+      currentFiles.filter((file) => file.id !== fileId)
+    )
   }
 
   function toggleFileSelection(fileId: string) {
@@ -394,7 +458,10 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     setPendingFileId("bulk-share")
 
     try {
-      const shareToken = await shareFiles(accessToken, Array.from(selectedFileIds))
+      const shareToken = await shareFiles(
+        accessToken,
+        Array.from(selectedFileIds)
+      )
       setNotice(await copyShareUrl(shareToken.access_token))
     } catch (error) {
       setError(getErrorMessage(error, "Unable to share files."))
@@ -432,12 +499,10 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   }
 
   return (
-    <main className="flex h-full w-full min-h-0 flex-col gap-4 overflow-hidden bg-muted/40 p-4">
+    <main className="flex h-full min-h-0 w-full flex-col gap-4 overflow-hidden bg-muted/40 p-4">
       <FileUploadDropzone
         fileInputRef={fileInputRef}
         isDragOver={isDragOver}
-        isUploading={isUploading}
-        uploadingFiles={uploadingFiles}
         onBrowseFiles={() => fileInputRef.current?.click()}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -491,6 +556,15 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
           onToggleSelection={toggleFileSelection}
         />
       )}
+      <UploadActivityPanel
+        isCollapsed={isUploadPanelCollapsed}
+        uploadingFiles={uploadingFiles}
+        onClear={clearUploadActivity}
+        onDismiss={dismissUploadingFile}
+        onToggleCollapse={() =>
+          setIsUploadPanelCollapsed((isCollapsed) => !isCollapsed)
+        }
+      />
     </main>
   )
 }

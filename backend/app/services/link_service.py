@@ -1,3 +1,4 @@
+import hashlib
 from datetime import timedelta
 from typing import Optional
 from uuid import UUID
@@ -8,8 +9,6 @@ from app.core import (
   AuthenticationError,
   NotFoundError,
   Settings,
-  create_token,
-  decode_token,
 )
 from app.models import File, Link, User
 from app.repositories import FileRepository, LinkRepository
@@ -40,30 +39,20 @@ class LinkService:
       files=files,
     )
 
-    token = create_token(
-      payload={
-        "sub": str(link.id),
-      },
-      secret_key=self.settings.jwt_secret_key,
-      algorithm=self.settings.jwt_algorithm,
-      expire_in=self.settings.shared_url_expire_seconds,
-    )
-    link.token = token
+    link.token = self._generate_token(link)
 
     link = self.repository.add(link)
 
     return {
-      "access_token": token,
+      "access_token": link.token,
       "token_type": "bearer",
       "expires_in": self.settings.shared_url_expire_seconds,
     }
 
   def authenticate_token(self, token: str) -> Link:
-    payload = self._decode_token(token)
-    link_id = self._get_token_subject(payload)
-    link = self.repository.get_by_id(link_id)
+    link = self.repository.get_by_token(token)
 
-    if link is None or link.token != token:
+    if link is None:
       raise AuthenticationError("Share link not found")
 
     if link.expires_at <= current_datetime():
@@ -94,20 +83,5 @@ class LinkService:
   def stream_response(self, response: BaseHTTPResponse):
     return self.storage.iter_response(response)
 
-  def _decode_token(self, token: str) -> dict[str, object]:
-    try:
-      return decode_token(
-        token,
-        secret_key=self.settings.jwt_secret_key,
-        algorithm=self.settings.jwt_algorithm,
-      )
-    except ValueError as error:
-      raise AuthenticationError(str(error)) from error
-
-  def _get_token_subject(self, payload: dict[str, object]) -> UUID:
-    link_id = payload.get("sub")
-
-    try:
-      return UUID(link_id)
-    except (TypeError, ValueError) as error:
-      raise AuthenticationError("Invalid share token") from error
+  def _generate_token(self, link: Link) -> str:
+    return hashlib.shake_256(str(link.id).encode()).hexdigest(self.settings.share_token_length)

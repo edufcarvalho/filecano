@@ -1,24 +1,15 @@
 import { useCallback, useEffect, useState } from "react"
-import { Link, useParams } from "react-router-dom"
-import { DownloadIcon, LoaderCircleIcon } from "lucide-react"
+import { useParams } from "react-router-dom"
 
-import { Button } from "@workspace/ui/components/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card"
 import { Field, FieldError } from "@workspace/ui/components/field"
 
-import { FileTypeIcon } from "@/components/file-list"
-import { SearchForm } from "@/components/search-form"
+import { FileList } from "@/components/file-list"
+import { SiteHeader } from "@/components/site-header"
 import {
   downloadSharedFile,
   getSharedFiles,
   type FileResponse,
 } from "@/lib/api"
-import { formatCreatedAt, formatFileSize } from "@/lib/file-display"
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
@@ -30,6 +21,7 @@ export function SharedFilesScreen() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [pendingFileId, setPendingFileId] = useState<string | null>(null)
+  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState("")
 
   const loadSharedFiles = useCallback(async () => {
@@ -45,6 +37,14 @@ export function SharedFilesScreen() {
     try {
       const sharedLink = await getSharedFiles(shareToken)
       setFiles(sharedLink.files)
+      setSelectedFileIds(
+        (currentSelection) =>
+          new Set(
+            sharedLink.files
+              .filter((file) => currentSelection.has(file.id))
+              .map((file) => file.id)
+          )
+      )
     } catch (error) {
       setError(getErrorMessage(error, "Unable to load shared files."))
     } finally {
@@ -71,15 +71,17 @@ export function SharedFilesScreen() {
     }
   }
 
-  async function handleDownloadAll() {
-    if (!shareToken || files.length === 0) return
+  async function handleDownloadSelected() {
+    if (!shareToken || selectedFileIds.size === 0) return
 
     setError(null)
-    setPendingFileId("all")
+    setPendingFileId("bulk-download")
+
+    const filesToDownload = files.filter((file) => selectedFileIds.has(file.id))
 
     try {
       await Promise.all(
-        files.map((file) =>
+        filesToDownload.map((file) =>
           downloadSharedFile(shareToken, file.id, file.original_name)
         )
       )
@@ -90,121 +92,51 @@ export function SharedFilesScreen() {
     }
   }
 
-  const filteredFiles = files.filter(
-    (file) =>
-      !searchQuery.trim() ||
-      file.original_name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  function toggleFileSelection(fileId: string) {
+    setSelectedFileIds((currentSelection) => {
+      const nextSelection = new Set(currentSelection)
+      if (nextSelection.has(fileId)) {
+        nextSelection.delete(fileId)
+      } else {
+        nextSelection.add(fileId)
+      }
+      return nextSelection
+    })
+  }
+
+  function selectAllFiles() {
+    setSelectedFileIds(new Set(files.map((file) => file.id)))
+  }
+
+  function clearFileSelection() {
+    setSelectedFileIds(new Set())
+  }
 
   return (
-    <main className="flex min-h-svh flex-col bg-muted/40 p-4">
-      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4">
-        <header className="flex h-14 shrink-0 items-center justify-between gap-4">
-          <Link to="/" className="text-sm font-medium">
-            Filecano
-          </Link>
-          <Button asChild variant="outline" size="sm">
-            <Link to="/login">Sign in</Link>
-          </Button>
-        </header>
-
+    <div className="fixed inset-0 flex min-h-0 flex-col overflow-hidden">
+      <SiteHeader pageTitle="Shared files" />
+      <main className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden bg-muted/40 p-4">
         {error ? (
           <Field data-invalid>
             <FieldError>{error}</FieldError>
           </Field>
         ) : null}
 
-        <Card>
-          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <CardTitle>
-              Shared files
-              <span className="ml-1 text-sm font-normal text-muted-foreground">
-                ({files.length})
-              </span>
-            </CardTitle>
-            <SearchForm
-              value={searchQuery}
-              onChange={setSearchQuery}
-              className="min-w-0 flex-1"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleDownloadAll}
-              disabled={files.length === 0 || pendingFileId !== null}
-            >
-              {pendingFileId === "all" ? (
-                <LoaderCircleIcon
-                  data-icon="inline-start"
-                  className="animate-spin"
-                />
-              ) : (
-                <DownloadIcon data-icon="inline-start" />
-              )}
-              Download all
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex items-center gap-3 py-6 text-sm text-muted-foreground">
-                <LoaderCircleIcon className="animate-spin" />
-                Loading shared files
-              </div>
-            ) : filteredFiles.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                {files.length === 0
-                  ? "No shared files are available."
-                  : "No shared files match your search."}
-              </p>
-            ) : (
-              <div className="grid gap-3">
-                {filteredFiles.map((file) => {
-                  const isDownloading = pendingFileId === file.id
-
-                  return (
-                    <div
-                      key={file.id}
-                      className="flex flex-col gap-4 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <FileTypeIcon contentType={file.content_type} />
-                        <div className="min-w-0">
-                          <h2 className="truncate text-base font-medium">
-                            {file.original_name}
-                          </h2>
-                          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                            <span>{formatFileSize(file.size_bytes)}</span>
-                            <span>{file.content_type ?? "Unknown type"}</span>
-                            <span>{formatCreatedAt(file.created_at)}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDownload(file)}
-                        disabled={pendingFileId !== null}
-                      >
-                        {isDownloading ? (
-                          <LoaderCircleIcon
-                            data-icon="inline-start"
-                            className="animate-spin"
-                          />
-                        ) : (
-                          <DownloadIcon data-icon="inline-start" />
-                        )}
-                        Download
-                      </Button>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    </main>
+        <FileList
+          variant="shared"
+          files={files}
+          selectedFileIds={selectedFileIds}
+          pendingFileId={pendingFileId}
+          isLoading={isLoading}
+          searchQuery={searchQuery}
+          onSearch={setSearchQuery}
+          onDownload={handleDownload}
+          onDownloadAll={handleDownloadSelected}
+          onClearSelection={clearFileSelection}
+          onSelectAll={selectAllFiles}
+          onToggleSelection={toggleFileSelection}
+        />
+      </main>
+    </div>
   )
 }
