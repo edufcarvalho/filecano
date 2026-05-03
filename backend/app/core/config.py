@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
     access_token_expire_seconds: int = 3600
+    shared_url_expire_seconds: int = 604800
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

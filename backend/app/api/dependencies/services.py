@@ -3,8 +3,14 @@ from sqlmodel import Session
 
 from app.core import Settings, get_settings
 from app.db import get_session
-from app.repositories import FileRepository, UserRepository
-from app.services import AuthService, FileService, FileStorageService, UserService
+from app.repositories import FileRepository, LinkRepository, UserRepository
+from app.services import (
+  AuthService,
+  FileService,
+  FileStorageService,
+  LinkService,
+  UserService,
+)
 
 
 def get_file_repository(
@@ -24,13 +30,37 @@ def get_file_service(
   storage_service: FileStorageService = Depends(get_file_storage_service),
   session: Session = Depends(get_session),
 ) -> FileService:
-  return FileService(repository, storage_service, session)
+  return FileService(repository, storage_service, session)\
 
+def get_link_repository(
+  session: Session = Depends(get_session)
+) -> LinkRepository:
+  return LinkRepository(session)
+
+def get_link_service(
+  repository: LinkRepository = Depends(get_link_repository),
+  session: Session = Depends(get_session),
+) -> LinkService:
+  return LinkService(repository, session)
+
+def get_link_repository(
+  session: Session = Depends(get_session)
+) -> LinkRepository:
+  return LinkRepository(session)
+
+
+def get_link_service(
+  repository: LinkRepository = Depends(get_link_repository),
+  storage_service: FileStorageService = Depends(get_file_storage_service),
+  settings: Settings = Depends(get_settings),
+) -> LinkService:
+  return LinkService(repository, storage_service, settings)
 
 def get_user_repository(
   session: Session = Depends(get_session)
 ) -> UserRepository:
   return UserRepository(session)
+
 
 def get_user_service(
   repository: UserRepository = Depends(get_user_repository),

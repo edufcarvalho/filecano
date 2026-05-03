@@ -3,9 +3,10 @@ from contextlib import suppress
 from io import BytesIO
 from typing import BinaryIO
 from uuid import UUID
-
+from typing import Optional
 import PIL.Image
 from fastapi import UploadFile
+from PIL import UnidentifiedImageError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 from urllib3.response import BaseHTTPResponse
@@ -16,6 +17,9 @@ from app.repositories import FileRepository
 from app.schemas import FileUpdateParams
 from app.services.file_storage_service import FileStorageService
 from app.utils.time import current_datetime
+
+
+SUPPORTED_PREVIEW_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 
 
 class FileService:
@@ -49,21 +53,22 @@ class FileService:
       upload.content_type,
     )
 
-    if upload.content_type and upload.content_type.startswith("image/"):
-      preview_data, preview_size, preview_content_type = self._generate_preview(
-        upload.file, upload.content_type
-      )
-      file.preview_object_key = f"users/{user.id}/previews/{file.id}"
-      file.preview_content_type = preview_content_type
-      file.preview_size_bytes = preview_size
+    if self._can_generate_preview(upload.content_type):
+      with suppress(UnidentifiedImageError):
+        preview_data, preview_size, preview_content_type = self._generate_preview(
+          upload.file
+        )
+        file.preview_object_key = f"users/{user.id}/previews/{file.id}"
+        file.preview_content_type = preview_content_type
+        file.preview_size_bytes = preview_size
 
-      preview_data.seek(0)
-      self.storage.upload(
-        file.preview_object_key,
-        preview_data,
-        preview_size,
-        preview_content_type,
-      )
+        preview_data.seek(0)
+        self.storage.upload(
+          file.preview_object_key,
+          preview_data,
+          preview_size,
+          preview_content_type,
+        )
 
     self.repository.add(file)
 
@@ -165,7 +170,10 @@ class FileService:
 
     return checksum.hexdigest(), size_bytes
 
-  def _generate_preview(self, data: BinaryIO, content_type: str) -> tuple[BinaryIO, int, str, str]:
+  def _can_generate_preview(self, content_type: Optional[str]) -> bool:
+    return content_type in SUPPORTED_PREVIEW_TYPES
+
+  def _generate_preview(self, data: BinaryIO) -> tuple[BinaryIO, int, str]:
     """Generate a thumbnail preview for images."""
     data.seek(0)
     img = PIL.Image.open(data)
