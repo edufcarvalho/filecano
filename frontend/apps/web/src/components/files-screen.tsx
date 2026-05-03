@@ -21,7 +21,7 @@ import {
   uploadFile,
   type FileResponse,
 } from "@/lib/api"
-import { isImageFile } from "@/lib/file-display"
+import { isPreviewSupportedFile } from "@/lib/file-display"
 
 type FilesScreenProps = {
   accessToken: string
@@ -73,7 +73,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     ) => {
       for (const file of filesToPreview) {
         if (!isCurrent()) return
-        if (!isImageFile(file.content_type)) continue
+        if (!isPreviewSupportedFile(file.content_type)) continue
 
         try {
           const dataUrl = await fetchFilePreviewAsDataUrl(accessToken, file.id)

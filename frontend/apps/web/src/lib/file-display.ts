@@ -2,6 +2,13 @@ const FILE_SIZE_UNITS = ["B", "KB", "MB", "GB", "TB"] as const
 
 const TEXT_MIME_TYPES = new Set(["text/plain", "text/markdown", "text/csv"])
 
+export const SUPPORTED_PREVIEW_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+])
+
 const CODE_TYPE_PARTS = [
   "javascript",
   "typescript",
@@ -120,6 +127,10 @@ export function formatCreatedAt(createdAt: string) {
 
 export function isImageFile(contentType: string | null) {
   return contentType?.startsWith("image/") ?? false
+}
+
+export function isPreviewSupportedFile(contentType: string | null) {
+  return contentType !== null && SUPPORTED_PREVIEW_TYPES.has(contentType)
 }
 
 export function getFileKind(contentType: string | null): FileKind {
