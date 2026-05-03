@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
-from sqlmodel import DateTime, Field, Relationship, SQLModel
+from sqlmodel import DateTime, Field, Relationship, SQLModel, Column, BigInteger
 from uuid6 import uuid7
 
 from app.models.file_link_relation import FileLinkRelation
@@ -22,7 +22,7 @@ class File(SQLModel, table=True):
   original_name: str = Field(nullable=False)
 
   content_type: Optional[str] = Field(default=None)
-  size_bytes: Optional[int] = Field(default=None)
+  size_bytes: Optional[int] = Field(sa_column=Column(BigInteger, nullable=True))
   checksum: Optional[str] = Field(default=None)
 
   preview_object_key: Optional[str] = Field(default=None)
