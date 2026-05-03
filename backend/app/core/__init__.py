@@ -9,8 +9,8 @@ from app.core.exceptions import (
   StorageError,
 )
 from app.core.security import (
-  create_access_token,
-  decode_access_token,
+  create_token,
+  decode_token,
   hash_password,
   verify_password,
 )
@@ -24,8 +24,8 @@ __all__ = [
   "PasswordValidationError",
   "Settings",
   "StorageError",
-  "create_access_token",
-  "decode_access_token",
+  "create_token",
+  "decode_token",
   "get_settings",
   "hash_password",
   "verify_password",

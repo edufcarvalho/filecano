@@ -12,7 +12,7 @@ _password_context = CryptContext(
 )
 
 
-def create_access_token(
+def create_token(
   payload: dict[str, object],
   secret_key: str,
   expire_in: int,
@@ -40,7 +40,7 @@ def create_access_token(
   return f"{unsigned_token}.{signature}"
 
 
-def decode_access_token(
+def decode_token(
   token: str,
   secret_key: str,
   algorithm: str = "HS256",

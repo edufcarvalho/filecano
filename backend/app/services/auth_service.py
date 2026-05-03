@@ -3,8 +3,8 @@ from uuid import UUID
 from app.core import (
   AuthenticationError,
   Settings,
-  create_access_token,
-  decode_access_token,
+  create_token,
+  decode_token,
   verify_password,
 )
 from app.models import User
@@ -50,7 +50,7 @@ class AuthService:
     return user
 
   def _create_user_access_token(self, user: User) -> str:
-    return create_access_token(
+    return create_token(
       payload={
         "sub": str(user.id),
         "name": user.name,
@@ -63,7 +63,7 @@ class AuthService:
 
   def _decode_token(self, token: str) -> dict[str, object]:
     try:
-      return decode_access_token(
+      return decode_token(
         token,
         secret_key=self.settings.jwt_secret_key,
         algorithm=self.settings.jwt_algorithm,
