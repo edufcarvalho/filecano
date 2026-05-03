@@ -127,7 +127,9 @@ export function getFileKind(contentType: string | null): FileKind {
   if (isImageFile(contentType)) return "image"
   if (contentType.startsWith("video/")) return "video"
   if (contentType.startsWith("audio/")) return "audio"
-  if (contentType.startsWith("video/")) return "text"
+  if (contentType.startsWith("text/") || TEXT_MIME_TYPES.has(contentType)) {
+    return "text"
+  }
 
   if (
     ARCHIVE_TYPE_PARTS.some((type) => contentType.includes(type)) ||

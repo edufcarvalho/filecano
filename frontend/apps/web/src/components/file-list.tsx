@@ -222,32 +222,34 @@ export function FileList({
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 overflow-hidden">
         {filteredFiles.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="px-4 text-sm text-muted-foreground">
             {files.length === 0 ? "Uploaded files will appear here." : "No files match your search."}
           </p>
         ) : (
-          <div className="grid gap-3">
-            {filteredFiles.map((file) => (
-              <FileListItem
-                key={file.id}
-                file={file}
-                previewUrls={previewUrls}
-                selectedFileIds={selectedFileIds}
-                editingFileId={editingFileId}
-                editingName={editingName}
-                pendingFileId={pendingFileId}
-                error={error}
-                onDelete={onDelete}
-                onDownload={onDownload}
-                onEditingNameChange={onEditingNameChange}
-                onRename={onRename}
-                onStartEditing={onStartEditing}
-                onStopEditing={onStopEditing}
-                onToggleSelection={onToggleSelection}
-              />
-            ))}
+          <div className="h-full overflow-y-auto">
+            <div className="grid gap-3 pe-0.5 ps-2">
+              {filteredFiles.map((file) => (
+                <FileListItem
+                  key={file.id}
+                  file={file}
+                  previewUrls={previewUrls}
+                  selectedFileIds={selectedFileIds}
+                  editingFileId={editingFileId}
+                  editingName={editingName}
+                  pendingFileId={pendingFileId}
+                  error={error}
+                  onDelete={onDelete}
+                  onDownload={onDownload}
+                  onEditingNameChange={onEditingNameChange}
+                  onRename={onRename}
+                  onStartEditing={onStartEditing}
+                  onStopEditing={onStopEditing}
+                  onToggleSelection={onToggleSelection}
+                />
+              ))}
+            </div>
           </div>
         )}
       </CardContent>

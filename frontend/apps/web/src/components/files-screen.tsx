@@ -386,7 +386,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   }
 
   return (
-    <main className="flex flex-1 flex-col gap-4 bg-muted/40 p-4">
+    <main className="flex h-full w-full min-h-0 flex-col gap-4 overflow-hidden bg-muted/40 p-4">
       <FileUploadDropzone
         fileInputRef={fileInputRef}
         isDragOver={isDragOver}

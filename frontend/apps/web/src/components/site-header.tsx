@@ -49,7 +49,7 @@ export function SiteHeader({
   const initials = getInitials(user.name)
 
   return (
-    <header className="sticky top-0 z-50 flex w-full items-center border-b bg-background">
+    <header className="sticky top-0 z-50 flex w-full shrink-0 items-center border-b bg-background">
        <div className="flex h-14 w-full items-center gap-4 px-8 font-sans">
         <Breadcrumb className="shrink-0">
           <BreadcrumbList className="flex flex-row items-center gap-1.5 whitespace-nowrap">

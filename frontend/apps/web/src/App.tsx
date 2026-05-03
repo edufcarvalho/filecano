@@ -29,40 +29,42 @@ function SignedInScreen({
   const displayUser = getDisplayUser(token)
 
   return (
-    <>
+    <div className="fixed inset-0 flex min-h-0 flex-col overflow-hidden">
       <SiteHeader
         user={displayUser}
         onSignOut={onSignOut}
       />
-      <Routes>
-        <Route
-          path="/account"
-          element={
-            <EditUserForm
-              accessToken={token.access_token}
-              user={displayUser}
-              onUserUpdate={(user) => {
-                onTokenUpdate({
-                  ...token,
-                  user: {
-                    name: user.name,
-                    email: user.email,
-                  },
-                })
-              }}
-            />
-          }
-        />
-        <Route
-          path="*"
-          element={
-            <FilesScreen
-              accessToken={token.access_token}
-            />
-          }
-        />
-      </Routes>
-    </>
+      <div className="flex min-h-0 flex-1">
+        <Routes>
+          <Route
+            path="/account"
+            element={
+              <EditUserForm
+                accessToken={token.access_token}
+                user={displayUser}
+                onUserUpdate={(user) => {
+                  onTokenUpdate({
+                    ...token,
+                    user: {
+                      name: user.name,
+                      email: user.email,
+                    },
+                  })
+                }}
+              />
+            }
+          />
+          <Route
+            path="*"
+            element={
+              <FilesScreen
+                accessToken={token.access_token}
+              />
+            }
+          />
+        </Routes>
+      </div>
+    </div>
   )
 }
 
