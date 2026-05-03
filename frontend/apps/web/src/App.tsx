@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { EditUserForm } from "@/components/edit-user-form"
 import { FilesScreen } from "@/components/files-screen"
 import { LoginForm } from "@/components/login-form"
+import { SharedFilesScreen } from "@/components/shared-files-screen"
 import { SiteHeader } from "@/components/site-header"
 import { SignupForm } from "@/components/signup-form"
 import {
@@ -136,15 +137,23 @@ export function App() {
 
   return (
     <BrowserRouter key={redirectKey}>
-      {token ? (
-        <SignedInScreen
-          token={token}
-          onSignOut={handleSignOut}
-          onTokenUpdate={setToken}
+      <Routes>
+        <Route path="/share/:shareToken" element={<SharedFilesScreen />} />
+        <Route
+          path="/*"
+          element={
+            token ? (
+              <SignedInScreen
+                token={token}
+                onSignOut={handleSignOut}
+                onTokenUpdate={setToken}
+              />
+            ) : (
+              <SignedOutRoutes onLogin={setToken} />
+            )
+          }
         />
-      ) : (
-        <SignedOutRoutes onLogin={setToken} />
-      )}
+      </Routes>
     </BrowserRouter>
   )
 }

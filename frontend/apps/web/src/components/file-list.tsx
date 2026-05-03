@@ -95,7 +95,7 @@ type FileListItemProps = Pick<
 
 const checkboxClassName = "size-4 shrink-0"
 
-function FileTypeIcon({ contentType }: { contentType: string | null }) {
+export function FileTypeIcon({ contentType }: { contentType: string | null }) {
   const className = "text-muted-foreground"
 
   switch (getFileKind(contentType)) {
@@ -205,7 +205,7 @@ export function FileList({
             variant="outline"
             size="sm"
             onClick={onBulkShare}
-            disabled
+            disabled={!hasSelectedFiles || pendingFileId !== null}
           >
             {pendingFileId === "bulk-share" ? (
               <LoaderCircleIcon
@@ -428,7 +428,7 @@ function FileListItem({
                   )}
                   Download
                 </DropdownMenuItem>
-                <DropdownMenuItem disabled onSelect={() => onShare(file)}>
+                <DropdownMenuItem onSelect={() => onShare(file)}>
                   {isSharing ? (
                     <LoaderCircleIcon className="animate-spin" />
                   ) : (

@@ -34,6 +34,13 @@ export type FileResponse = {
   deleted_at: string | null
 }
 
+export type LinkResponse = {
+  id: string
+  token: string
+  expires_at: string
+  files: FileResponse[]
+}
+
 let onUnauthorized: (() => void) | null = null
 
 export function setUnauthorizedCallback(cb: (() => void) | null) {
@@ -260,6 +267,34 @@ export async function shareFiles(
   if (!response.ok) await readError(response, "Unable to share files.")
 
   return response.json()
+}
+
+export async function getSharedFiles(token: string): Promise<LinkResponse> {
+  const response = await fetch(`${API_URL}/v1/files/share/${token}`)
+
+  if (!response.ok) await readError(response, "Unable to load shared files.")
+
+  return response.json()
+}
+
+export async function downloadSharedFile(
+  token: string,
+  fileId: string,
+  fileName: string
+): Promise<void> {
+  const response = await fetch(`${API_URL}/v1/files/share/${token}/${fileId}`)
+
+  if (!response.ok) await readError(response, "Unable to download file.")
+
+  const blob = await response.blob()
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement("a")
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  window.URL.revokeObjectURL(url)
 }
 
 export async function uploadFile(

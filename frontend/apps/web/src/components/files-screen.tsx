@@ -51,6 +51,18 @@ function getFulfilledValues<T>(results: PromiseSettledResult<T>[]) {
   )
 }
 
+async function copyShareUrl(shareToken: string) {
+  const shareUrl = `${window.location.origin}/share/${encodeURIComponent(shareToken)}`
+
+  try {
+    if (!navigator.clipboard) throw new Error("Clipboard unavailable")
+    await navigator.clipboard.writeText(shareUrl)
+    return "Share link copied to clipboard."
+  } catch {
+    return `Share link created: ${shareUrl}`
+  }
+}
+
 export function FilesScreen({ accessToken }: FilesScreenProps) {
   const [files, setFiles] = useState<FileResponse[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -64,6 +76,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set())
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({})
   const [searchQuery, setSearchQuery] = useState("")
+  const [notice, setNotice] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const loadPreviews = useCallback(
@@ -377,10 +390,12 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     if (selectedFileIds.size === 0) return
 
     setError(null)
+    setNotice(null)
     setPendingFileId("bulk-share")
 
     try {
-      await shareFiles(accessToken, Array.from(selectedFileIds))
+      const shareToken = await shareFiles(accessToken, Array.from(selectedFileIds))
+      setNotice(await copyShareUrl(shareToken.access_token))
     } catch (error) {
       setError(getErrorMessage(error, "Unable to share files."))
     } finally {
@@ -403,10 +418,12 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
 
   async function handleShare(file: FileResponse) {
     setError(null)
+    setNotice(null)
     setPendingFileId(`share-${file.id}`)
 
     try {
-      await shareFiles(accessToken, [file.id])
+      const shareToken = await shareFiles(accessToken, [file.id])
+      setNotice(await copyShareUrl(shareToken.access_token))
     } catch (error) {
       setError(getErrorMessage(error, "Unable to share file."))
     } finally {
@@ -432,6 +449,10 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         <Field data-invalid>
           <FieldError>{error}</FieldError>
         </Field>
+      ) : null}
+
+      {notice ? (
+        <p className="text-sm text-muted-foreground">{notice}</p>
       ) : null}
 
       {isLoading ? (
