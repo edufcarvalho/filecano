@@ -51,10 +51,9 @@ def get_link_repository(
 
 def get_link_service(
   repository: LinkRepository = Depends(get_link_repository),
-  storage_service: FileStorageService = Depends(get_file_storage_service),
   settings: Settings = Depends(get_settings),
 ) -> LinkService:
-  return LinkService(repository, storage_service, settings)
+  return LinkService(repository, settings)
 
 def get_user_repository(
   session: Session = Depends(get_session)

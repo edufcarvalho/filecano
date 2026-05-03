@@ -24,6 +24,7 @@ class LinkService:
     )
 
     return create_token(
+      self,
       payload={
         "sub": link.id,
       },
