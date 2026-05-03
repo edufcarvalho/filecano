@@ -32,6 +32,8 @@ type DragHandler = NonNullable<ComponentProps<"div">["onDragOver"]>
 type DropHandler = NonNullable<ComponentProps<"div">["onDrop"]>
 type FileInputChangeHandler = NonNullable<ComponentProps<"input">["onChange"]>
 
+const NEWLY_ADDED_DURATION_MS = 10_000
+
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
 }
@@ -135,10 +137,14 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   const [isUploadPanelCollapsed, setIsUploadPanelCollapsed] = useState(false)
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([])
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set())
+  const [newlyAddedFileIds, setNewlyAddedFileIds] = useState<Set<string>>(
+    new Set()
+  )
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({})
   const [searchQuery, setSearchQuery] = useState("")
   const [notice, setNotice] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const newlyAddedTimersRef = useRef<Record<string, number>>({})
   const isUploading = uploadingFiles.some((file) => !file.done)
 
   const loadPreviews = useCallback(
@@ -222,6 +228,44 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     }
   }, [accessToken, applyLoadedFiles])
 
+  useEffect(() => {
+    const timers = newlyAddedTimersRef.current
+
+    return () => {
+      Object.values(timers).forEach(window.clearTimeout)
+    }
+  }, [])
+
+  const markFileAsNewlyAdded = useCallback((fileId: string) => {
+    setNewlyAddedFileIds((currentFileIds) => {
+      const nextFileIds = new Set(currentFileIds)
+      nextFileIds.add(fileId)
+      return nextFileIds
+    })
+
+    window.clearTimeout(newlyAddedTimersRef.current[fileId])
+    newlyAddedTimersRef.current[fileId] = window.setTimeout(() => {
+      setNewlyAddedFileIds((currentFileIds) => {
+        const nextFileIds = new Set(currentFileIds)
+        nextFileIds.delete(fileId)
+        return nextFileIds
+      })
+      delete newlyAddedTimersRef.current[fileId]
+    }, NEWLY_ADDED_DURATION_MS)
+  }, [])
+
+  const clearNewlyAddedFile = useCallback((fileId: string) => {
+    setNewlyAddedFileIds((currentFileIds) => {
+      if (!currentFileIds.has(fileId)) return currentFileIds
+
+      const nextFileIds = new Set(currentFileIds)
+      nextFileIds.delete(fileId)
+      return nextFileIds
+    })
+    window.clearTimeout(newlyAddedTimersRef.current[fileId])
+    delete newlyAddedTimersRef.current[fileId]
+  }, [])
+
   function startEditing(file: FileResponse) {
     setEditingFileId(file.id)
     setEditingName(file.original_name)
@@ -281,6 +325,13 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         nextSelection.delete(file.id)
         return nextSelection
       })
+      setNewlyAddedFileIds((currentFileIds) => {
+        const nextFileIds = new Set(currentFileIds)
+        nextFileIds.delete(file.id)
+        return nextFileIds
+      })
+      window.clearTimeout(newlyAddedTimersRef.current[file.id])
+      delete newlyAddedTimersRef.current[file.id]
       setPreviewUrls((currentUrls) =>
         Object.fromEntries(
           Object.entries(currentUrls).filter(([fileId]) => fileId !== file.id)
@@ -331,7 +382,8 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
                 progress: 100,
               })
             )
-            setFiles((currentFiles) => [...currentFiles, uploadedFile])
+            setFiles((currentFiles) => [uploadedFile, ...currentFiles])
+            markFileAsNewlyAdded(uploadedFile.id)
             if (isPreviewSupportedFile(file.type)) {
               void readFileAsDataUrl(file)
                 .then((dataUrl) => {
@@ -371,7 +423,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         currentFiles.filter((file) => file.error || !file.done)
       )
     },
-    [accessToken, loadPreviews]
+    [accessToken, loadPreviews, markFileAsNewlyAdded]
   )
 
   useEffect(() => {
@@ -579,6 +631,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
           files={files}
           previewUrls={previewUrls}
           selectedFileIds={selectedFileIds}
+          newlyAddedFileIds={newlyAddedFileIds}
           editingFileId={editingFileId}
           editingName={editingName}
           pendingFileId={pendingFileId}
@@ -598,6 +651,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
           onRename={handleRename}
           onShare={handleShare}
           onSelectAll={selectAllFiles}
+          onClearNewlyAdded={clearNewlyAddedFile}
           onStartEditing={startEditing}
           onStopEditing={stopEditing}
           onToggleSelection={toggleFileSelection}

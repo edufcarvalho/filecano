@@ -54,6 +54,7 @@ type FileListProps = {
   files: FileResponse[]
   previewUrls?: Record<string, string>
   selectedFileIds?: Set<string>
+  newlyAddedFileIds?: Set<string>
   editingFileId?: string | null
   editingName?: string
   pendingFileId: string | null
@@ -77,6 +78,7 @@ type FileListProps = {
   onRename?: (file: FileResponse) => void
   onShare?: (file: FileResponse) => void
   onSelectAll?: () => void
+  onClearNewlyAdded?: (fileId: string) => void
   onStartEditing?: (file: FileResponse) => void
   onStopEditing?: () => void
   onToggleSelection?: (fileId: string) => void
@@ -89,6 +91,7 @@ type FileListItemProps = Pick<
   | "editingName"
   | "error"
   | "pendingFileId"
+  | "newlyAddedFileIds"
   | "previewUrls"
   | "selectedFileIds"
   | "onDelete"
@@ -96,6 +99,7 @@ type FileListItemProps = Pick<
   | "onEditingNameChange"
   | "onRename"
   | "onShare"
+  | "onClearNewlyAdded"
   | "onStartEditing"
   | "onStopEditing"
   | "onToggleSelection"
@@ -133,6 +137,7 @@ export function FileList({
   files,
   previewUrls = {},
   selectedFileIds = new Set(),
+  newlyAddedFileIds = new Set(),
   editingFileId = null,
   editingName = "",
   pendingFileId,
@@ -162,6 +167,7 @@ export function FileList({
   onRename,
   onShare,
   onSelectAll,
+  onClearNewlyAdded,
   onStartEditing,
   onStopEditing,
   onToggleSelection,
@@ -340,6 +346,7 @@ export function FileList({
                   file={file}
                   previewUrls={previewUrls}
                   selectedFileIds={selectedFileIds}
+                  newlyAddedFileIds={newlyAddedFileIds}
                   editingFileId={editingFileId}
                   editingName={editingName}
                   pendingFileId={pendingFileId}
@@ -349,6 +356,7 @@ export function FileList({
                   onEditingNameChange={onEditingNameChange}
                   onRename={onRename}
                   onShare={onShare}
+                  onClearNewlyAdded={onClearNewlyAdded}
                   onStartEditing={onStartEditing}
                   onStopEditing={onStopEditing}
                   onToggleSelection={onToggleSelection}
@@ -379,6 +387,7 @@ function FileListItem({
   file,
   previewUrls = {},
   selectedFileIds = new Set(),
+  newlyAddedFileIds = new Set(),
   editingFileId,
   editingName,
   pendingFileId,
@@ -388,6 +397,7 @@ function FileListItem({
   onEditingNameChange,
   onRename,
   onShare,
+  onClearNewlyAdded,
   onStartEditing,
   onStopEditing,
   onToggleSelection,
@@ -399,12 +409,15 @@ function FileListItem({
   const isDownloading = pendingFileId === `download-${file.id}`
   const isSharing = pendingFileId === `share-${file.id}`
   const isDeleted = file.deleted_at !== null
+  const isNewlyAdded = newlyAddedFileIds.has(file.id)
 
   return (
     <div
+      onClick={() => onClearNewlyAdded?.(file.id)}
       className={cn(
         "flex flex-col gap-4 rounded-lg border p-4 md:flex-row md:items-center md:justify-between",
         isSelected && "bg-muted/50",
+        isNewlyAdded && "border-green-600/40 bg-green-500/10",
         isDeleted && "border-destructive/40 bg-destructive/5"
       )}
     >
@@ -414,6 +427,7 @@ function FileListItem({
           aria-label={`Select ${file.original_name}`}
           checked={isSelected}
           disabled={isDeleted}
+          onClick={() => onClearNewlyAdded?.(file.id)}
           onChange={() => onToggleSelection?.(file.id)}
           className={checkboxClassName}
         />
@@ -471,6 +485,11 @@ function FileListItem({
             {isDeleted ? (
               <span className="font-medium text-destructive">
                 Deleted by owner
+              </span>
+            ) : null}
+            {isNewlyAdded ? (
+              <span className="font-medium text-green-700 dark:text-green-400">
+                Newly added
               </span>
             ) : null}
           </div>
