@@ -1,3 +1,4 @@
+from time import time
 from uuid import UUID
 
 from app.core import (
@@ -33,6 +34,25 @@ class AuthService:
 
     return self.get_authenticated_user(user_id)
 
+  def refresh_token(self, token: str) -> dict[str, object]:
+    payload = self._decode_token(token, verify_expiration=False)
+    expires_at = payload.get("exp")
+
+    if not isinstance(expires_at, int):
+      raise AuthenticationError("Invalid access token")
+
+    if expires_at + self.settings.access_token_refresh_grace_seconds <= int(time()):
+      raise AuthenticationError("Access token expired")
+
+    user = self.get_authenticated_user(self._get_token_subject(payload))
+    access_token = self._create_user_access_token(user)
+
+    return {
+      "access_token": access_token,
+      "token_type": "bearer",
+      "expires_in": self.settings.access_token_expire_seconds,
+    }
+
   def get_authenticated_user(self, user_id: UUID) -> User:
     user = self.repository.get_by_id(user_id)
 
@@ -61,12 +81,17 @@ class AuthService:
       expire_in=self.settings.access_token_expire_seconds,
     )
 
-  def _decode_token(self, token: str) -> dict[str, object]:
+  def _decode_token(
+    self,
+    token: str,
+    verify_expiration: bool = True,
+  ) -> dict[str, object]:
     try:
       return decode_token(
         token,
         secret_key=self.settings.jwt_secret_key,
         algorithm=self.settings.jwt_algorithm,
+        verify_expiration=verify_expiration,
       )
     except ValueError as error:
       raise AuthenticationError(str(error)) from error

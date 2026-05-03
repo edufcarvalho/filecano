@@ -1,8 +1,11 @@
-from typing import Annotated
+from typing import Annotated, Optional
 
-from fastapi import APIRouter, Body, Depends, status
+from fastapi import APIRouter, Body, Depends, Security, status
+from fastapi.security import HTTPAuthorizationCredentials
 
 from app.api.dependencies import get_auth_service, get_current_user, get_user_service
+from app.api.dependencies.auth import bearer_auth
+from app.core import AuthenticationError
 from app.models import User
 from app.schemas import (
   TokenResponse,
@@ -34,6 +37,17 @@ def login_user(
   service: AuthService = Depends(get_auth_service),
 ) -> TokenResponse:
   return service.login_user(params)
+
+
+@router.post("/token/refresh", response_model=TokenResponse)
+def refresh_token(
+  credentials: Optional[HTTPAuthorizationCredentials] = Security(bearer_auth),
+  service: AuthService = Depends(get_auth_service),
+) -> TokenResponse:
+  if credentials is None:
+    raise AuthenticationError("Authorization header is required")
+
+  return service.refresh_token(credentials.credentials)
 
 
 @router.put("", response_model=UserResponse)

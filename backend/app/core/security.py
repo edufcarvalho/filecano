@@ -44,6 +44,7 @@ def decode_token(
   token: str,
   secret_key: str,
   algorithm: str = "HS256",
+  verify_expiration: bool = True,
 ) -> dict[str, object]:
   if algorithm != "HS256":
     raise ValueError("Unsupported JWT algorithm")
@@ -65,7 +66,7 @@ def decode_token(
   if not isinstance(expires_at, int):
     raise ValueError("Invalid access token")
 
-  if expires_at <= int(datetime.now(timezone.utc).timestamp()):
+  if verify_expiration and expires_at <= int(datetime.now(timezone.utc).timestamp()):
     raise ValueError("Access token expired")
 
   return payload

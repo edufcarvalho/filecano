@@ -5,9 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_name: str = "Filecano API"
-    database_url: str = (
-        "postgresql+psycopg://filecano:filecano@database:5432/filecano"
-    )
+    database_url: str = "postgresql+psycopg://filecano:filecano@database:5432/filecano"
     minio_endpoint: str = "data:9000"
     minio_access_key: str = "minioadmin"
     minio_secret_key: str = "minioadmin"
@@ -17,6 +15,7 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
     access_token_expire_seconds: int = 3600
+    access_token_refresh_grace_seconds: int = 86400
     shared_url_expire_seconds: int = 604800
     share_token_length: int = 8
 
