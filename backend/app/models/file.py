@@ -5,9 +5,11 @@ from uuid import UUID
 from sqlmodel import DateTime, Field, Relationship, SQLModel
 from uuid6 import uuid7
 
+from app.models.file_link_relation import FileLinkRelation
 from app.utils.time import current_datetime
 
 if TYPE_CHECKING:
+  from app.models.link import Link
   from app.models.user import User
 
 
@@ -38,3 +40,4 @@ class File(SQLModel, table=True):
   )
 
   user: "User" = Relationship(back_populates="files")
+  links: list["Link"] = Relationship(back_populates="files", link_model=FileLinkRelation)
