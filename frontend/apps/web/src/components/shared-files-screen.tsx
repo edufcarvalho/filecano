@@ -4,8 +4,13 @@ import { useParams } from "react-router-dom"
 import { Field, FieldError } from "@workspace/ui/components/field"
 
 import { FileList } from "@/components/file-list"
+import {
+  ShareLinkErrorScreen,
+  type ShareLinkErrorKind,
+} from "@/components/share-link-error-screen"
 import { SiteHeader } from "@/components/site-header"
 import {
+  ApiError,
   downloadSharedFile,
   getSharedFiles,
   type FileResponse,
@@ -15,10 +20,15 @@ function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
 }
 
+function isAvailableFile(file: FileResponse) {
+  return file.deleted_at === null
+}
+
 export function SharedFilesScreen() {
   const { shareToken } = useParams()
   const [files, setFiles] = useState<FileResponse[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [linkError, setLinkError] = useState<ShareLinkErrorKind | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [pendingFileId, setPendingFileId] = useState<string | null>(null)
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set())
@@ -26,12 +36,13 @@ export function SharedFilesScreen() {
 
   const loadSharedFiles = useCallback(async () => {
     if (!shareToken) {
-      setError("Share link is missing.")
+      setLinkError("not-found")
       setIsLoading(false)
       return
     }
 
     setError(null)
+    setLinkError(null)
     setIsLoading(true)
 
     try {
@@ -41,12 +52,20 @@ export function SharedFilesScreen() {
         (currentSelection) =>
           new Set(
             sharedLink.files
-              .filter((file) => currentSelection.has(file.id))
+              .filter(
+                (file) => isAvailableFile(file) && currentSelection.has(file.id)
+              )
               .map((file) => file.id)
           )
       )
     } catch (error) {
-      setError(getErrorMessage(error, "Unable to load shared files."))
+      if (error instanceof ApiError && error.status === 410) {
+        setLinkError("expired")
+      } else if (error instanceof ApiError && error.status === 404) {
+        setLinkError("not-found")
+      } else {
+        setError(getErrorMessage(error, "Unable to load shared files."))
+      }
     } finally {
       setIsLoading(false)
     }
@@ -58,6 +77,10 @@ export function SharedFilesScreen() {
 
   async function handleDownload(file: FileResponse) {
     if (!shareToken) return
+    if (!isAvailableFile(file)) {
+      setError("This file was deleted by the owner.")
+      return
+    }
 
     setError(null)
     setPendingFileId(file.id)
@@ -77,7 +100,9 @@ export function SharedFilesScreen() {
     setError(null)
     setPendingFileId("bulk-download")
 
-    const filesToDownload = files.filter((file) => selectedFileIds.has(file.id))
+    const filesToDownload = files.filter(
+      (file) => isAvailableFile(file) && selectedFileIds.has(file.id)
+    )
 
     try {
       await Promise.all(
@@ -105,12 +130,16 @@ export function SharedFilesScreen() {
   }
 
   function selectAllFiles() {
-    setSelectedFileIds(new Set(files.map((file) => file.id)))
+    setSelectedFileIds(
+      new Set(files.filter(isAvailableFile).map((file) => file.id))
+    )
   }
 
   function clearFileSelection() {
     setSelectedFileIds(new Set())
   }
+
+  if (linkError) return <ShareLinkErrorScreen kind={linkError} />
 
   return (
     <div className="fixed inset-0 flex min-h-0 flex-col overflow-hidden">

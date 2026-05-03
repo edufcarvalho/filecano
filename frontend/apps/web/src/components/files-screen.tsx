@@ -46,12 +46,6 @@ function updateUploadingFile(
   )
 }
 
-function getFulfilledValues<T>(results: PromiseSettledResult<T>[]) {
-  return results.flatMap((result) =>
-    result.status === "fulfilled" ? [result.value] : []
-  )
-}
-
 async function copyShareUrl(shareToken: string) {
   const shareUrl = `${window.location.origin}/share/${encodeURIComponent(shareToken)}`
 
@@ -70,17 +64,64 @@ function createUploadId(file: File) {
   return `${file.name}-${file.size}-${file.lastModified}-${Math.random()}`
 }
 
+function getImageFileExtension(contentType: string) {
+  switch (contentType) {
+    case "image/jpeg":
+      return "jpg"
+    case "image/png":
+      return "png"
+    case "image/gif":
+      return "gif"
+    case "image/webp":
+      return "webp"
+    default:
+      return "png"
+  }
+}
+
+function hasFileExtension(fileName: string) {
+  return /\.[^./\\]+$/.test(fileName)
+}
+
+function normalizePastedFile(file: File, index: number) {
+  if (!isPreviewSupportedFile(file.type)) return file
+  if (file.name && hasFileExtension(file.name)) return file
+
+  const extension = getImageFileExtension(file.type)
+  const name = file.name || `pasted-image-${index + 1}.${extension}`
+
+  return new File(
+    [file],
+    hasFileExtension(name) ? name : `${name}.${extension}`,
+    {
+      type: file.type,
+      lastModified: file.lastModified,
+    }
+  )
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
 function getPastedFiles(event: ClipboardEvent) {
   if (!event.clipboardData) return []
 
   const files = Array.from(event.clipboardData.files)
 
-  if (files.length > 0) return files
+  if (files.length > 0) return files.map(normalizePastedFile)
 
-  return Array.from(event.clipboardData.items).flatMap((item) => {
+  const itemFiles = Array.from(event.clipboardData.items).flatMap((item) => {
     const file = item.kind === "file" ? item.getAsFile() : null
     return file ? [file] : []
   })
+
+  return itemFiles.map(normalizePastedFile)
 }
 
 export function FilesScreen({ accessToken }: FilesScreenProps) {
@@ -290,6 +331,21 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
                 progress: 100,
               })
             )
+            setFiles((currentFiles) => [...currentFiles, uploadedFile])
+            if (isPreviewSupportedFile(file.type)) {
+              void readFileAsDataUrl(file)
+                .then((dataUrl) => {
+                  setPreviewUrls((currentUrls) => ({
+                    ...currentUrls,
+                    [uploadedFile.id]: dataUrl,
+                  }))
+                })
+                .catch(() => {
+                  void loadPreviews([uploadedFile])
+                })
+            } else {
+              void loadPreviews([uploadedFile])
+            }
             return uploadedFile
           })
           .catch((error) => {
@@ -306,15 +362,6 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       )
 
       const results = await Promise.allSettled(uploadPromises)
-      const uploadedFiles = getFulfilledValues(results)
-
-      if (uploadedFiles.length > 0) {
-        setFiles((currentFiles) => [
-          ...uploadedFiles.reverse(),
-          ...currentFiles,
-        ])
-        await loadPreviews(uploadedFiles)
-      }
 
       if (results.some((result) => result.status === "rejected")) {
         setError("Some files failed to upload.")

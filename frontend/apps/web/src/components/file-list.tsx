@@ -1,4 +1,5 @@
 import {
+  CircleAlertIcon,
   DownloadIcon,
   FileArchiveIcon,
   FileAudioIcon,
@@ -167,8 +168,11 @@ export function FileList({
   stretch = true,
 }: FileListProps) {
   const selectedCount = selectedFileIds.size
+  const selectableFiles = files.filter((file) => !file.deleted_at)
   const hasSelectedFiles = selectedCount > 0
-  const allFilesSelected = selectedCount === files.length && files.length > 0
+  const allFilesSelected =
+    selectableFiles.length > 0 &&
+    selectableFiles.every((file) => selectedFileIds.has(file.id))
 
   function handleSearch(query: string) {
     onSearch?.(query)
@@ -188,6 +192,7 @@ export function FileList({
             type="checkbox"
             aria-label="Select all files"
             checked={allFilesSelected}
+            disabled={selectableFiles.length === 0}
             onChange={(event) =>
               event.target.checked ? onSelectAll?.() : onClearSelection?.()
             }
@@ -393,12 +398,14 @@ function FileListItem({
   const isSelected = selectedFileIds.has(file.id)
   const isDownloading = pendingFileId === `download-${file.id}`
   const isSharing = pendingFileId === `share-${file.id}`
+  const isDeleted = file.deleted_at !== null
 
   return (
     <div
       className={cn(
         "flex flex-col gap-4 rounded-lg border p-4 md:flex-row md:items-center md:justify-between",
-        isSelected && "bg-muted/50"
+        isSelected && "bg-muted/50",
+        isDeleted && "border-destructive/40 bg-destructive/5"
       )}
     >
       <div className="flex min-w-0 items-center gap-3">
@@ -406,6 +413,7 @@ function FileListItem({
           type="checkbox"
           aria-label={`Select ${file.original_name}`}
           checked={isSelected}
+          disabled={isDeleted}
           onChange={() => onToggleSelection?.(file.id)}
           className={checkboxClassName}
         />
@@ -441,6 +449,9 @@ function FileListItem({
               <h2 className="truncate text-base font-medium">
                 {file.original_name}
               </h2>
+              {isDeleted ? (
+                <CircleAlertIcon className="shrink-0 text-destructive" />
+              ) : null}
               {variant === "default" ? (
                 <button
                   type="button"
@@ -457,6 +468,11 @@ function FileListItem({
             <span>{formatFileSize(file.size_bytes)}</span>
             <span>{file.content_type ?? "Unknown type"}</span>
             <span>{formatCreatedAt(file.created_at)}</span>
+            {isDeleted ? (
+              <span className="font-medium text-destructive">
+                Deleted by owner
+              </span>
+            ) : null}
           </div>
         </div>
       </div>
@@ -468,7 +484,7 @@ function FileListItem({
             size="sm"
             variant="outline"
             onClick={() => onDownload(file)}
-            disabled={pendingFileId !== null}
+            disabled={pendingFileId !== null || isDeleted}
           >
             {isDownloading || pendingFileId === file.id ? (
               <LoaderCircleIcon

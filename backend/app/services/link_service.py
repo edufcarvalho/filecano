@@ -6,7 +6,7 @@ from uuid import UUID
 from urllib3.response import BaseHTTPResponse
 
 from app.core import (
-  AuthenticationError,
+  GoneError,
   NotFoundError,
   Settings,
 )
@@ -53,16 +53,20 @@ class LinkService:
     link = self.repository.get_by_token(token)
 
     if link is None:
-      raise AuthenticationError("Share link not found")
+      raise NotFoundError("Share link not found")
 
     if link.expires_at <= current_datetime():
-      raise AuthenticationError("Share link expired")
+      raise GoneError("Share link expired")
 
     return link
 
   def get_files(self, token: str, files_id: Optional[list[UUID]] = None) -> list[File]:
     link = self.authenticate_token(token)
-    files = self.file_repository.list_by_link(link.id, files_id)
+    files = self.file_repository.list_by_link(
+      link.id,
+      files_id,
+      include_deleted=True,
+    )
 
     return files
 

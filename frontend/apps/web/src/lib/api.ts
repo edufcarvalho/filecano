@@ -9,6 +9,16 @@ type ApiErrorBody = {
   detail?: string
 }
 
+export class ApiError extends Error {
+  status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = "ApiError"
+    this.status = status
+  }
+}
+
 export type TokenResponse = {
   access_token: string
   token_type: string
@@ -53,10 +63,13 @@ async function readError(response: Response, fallback: string) {
   try {
     errorBody = await response.json()
   } catch {
-    throw new Error(fallback)
+    throw new ApiError(fallback, response.status)
   }
 
-  throw new Error(errorBody.message ?? errorBody.detail ?? fallback)
+  throw new ApiError(
+    errorBody.message ?? errorBody.detail ?? fallback,
+    response.status
+  )
 }
 
 async function authFetch(
