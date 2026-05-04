@@ -17,9 +17,9 @@ WORKDIR /app
 RUN apk update \
     && apk add curl
 
-RUN python -m pip install --no-cache-dir uv
+RUN python -m pip install --no-cache-dir uv --root-user-action
 
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml ./
 RUN uv sync --no-cache --no-dev
 
 COPY alembic.ini ./
