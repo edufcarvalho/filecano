@@ -11,7 +11,7 @@ from urllib3.response import BaseHTTPResponse
 from app.core import GoneError, NotFoundError, StorageError
 from app.models import File, User
 from app.repositories import FileRepository
-from app.services import FileStorageService
+from app.services.file_storage_service import FileStorageService
 from app.utils.time import current_datetime
 
 
