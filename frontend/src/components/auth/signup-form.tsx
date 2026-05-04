@@ -1,20 +1,14 @@
 import type { ComponentProps } from "react"
 import { useState } from "react"
-import { LoaderCircleIcon } from "lucide-react"
 import { Link } from "react-router-dom"
 
-import { Button } from "@ui/button"
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldLabel,
-} from "@ui/field"
-import { Input } from "@ui/input"
+import { Field, FieldDescription } from "@ui/field"
 
+import { AuthPasswordField, AuthTextField } from "@auth/auth-form-fields"
 import { AuthCard } from "@auth/auth-card"
-import { PasswordInput } from "@auth/password-input"
 import { PasswordRequirementsList } from "@auth/password-requirements-list"
+import { ErrorField } from "@misc/status-field"
+import { LoadingButton } from "@misc/loading-button"
 import { signupUser, type TokenResponse } from "@/lib/api"
 import type { FormSubmitHandler } from "@/lib/form-types"
 import { validatePassword } from "@/lib/password"
@@ -67,70 +61,56 @@ export function SignupForm({ className, onLogin, ...props }: SignupFormProps) {
       onSubmit={handleSubmit}
       {...props}
     >
-      {error ? (
-        <Field data-invalid>
-          <FieldError>{error}</FieldError>
-        </Field>
-      ) : null}
-      <Field data-invalid={error ? true : undefined}>
-        <FieldLabel htmlFor="name">Name</FieldLabel>
-        <Input
-          id="name"
-          name="name"
-          type="text"
-          autoComplete="name"
-          placeholder="Eduardo de Carvalho"
-          required
-          aria-invalid={error ? true : undefined}
-          disabled={isPending}
-        />
-      </Field>
-      <Field data-invalid={error ? true : undefined}>
-        <FieldLabel htmlFor="email">Email</FieldLabel>
-        <Input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          placeholder="your@email.com"
-          required
-          aria-invalid={error ? true : undefined}
-          disabled={isPending}
-        />
-      </Field>
-      <Field data-invalid={error ? true : undefined}>
-        <FieldLabel htmlFor="password">Password</FieldLabel>
-        <PasswordInput
-          id="password"
-          name="password"
-          autoComplete="new-password"
-          placeholder="your password"
-          required
-          aria-invalid={error ? true : undefined}
-          disabled={isPending}
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          onBlur={() => setPasswordTouched(true)}
-          isVisible={showPassword}
-          onVisibilityChange={setShowPassword}
-        />
+      <ErrorField message={error} />
+      <AuthTextField
+        id="name"
+        label="Name"
+        name="name"
+        type="text"
+        autoComplete="name"
+        placeholder="Eduardo de Carvalho"
+        required
+        invalid={!!error}
+        disabled={isPending}
+      />
+      <AuthTextField
+        id="email"
+        label="Email"
+        name="email"
+        type="email"
+        autoComplete="email"
+        placeholder="your@email.com"
+        required
+        invalid={!!error}
+        disabled={isPending}
+      />
+      <AuthPasswordField
+        id="password"
+        label="Password"
+        name="password"
+        autoComplete="new-password"
+        placeholder="your password"
+        required
+        invalid={!!error}
+        disabled={isPending}
+        value={password}
+        onChange={(event) => setPassword(event.target.value)}
+        onBlur={() => setPasswordTouched(true)}
+        isVisible={showPassword}
+        onVisibilityChange={setShowPassword}
+      >
         {passwordTouched || password.length > 0 ? (
           <PasswordRequirementsList password={password} className="mt-1" />
         ) : null}
-      </Field>
+      </AuthPasswordField>
       <Field>
-        <Button
+        <LoadingButton
           type="submit"
+          isLoading={isPending}
           disabled={isPending || (passwordTouched && passwordErrors.length > 0)}
         >
-          {isPending ? (
-            <LoaderCircleIcon
-              data-icon="inline-start"
-              className="animate-spin"
-            />
-          ) : null}
           Create Account
-        </Button>
+        </LoadingButton>
       </Field>
       <FieldDescription className="text-center">
         Already have an account?{" "}

@@ -3,7 +3,6 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { LoaderCircleIcon } from "lucide-react"
 
 import { Card, CardContent } from "@ui/card"
-import { Field, FieldError } from "@ui/field"
 
 import { FileList } from "@files/file-list"
 import {
@@ -11,6 +10,7 @@ import {
   UploadActivityPanel,
   type UploadingFile,
 } from "@files/file-upload-dropzone"
+import { ErrorField } from "@misc/status-field"
 import {
   deleteFile,
   downloadFile,
@@ -609,11 +609,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         onFileSelect={handleFileSelect}
       />
 
-      {error ? (
-        <Field data-invalid>
-          <FieldError>{error}</FieldError>
-        </Field>
-      ) : null}
+      <ErrorField message={error} />
 
       {notice ? (
         <p className="text-sm text-muted-foreground">{notice}</p>

@@ -1,19 +1,13 @@
 import type { ComponentProps } from "react"
 import { useState } from "react"
-import { LoaderCircleIcon } from "lucide-react"
 import { Link } from "react-router-dom"
 
-import { Button } from "@/components/ui/button"
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
+import { Field, FieldDescription } from "@/components/ui/field"
 
+import { AuthPasswordField, AuthTextField } from "@auth/auth-form-fields"
 import { AuthCard } from "@auth/auth-card"
-import { PasswordInput } from "@auth/password-input"
+import { ErrorField } from "@misc/status-field"
+import { LoadingButton } from "@misc/loading-button"
 import { loginUser, type TokenResponse } from "@/lib/api"
 import type { FormSubmitHandler } from "@/lib/form-types"
 
@@ -55,48 +49,34 @@ export function LoginForm({ className, onLogin, ...props }: LoginFormProps) {
       onSubmit={handleSubmit}
       {...props}
     >
-      {error ? (
-        <Field data-invalid>
-          <FieldError>{error}</FieldError>
-        </Field>
-      ) : null}
-      <Field data-invalid={error ? true : undefined}>
-        <FieldLabel htmlFor="email">Email</FieldLabel>
-        <Input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          placeholder="you@example.com"
-          required
-          aria-invalid={error ? true : undefined}
-          disabled={isPending}
-        />
-      </Field>
-      <Field data-invalid={error ? true : undefined}>
-        <FieldLabel htmlFor="password">Password</FieldLabel>
-        <PasswordInput
-          id="password"
-          name="password"
-          autoComplete="current-password"
-          placeholder="your password"
-          required
-          aria-invalid={error ? true : undefined}
-          disabled={isPending}
-          isVisible={showPassword}
-          onVisibilityChange={setShowPassword}
-        />
-      </Field>
+      <ErrorField message={error} />
+      <AuthTextField
+        id="email"
+        label="Email"
+        name="email"
+        type="email"
+        autoComplete="email"
+        placeholder="you@example.com"
+        required
+        invalid={!!error}
+        disabled={isPending}
+      />
+      <AuthPasswordField
+        id="password"
+        label="Password"
+        name="password"
+        autoComplete="current-password"
+        placeholder="your password"
+        required
+        invalid={!!error}
+        disabled={isPending}
+        isVisible={showPassword}
+        onVisibilityChange={setShowPassword}
+      />
       <Field>
-        <Button type="submit" disabled={isPending}>
-          {isPending ? (
-            <LoaderCircleIcon
-              data-icon="inline-start"
-              className="animate-spin"
-            />
-          ) : null}
+        <LoadingButton type="submit" isLoading={isPending}>
           Sign in
-        </Button>
+        </LoadingButton>
       </Field>
       <FieldDescription className="text-center">
         Use your Filecano account credentials.

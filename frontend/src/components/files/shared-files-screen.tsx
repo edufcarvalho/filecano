@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
 
-import { Field, FieldError } from "@ui/field"
-
 import { FileList } from "@files/file-list"
 import {
   ShareLinkErrorScreen,
   type ShareLinkErrorKind,
 } from "@errors/share-link-error-screen"
 import { SiteHeader } from "@/components/layout/site-header"
+import { ErrorField } from "@misc/status-field"
 import {
   ApiError,
   downloadSharedFile,
@@ -53,7 +52,8 @@ export function SharedFilesScreen() {
             new Set(
               sharedLink.files
                 .filter(
-                  (file) => isAvailableFile(file) && currentSelection.has(file.id)
+                  (file) =>
+                    isAvailableFile(file) && currentSelection.has(file.id)
                 )
                 .map((file) => file.id)
             )
@@ -143,11 +143,7 @@ export function SharedFilesScreen() {
     <div className="fixed inset-0 flex min-h-0 flex-col overflow-hidden">
       <SiteHeader pageTitle="Shared files" />
       <main className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden bg-muted/40 p-4">
-        {error ? (
-          <Field data-invalid>
-            <FieldError>{error}</FieldError>
-          </Field>
-        ) : null}
+        <ErrorField message={error} />
 
         <FileList
           variant="shared"

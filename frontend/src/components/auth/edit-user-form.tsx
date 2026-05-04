@@ -1,25 +1,14 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
-import { LoaderCircleIcon } from "lucide-react"
 
 import { Button } from "@ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@ui/card"
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@ui/field"
-import { Input } from "@ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "@ui/card"
+import { Field, FieldGroup } from "@ui/field"
 
-import { PasswordInput } from "@auth/password-input"
+import { AuthPasswordField, AuthTextField } from "@auth/auth-form-fields"
 import { PasswordRequirementsList } from "@auth/password-requirements-list"
+import { DescriptionField, ErrorField } from "@misc/status-field"
+import { LoadingButton } from "@misc/loading-button"
 import { updateUser, type UserResponse } from "@/lib/api"
 import type { FormSubmitHandler } from "@/lib/form-types"
 import { validatePassword } from "@/lib/password"
@@ -111,74 +100,56 @@ export function EditUserForm({
         <CardContent>
           <form onSubmit={handleSubmit}>
             <FieldGroup>
-              {error ? (
-                <Field data-invalid>
-                  <FieldError>{error}</FieldError>
-                </Field>
-              ) : null}
-              {success ? (
-                <Field>
-                  <FieldDescription>{success}</FieldDescription>
-                </Field>
-              ) : null}
-              <Field data-invalid={error ? true : undefined}>
-                <FieldLabel htmlFor="name">Name</FieldLabel>
-                <Input
-                  id="name"
-                  name="name"
-                  type="text"
-                  autoComplete="name"
-                  defaultValue={user.name}
-                  disabled={isPending}
-                  aria-invalid={error ? true : undefined}
-                />
-              </Field>
-              <Field data-invalid={error ? true : undefined}>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  defaultValue={user.email}
-                  disabled={isPending}
-                  aria-invalid={error ? true : undefined}
-                />
-              </Field>
-              <Field data-invalid={error ? true : undefined}>
-                <FieldLabel htmlFor="password">New password</FieldLabel>
-                <PasswordInput
-                  id="password"
-                  name="password"
-                  autoComplete="new-password"
-                  placeholder="Leave blank to keep current password"
-                  disabled={isPending}
-                  aria-invalid={error ? true : undefined}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  onBlur={() => setPasswordTouched(true)}
-                  isVisible={showPassword}
-                  onVisibilityChange={setShowPassword}
-                />
+              <ErrorField message={error} />
+              <DescriptionField>{success}</DescriptionField>
+              <AuthTextField
+                id="name"
+                label="Name"
+                name="name"
+                type="text"
+                autoComplete="name"
+                defaultValue={user.name}
+                disabled={isPending}
+                invalid={!!error}
+              />
+              <AuthTextField
+                id="email"
+                label="Email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                defaultValue={user.email}
+                disabled={isPending}
+                invalid={!!error}
+              />
+              <AuthPasswordField
+                id="password"
+                label="New password"
+                name="password"
+                autoComplete="new-password"
+                placeholder="Leave blank to keep current password"
+                disabled={isPending}
+                invalid={!!error}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                onBlur={() => setPasswordTouched(true)}
+                isVisible={showPassword}
+                onVisibilityChange={setShowPassword}
+              >
                 {passwordTouched || password.length > 0 ? (
                   <PasswordRequirementsList password={password} />
                 ) : null}
-              </Field>
+              </AuthPasswordField>
               <Field className="flex-column justify-between">
-                <Button
+                <LoadingButton
                   type="submit"
+                  isLoading={isPending}
                   disabled={
                     isPending || (passwordTouched && passwordErrors.length > 0)
                   }
                 >
-                  {isPending ? (
-                    <LoaderCircleIcon
-                      data-icon="inline-start"
-                      className="animate-spin"
-                    />
-                  ) : null}
                   Save changes
-                </Button>
+                </LoadingButton>
                 <Button variant="outline" asChild>
                   <Link to="/">Cancel</Link>
                 </Button>

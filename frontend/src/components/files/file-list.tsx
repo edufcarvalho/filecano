@@ -21,12 +21,7 @@ import {
 import type { ReactNode } from "react"
 
 import { Button } from "@ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@ui/card"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +33,7 @@ import { Field, FieldGroup, FieldLabel } from "@ui/field"
 import { Input } from "@ui/input"
 import { cn } from "@/lib/utils"
 
+import { LoadingButton } from "@misc/loading-button"
 import { SearchForm } from "@misc/search-form"
 
 import type { FileResponse } from "@/lib/api"
@@ -220,93 +216,63 @@ export function FileList({
         </div>
         <div className="flex flex-wrap gap-2">
           {variant === "shared" ? (
-            <Button
+            <LoadingButton
               type="button"
               variant="outline"
               size="sm"
               onClick={onDownloadAll}
               disabled={!hasSelectedFiles || pendingFileId !== null}
+              isLoading={pendingFileId === "bulk-download"}
+              idleIcon={<DownloadIcon data-icon="inline-start" />}
             >
-              {pendingFileId === "bulk-download" ? (
-                <LoaderCircleIcon
-                  data-icon="inline-start"
-                  className="animate-spin"
-                />
-              ) : (
-                <DownloadIcon data-icon="inline-start" />
-              )}
               Download ({selectedCount})
-            </Button>
+            </LoadingButton>
           ) : (
             <>
-              <Button
+              <LoadingButton
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={onBulkDownload}
                 disabled={!hasSelectedFiles || pendingFileId !== null}
+                isLoading={pendingFileId === "bulk-download"}
+                idleIcon={<DownloadIcon data-icon="inline-start" />}
               >
-                {pendingFileId === "bulk-download" ? (
-                  <LoaderCircleIcon
-                    data-icon="inline-start"
-                    className="animate-spin"
-                  />
-                ) : (
-                  <DownloadIcon data-icon="inline-start" />
-                )}
                 Download ({selectedCount})
-              </Button>
-              <Button
+              </LoadingButton>
+              <LoadingButton
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={onBulkShare}
                 disabled={!hasSelectedFiles || pendingFileId !== null}
+                isLoading={pendingFileId === "bulk-share"}
+                idleIcon={<Share2Icon data-icon="inline-start" />}
               >
-                {pendingFileId === "bulk-share" ? (
-                  <LoaderCircleIcon
-                    data-icon="inline-start"
-                    className="animate-spin"
-                  />
-                ) : (
-                  <Share2Icon data-icon="inline-start" />
-                )}
                 Share ({selectedCount})
-              </Button>
-              <Button
+              </LoadingButton>
+              <LoadingButton
                 type="button"
                 variant="destructive"
                 size="sm"
                 onClick={onBulkDelete}
                 disabled={!hasSelectedFiles || pendingFileId !== null}
+                isLoading={pendingFileId === "bulk-delete"}
+                idleIcon={<Trash2Icon data-icon="inline-start" />}
               >
-                {pendingFileId === "bulk-delete" ? (
-                  <LoaderCircleIcon
-                    data-icon="inline-start"
-                    className="animate-spin"
-                  />
-                ) : (
-                  <Trash2Icon data-icon="inline-start" />
-                )}
                 Delete ({selectedCount})
-              </Button>
-              <Button
+              </LoadingButton>
+              <LoadingButton
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={onRefresh}
                 disabled={isLoading || isUploading}
+                isLoading={isLoading}
+                idleIcon={<RefreshCwIcon data-icon="inline-start" />}
               >
-                {isLoading ? (
-                  <LoaderCircleIcon
-                    data-icon="inline-start"
-                    className="animate-spin"
-                  />
-                ) : (
-                  <RefreshCwIcon data-icon="inline-start" />
-                )}
                 Refresh
-              </Button>
+              </LoadingButton>
             </>
           )}
         </div>
@@ -498,41 +464,29 @@ function FileListItem({
 
       <div className="flex shrink-0 flex-wrap gap-2">
         {variant === "shared" ? (
-          <Button
+          <LoadingButton
             type="button"
             size="sm"
             variant="outline"
             onClick={() => onDownload(file)}
             disabled={pendingFileId !== null || isDeleted}
+            isLoading={isDownloading || pendingFileId === file.id}
+            idleIcon={<DownloadIcon data-icon="inline-start" />}
           >
-            {isDownloading || pendingFileId === file.id ? (
-              <LoaderCircleIcon
-                data-icon="inline-start"
-                className="animate-spin"
-              />
-            ) : (
-              <DownloadIcon data-icon="inline-start" />
-            )}
             Download
-          </Button>
+          </LoadingButton>
         ) : isEditing ? (
           <>
-            <Button
+            <LoadingButton
               type="button"
               size="sm"
               onClick={() => onRename?.(file)}
               disabled={isPending}
+              isLoading={isPending}
+              idleIcon={<SaveIcon data-icon="inline-start" />}
             >
-              {isPending ? (
-                <LoaderCircleIcon
-                  data-icon="inline-start"
-                  className="animate-spin"
-                />
-              ) : (
-                <SaveIcon data-icon="inline-start" />
-              )}
               Save
-            </Button>
+            </LoadingButton>
             <Button
               type="button"
               size="sm"
@@ -552,7 +506,7 @@ function FileListItem({
                 size="icon-sm"
                 variant="outline"
                 disabled={pendingFileId !== null}
-                 aria-label={`Open actions for ${file.display_name}`}
+                aria-label={`Open actions for ${file.display_name}`}
               >
                 <MoreVerticalIcon />
               </Button>
