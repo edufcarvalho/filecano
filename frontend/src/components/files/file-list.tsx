@@ -189,7 +189,7 @@ export function FileList({
   return (
     <Card className={cn("flex min-h-0 flex-col", stretch && "flex-1")}>
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-3 ps-4">
+        <div className="flex items-center gap-3 ps-6">
           <input
             type="checkbox"
             aria-label="Select all files"
@@ -218,7 +218,7 @@ export function FileList({
           {variant === "shared" ? (
             <LoadingButton
               type="button"
-              variant="outline"
+              variant="download"
               size="sm"
               onClick={onDownloadAll}
               disabled={!hasSelectedFiles || pendingFileId !== null}
@@ -231,7 +231,7 @@ export function FileList({
             <>
               <LoadingButton
                 type="button"
-                variant="outline"
+                variant="download"
                 size="sm"
                 onClick={onBulkDownload}
                 disabled={!hasSelectedFiles || pendingFileId !== null}
@@ -242,7 +242,7 @@ export function FileList({
               </LoadingButton>
               <LoadingButton
                 type="button"
-                variant="outline"
+                variant="share"
                 size="sm"
                 onClick={onBulkShare}
                 disabled={!hasSelectedFiles || pendingFileId !== null}
@@ -467,7 +467,7 @@ function FileListItem({
           <LoadingButton
             type="button"
             size="sm"
-            variant="outline"
+            variant="secondary"
             onClick={() => onDownload(file)}
             disabled={pendingFileId !== null || isDeleted}
             isLoading={isDownloading || pendingFileId === file.id}
@@ -513,7 +513,10 @@ function FileListItem({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuGroup>
-                <DropdownMenuItem onSelect={() => onDownload(file)}>
+                <DropdownMenuItem
+                  variant="download"
+                  onSelect={() => onDownload(file)}
+                >
                   {isDownloading ? (
                     <LoaderCircleIcon className="animate-spin" />
                   ) : (
@@ -521,7 +524,10 @@ function FileListItem({
                   )}
                   Download
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => onShare?.(file)}>
+                <DropdownMenuItem
+                  variant="share"
+                  onSelect={() => onShare?.(file)}
+                >
                   {isSharing ? (
                     <LoaderCircleIcon className="animate-spin" />
                   ) : (

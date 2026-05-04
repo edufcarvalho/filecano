@@ -53,24 +53,24 @@
 }
 
 :root {
-    --background: oklch(1 0 0);
+    --background: oklch(0.982 0.003 286.35);
     --foreground: oklch(0.141 0.005 285.823);
     --card: oklch(1 0 0);
     --card-foreground: oklch(0.141 0.005 285.823);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.141 0.005 285.823);
-    --primary: oklch(0.488 0.243 264.376);
-    --primary-foreground: oklch(0.97 0.014 254.604);
-    --secondary: oklch(0.967 0.001 286.375);
+    --primary: oklch(0.45 0.236 264.376);
+    --primary-foreground: oklch(0.99 0 0);
+    --secondary: oklch(0.925 0.006 286.32);
     --secondary-foreground: oklch(0.21 0.006 285.885);
-    --muted: oklch(0.967 0.001 286.375);
-    --muted-foreground: oklch(0.65 0.016 285.938);
-    --accent: oklch(0.967 0.001 286.375);
+    --muted: oklch(0.935 0.006 286.32);
+    --muted-foreground: oklch(0.45 0.017 285.938);
+    --accent: oklch(0.92 0.007 286.32);
     --accent-foreground: oklch(0.21 0.006 285.885);
     --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.92 0.004 286.32);
-    --input: oklch(0.92 0.004 286.32);
-    --ring: oklch(0.705 0.015 286.067);
+    --border: oklch(0.84 0.009 286.32);
+    --input: oklch(0.78 0.011 286.32);
+    --ring: oklch(0.54 0.041 286.067);
     --chart-1: oklch(0.785 0.115 274.713);
     --chart-2: oklch(0.585 0.233 277.117);
     --chart-3: oklch(0.511 0.262 276.966);
@@ -132,5 +132,14 @@
   }
   button:not(:disabled), [role="button"]:not(:disabled) {
     cursor: pointer;
+  }
+}
+
+@keyframes activity-panel-progress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
   }
 }
