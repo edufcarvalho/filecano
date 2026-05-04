@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     access_token_refresh_grace_seconds: int = 86400
     shared_url_expire_seconds: int = 604800
     share_token_length: int = 8
+    max_file_size_bytes: int = 2147483648
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

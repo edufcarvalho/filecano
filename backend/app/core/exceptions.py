@@ -29,3 +29,6 @@ class NotFoundError(AppError):
 
 class StorageError(AppError):
   status_code = status.HTTP_502_BAD_GATEWAY
+
+class FileTooLargeError(AppError):
+  status_code = status.HTTP_413_CONTENT_TOO_LARGE

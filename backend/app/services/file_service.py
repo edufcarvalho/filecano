@@ -13,7 +13,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 from urllib3.response import BaseHTTPResponse
 
-from app.core import GoneError, NotFoundError, StorageError
+from app.core import GoneError, NotFoundError, StorageError, Settings, FileTooLargeError
 from app.models import File, User
 from app.repositories import FileRepository
 from app.schemas import FileUpdateParams
@@ -21,7 +21,7 @@ from app.services.file_storage_service import FileStorageService
 from app.utils.time import current_datetime
 
 SUPPORTED_PREVIEW_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
-
+GB_SCALE = 1024*1024*1024
 
 class FileService:
   def __init__(
@@ -29,15 +29,20 @@ class FileService:
     file_repository: FileRepository,
     storage_service: FileStorageService,
     session: Session,
+    settings: Settings
   ):
     self.repository = file_repository
     self.storage = storage_service
     self.session = session
+    self.settings = settings
 
   def create_file(self, user: User, upload: UploadFile) -> File:
     checksum, size_bytes = self._checksum_and_size(upload.file)
     original_name = upload.filename or "unnamed"
     display_name = self._get_unique_filename(user.id, original_name)
+
+    if size_bytes > self.settings.max_file_size_bytes:
+      raise FileTooLargeError(f"Uploaded file is bigger than max allowed size ({(self.settings.max_file_size_bytes/GB_SCALE):.2f} GB)")
 
     if file := self._file_already_exists_deleted(checksum, display_name, user.id):
       self.repository.restore_file(file)
