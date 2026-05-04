@@ -3,9 +3,6 @@ import {
   ChevronsUpDown,
   EditIcon,
   LogOutIcon,
-  MoonIcon,
-  SunIcon,
-  ComputerIcon,
 } from "lucide-react"
 import { Link } from "react-router-dom"
 
@@ -27,7 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@ui/dropdown-menu"
-import { useTheme } from "@ui/theme-provider"
+import { ThemeToggle } from "@ui/theme-toggle"
 
 import { Icon } from "@misc/icon"
 
@@ -60,7 +57,6 @@ export function SiteHeader({
   onSignOut,
 }: SiteHeaderProps) {
   const initials = user ? getInitials(user.name) : "FC"
-  const { theme, setTheme } = useTheme()
 
   return (
     <header className="sticky top-0 z-50 flex w-full shrink-0 items-center border-b bg-background">
@@ -82,29 +78,7 @@ export function SiteHeader({
           </BreadcrumbList>
         </Breadcrumb>
         <div className="w-full sm:ms-auto" />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="shrink-0">
-              <SunIcon className="size-4 hidden dark:block" />
-              <MoonIcon className="size-4 block dark:hidden" />
-              <span className="sr-only">Toggle theme</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setTheme("light")}>
-              <SunIcon className="size-4" />
-              Light
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTheme("dark")}>
-              <MoonIcon className="size-4" />
-              Dark
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTheme("system")}>
-              <ComputerIcon className="size-4" />
-              System
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <ThemeToggle className="shrink-0" />
         <div className="flex shrink-0 items-stretch">
           {!user ? (
             <Button asChild variant="outline" size="sm">

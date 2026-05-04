@@ -13,6 +13,7 @@ type ThemeProviderProps = {
 
 type ThemeProviderState = {
   theme: Theme
+  resolvedTheme: ResolvedTheme
   setTheme: (theme: Theme) => void
 }
 
@@ -92,6 +93,8 @@ export function ThemeProvider({
 
     return defaultTheme
   })
+  const [resolvedTheme, setResolvedTheme] =
+    React.useState<ResolvedTheme>(getSystemTheme)
 
   const setTheme = React.useCallback(
     (nextTheme: Theme) => {
@@ -112,6 +115,7 @@ export function ThemeProvider({
 
       root.classList.remove("light", "dark")
       root.classList.add(resolvedTheme)
+      setResolvedTheme(resolvedTheme)
 
       if (restoreTransitions) {
         restoreTransitions()
@@ -163,7 +167,7 @@ export function ThemeProvider({
             ? "light"
             : currentTheme === "light"
               ? "dark"
-              : getSystemTheme() === "dark"
+              : resolvedTheme === "dark"
                 ? "light"
                 : "dark"
 
@@ -177,7 +181,7 @@ export function ThemeProvider({
     return () => {
       window.removeEventListener("keydown", handleKeyDown)
     }
-  }, [storageKey])
+  }, [resolvedTheme, storageKey])
 
   React.useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
@@ -207,9 +211,10 @@ export function ThemeProvider({
   const value = React.useMemo(
     () => ({
       theme,
+      resolvedTheme,
       setTheme,
     }),
-    [theme, setTheme]
+    [theme, resolvedTheme, setTheme]
   )
 
   return (

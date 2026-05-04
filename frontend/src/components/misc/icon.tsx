@@ -7,8 +7,8 @@ type IconProps = {
 }
 
 export function Icon({ className, markClassName }: IconProps) {
-  const { theme } = useTheme()
-  const isDark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches)
+  const { resolvedTheme } = useTheme()
+  const isDark = resolvedTheme === "dark"
 
   return (
     <div
@@ -20,10 +20,7 @@ export function Icon({ className, markClassName }: IconProps) {
       <img
         src={isDark ? "/favicon.svg" : "/favicon_light.svg"}
         alt="Filecano logo"
-        className={cn(
-          "block size-12 rounded-lg",
-          markClassName
-        )}
+        className={cn("block size-12 rounded-lg", markClassName)}
       />
       <span className="sr-only">Filecano</span>
     </div>
