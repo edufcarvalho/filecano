@@ -75,11 +75,11 @@ export function SharedFilesScreen() {
 
   async function handleDownload(file: FileResponse) {
     if (!shareToken) return
+
     if (!isAvailableFile(file)) {
       setError("This file was deleted by the owner.")
       return
     }
-
     setError(null)
     setPendingFileId(file.id)
 

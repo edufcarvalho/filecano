@@ -187,7 +187,7 @@ export function FileList({
   const filteredFiles = files.filter(
     (file) =>
       !searchQuery.trim() ||
-      file.original_name.toLowerCase().includes(searchQuery.toLowerCase())
+      file.display_name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   return (
@@ -424,7 +424,7 @@ function FileListItem({
       <div className="flex min-w-0 items-center gap-3">
         <input
           type="checkbox"
-          aria-label={`Select ${file.original_name}`}
+          aria-label={`Select ${file.display_name}`}
           checked={isSelected}
           disabled={isDeleted}
           onClick={() => onClearNewlyAdded?.(file.id)}
@@ -434,7 +434,7 @@ function FileListItem({
         {isImageFile(file.content_type) && previewUrls[file.id] ? (
           <img
             src={previewUrls[file.id]}
-            alt={file.original_name}
+            alt={file.display_name}
             className="size-10 rounded object-cover"
           />
         ) : (
@@ -461,7 +461,7 @@ function FileListItem({
           ) : (
             <div className="flex items-center gap-2">
               <h2 className="truncate text-base font-medium">
-                {file.original_name}
+                {file.display_name}
               </h2>
               {isDeleted ? (
                 <CircleAlertIcon className="shrink-0 text-destructive" />
@@ -552,7 +552,7 @@ function FileListItem({
                 size="icon-sm"
                 variant="outline"
                 disabled={pendingFileId !== null}
-                aria-label={`Open actions for ${file.original_name}`}
+                 aria-label={`Open actions for ${file.display_name}`}
               >
                 <MoreVerticalIcon />
               </Button>

@@ -268,7 +268,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
 
   function startEditing(file: FileResponse) {
     setEditingFileId(file.id)
-    setEditingName(file.original_name)
+    setEditingName(file.display_name)
     setError(null)
   }
 
@@ -278,14 +278,14 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   }
 
   async function handleRename(file: FileResponse) {
-    const originalName = editingName.trim()
+    const newName = editingName.trim()
 
-    if (!originalName) {
+    if (!newName) {
       setError("File name must not be blank.")
       return
     }
 
-    if (originalName === file.original_name) {
+    if (newName === file.display_name) {
       stopEditing()
       return
     }
@@ -295,7 +295,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
 
     try {
       const updatedFile = await updateFile(accessToken, file.id, {
-        original_name: originalName,
+        original_name: newName,
       })
 
       setFiles((currentFiles) =>

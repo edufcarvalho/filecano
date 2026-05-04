@@ -9,6 +9,7 @@ class FileResponse(BaseModel):
   id: UUID
   user_id: UUID
   original_name: str
+  display_name: str
   content_type: Optional[str]
   size_bytes: Optional[int]
   checksum: Optional[str]

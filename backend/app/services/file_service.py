@@ -4,6 +4,8 @@ from io import BytesIO
 from typing import BinaryIO
 from uuid import UUID
 from typing import Optional
+from pathlib import Path
+
 import PIL.Image
 from fastapi import UploadFile
 from PIL import UnidentifiedImageError
@@ -17,7 +19,6 @@ from app.repositories import FileRepository
 from app.schemas import FileUpdateParams
 from app.services.file_storage_service import FileStorageService
 from app.utils.time import current_datetime
-
 
 SUPPORTED_PREVIEW_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 
@@ -34,17 +35,20 @@ class FileService:
     self.session = session
 
   def create_file(self, user: User, upload: UploadFile) -> File:
+    checksum, size_bytes = self._checksum_and_size(upload.file)
     original_name = upload.filename or "unnamed"
+    display_name = self._get_unique_filename(user.id, original_name)
+
     file = File(
       user_id=user.id,
+      checksum=checksum,
+      size_bytes=size_bytes,
       original_name=original_name,
+      display_name=display_name,
       content_type=upload.content_type,
     )
-    file.object_key = f"users/{user.id}/files/{file.id}"
 
-    checksum, size_bytes = self._checksum_and_size(upload.file)
-    file.checksum = checksum
-    file.size_bytes = size_bytes
+    file.object_key=f"users/{user.id}/files/{file.id}"
 
     self.storage.upload(
       file.object_key,
@@ -115,6 +119,7 @@ class FileService:
       raise GoneError("File has been deleted")
 
     file.original_name = params.original_name
+    file.display_name = self._get_unique_filename(user.id, params.original_name)
 
     self.repository.add(file)
     self.session.commit()
@@ -172,6 +177,18 @@ class FileService:
 
   def _can_generate_preview(self, content_type: Optional[str]) -> bool:
     return content_type in SUPPORTED_PREVIEW_TYPES
+
+  def _get_unique_filename(self, user_id: UUID, original_name: str) -> str:
+    count = self.repository.file_name_stored_by_user_count(original_name, user_id)
+    original_name = self._remove_file_extension(original_name)
+
+    if count > 0:
+      return f"{original_name} ({count})"
+
+    return original_name
+
+  def _remove_file_extension(self, filename: str) -> str:
+    return Path(filename).stem
 
   def _generate_preview(self, data: BinaryIO) -> tuple[BinaryIO, int, str]:
     """Generate a thumbnail preview for images."""

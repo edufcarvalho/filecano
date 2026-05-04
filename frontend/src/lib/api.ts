@@ -37,6 +37,7 @@ export type FileResponse = {
   id: string
   user_id: string
   original_name: string
+  display_name: string
   content_type: string | null
   size_bytes: number | null
   checksum: string | null

@@ -19,7 +19,8 @@ class File(SQLModel, table=True):
   id: UUID = Field(default_factory=uuid7, primary_key=True)
   user_id: UUID = Field(foreign_key="users.id", nullable=False, ondelete="CASCADE")
   object_key: str = Field(nullable=False, unique=True)
-  original_name: str = Field(nullable=False)
+  original_name: str = Field(nullable=False, index=True)
+  display_name: str = Field(nullable=False)
 
   content_type: Optional[str] = Field(default=None)
   size_bytes: Optional[int] = Field(sa_column=Column(BigInteger, nullable=True))
