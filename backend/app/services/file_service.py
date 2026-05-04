@@ -39,6 +39,10 @@ class FileService:
     original_name = upload.filename or "unnamed"
     display_name = self._get_unique_filename(user.id, original_name)
 
+    if file := self._file_already_exists_deleted(checksum, display_name, user.id):
+      self.repository.restore_file(file)
+      return file
+
     file = File(
       user_id=user.id,
       checksum=checksum,
@@ -189,6 +193,9 @@ class FileService:
 
   def _remove_file_extension(self, filename: str) -> str:
     return Path(filename).stem
+
+  def _file_already_exists_deleted(self, checksum: str, display_name: str, user_id: str):
+    return self.repository.get_deleted_file_by_checksum_and_user(checksum, display_name, user_id)
 
   def _generate_preview(self, data: BinaryIO) -> tuple[BinaryIO, int, str]:
     """Generate a thumbnail preview for images."""
