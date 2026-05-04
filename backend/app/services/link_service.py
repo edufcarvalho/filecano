@@ -33,10 +33,10 @@ class LinkService:
     files = self.file_repository.list_by_multiple_ids_and_user(file_ids, user.id)
 
     link = Link(
-      token="pending",
       expires_at=current_datetime()
       + timedelta(seconds=self.settings.shared_url_expire_seconds),
       files=files,
+      user=user
     )
 
     link.token = self._generate_token(link)

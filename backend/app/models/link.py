@@ -9,11 +9,15 @@ from app.models.file_link_relation import FileLinkRelation
 
 if TYPE_CHECKING:
   from app.models.file import File
+  from app.models.user import User
 
 class Link(SQLModel, table=True):
   __tablename__ = "links"
 
   id: UUID = Field(default_factory=uuid7, primary_key=True)
   token: str = Field(nullable=False, unique=True)
+  user_id: UUID = Field(nullable=False, foreign_key="users.id", ondelete="CASCADE")
   expires_at: datetime = Field(nullable=False, sa_type=DateTime(timezone=True))
+
   files: list["File"] = Relationship(back_populates="links", link_model=FileLinkRelation)
+  user: "User" = Relationship(back_populates="links")

@@ -6,6 +6,7 @@ from pydantic import EmailStr as Email
 from sqlmodel import DateTime, Field, Relationship, SQLModel
 from uuid6 import uuid7
 
+from app.models.link import Link
 from app.models.file import File
 from app.utils.time import current_datetime
 
@@ -29,3 +30,4 @@ class User(SQLModel, table=True):
   )
 
   files: list["File"] = Relationship(back_populates="user")
+  links: list["Link"] = Relationship(back_populates="user")
