@@ -63,7 +63,11 @@ export function SharedFilesScreen() {
         if (error instanceof ApiError && error.status === 410) {
           setLinkError("expired")
         } else if (error instanceof ApiError && error.status === 404) {
-          setLinkError("not-found")
+          if (error.message === "Link deleted by creator") {
+            setLinkError("deleted")
+          } else {
+            setLinkError("not-found")
+          }
         } else {
           setError(getErrorMessage(error, "Unable to load shared files."))
         }

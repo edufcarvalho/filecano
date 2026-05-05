@@ -29,7 +29,7 @@ export function UnauthorizedErrorScreen({
             </p>
           </div>
           <Button asChild variant="outline">
-            <Link to="/login" onClick={onSignIn}>
+            <Link to="/login" target="_blank" rel="noopener noreferrer" onClick={onSignIn}>
               Sign in
             </Link>
           </Button>

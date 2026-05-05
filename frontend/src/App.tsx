@@ -15,6 +15,7 @@ import {
   getDisplayUser,
   getStoredToken,
   persistStoredToken,
+  type StoredUser,
   type StoredToken,
 } from "@/lib/session"
 import {
@@ -25,18 +26,18 @@ import {
 
 function SignedInScreen({
   token,
+  displayUser,
   onSignOut,
   onTokenUpdate,
 }: {
   token: StoredToken
+  displayUser: StoredUser
   onSignOut: () => void
   onTokenUpdate: (token: StoredToken) => void
 }) {
-  const displayUser = getDisplayUser(token)
-
   return (
     <div className="fixed inset-0 flex min-h-0 flex-col overflow-hidden">
-      <SiteHeader user={displayUser} onSignOut={onSignOut} />
+      <SiteHeader user={displayUser} token={token} onSignOut={onSignOut} />
       <div className="flex min-h-0 w-full flex-1">
         <Routes>
           <Route
@@ -49,6 +50,7 @@ function SignedInScreen({
                   onTokenUpdate({
                     ...token,
                     user: {
+                      ...displayUser,
                       name: user.name,
                       email: user.email,
                     },
@@ -113,12 +115,20 @@ export function App() {
   const [token, setToken] = useState<StoredToken | null>(getStoredToken)
   const [isUnauthorized, setIsUnauthorized] = useState(false)
   const [redirectKey, setRedirectKey] = useState(0)
+  const displayUser = token ? getDisplayUser(token) : null
 
   useEffect(() => {
     if (token) {
       persistStoredToken(token)
     }
   }, [token])
+
+  useEffect(() => {
+    if (!token || displayUser) return
+
+    clearStoredToken()
+    setToken(null)
+  }, [token, displayUser])
 
   useEffect(() => {
     setUnauthorizedCallback(() => {
@@ -166,12 +176,15 @@ export function App() {
         <Route
           path="/*"
           element={
-            token ? (
+            token && displayUser ? (
               <SignedInScreen
                 token={token}
+                displayUser={displayUser}
                 onSignOut={handleSignOut}
                 onTokenUpdate={setToken}
               />
+            ) : token ? (
+              <Navigate to="/login" replace />
             ) : isUnauthorized ? (
               <UnauthorizedErrorScreen
                 onSignIn={() => setIsUnauthorized(false)}

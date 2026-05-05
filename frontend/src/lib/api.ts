@@ -48,8 +48,14 @@ export type FileResponse = {
 export type LinkResponse = {
   id: string
   token: string
+  custom_name: string | null
   expires_at: string
   files: FileResponse[]
+}
+
+export type LinkUpdateResponse = {
+  message: string
+  custom_name: string | null
 }
 
 let onUnauthorized: (() => void) | null = null
@@ -311,6 +317,65 @@ export async function shareFiles(
   if (!response.ok) await readError(response, "Unable to share files.")
 
   return response.json()
+}
+
+export async function listUserLinks(
+  accessToken: string,
+  userId: string
+): Promise<LinkResponse[]> {
+  const response = await authFetch(
+    `${API_URL}/v1/share/user/${userId}`,
+    accessToken
+  )
+
+  if (!response.ok) await readError(response, "Unable to load links.")
+
+  return response.json()
+}
+
+export async function updateLinkName(
+  accessToken: string,
+  token: string,
+  customName: string
+): Promise<LinkUpdateResponse> {
+  const response = await authFetch(
+    `${API_URL}/v1/share/${token}`,
+    accessToken,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ custom_name: customName }),
+    }
+  )
+
+  if (!response.ok) await readError(response, "Unable to update link.")
+
+  return response.json()
+}
+
+export async function deleteLink(
+  accessToken: string,
+  token: string
+): Promise<void> {
+  const response = await authFetch(
+    `${API_URL}/v1/share/${token}`,
+    accessToken,
+    {
+      method: "DELETE",
+    }
+  )
+
+  if (!response.ok) await readError(response, "Unable to delete link.")
+}
+
+export function getShareUrl(token: string, customName: string | null): string {
+  const baseUrl = window.location.origin
+  if (customName) {
+    return `${baseUrl}/share/${customName}`
+  }
+  return `${baseUrl}/share/${token}`
 }
 
 export async function getSharedFiles(token: string): Promise<LinkResponse> {

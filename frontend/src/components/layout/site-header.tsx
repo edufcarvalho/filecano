@@ -27,6 +27,9 @@ import {
 import { ThemeToggle } from "@ui/theme-toggle"
 
 import { Icon } from "@misc/icon"
+import { MyLinksDropdown } from "@/components/links/my-links-dropdown"
+
+import type { StoredToken } from "@/lib/session"
 
 type SiteHeaderUser = {
   name: string
@@ -36,6 +39,7 @@ type SiteHeaderUser = {
 type SiteHeaderProps = {
   pageTitle?: string
   user?: SiteHeaderUser
+  token?: StoredToken
   onSignOut?: () => void
 }
 
@@ -54,6 +58,7 @@ function getInitials(name: string) {
 export function SiteHeader({
   pageTitle = "All files",
   user,
+  token,
   onSignOut,
 }: SiteHeaderProps) {
   const initials = user ? getInitials(user.name) : "FC"
@@ -78,11 +83,15 @@ export function SiteHeader({
           </BreadcrumbList>
         </Breadcrumb>
         <div className="w-full sm:ms-auto" />
+        {user ? <MyLinksDropdown
+          accessToken={token?.access_token}
+          userId={token?.user?.id}
+        /> : undefined }
         <ThemeToggle className="shrink-0" />
         <div className="flex shrink-0 items-stretch">
           {!user ? (
             <Button asChild variant="outline" size="sm">
-              <Link to="/login">Sign in</Link>
+              <Link to="/login" target="_blank" rel="noopener noreferrer">Sign in</Link>
             </Button>
           ) : (
             <DropdownMenu>

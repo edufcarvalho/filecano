@@ -150,9 +150,9 @@ export function EditUserForm({
                 >
                   Save changes
                 </LoadingButton>
-                <Button variant="outline" asChild>
-                  <Link to="/">Cancel</Link>
-                </Button>
+                  <Button variant="outline" asChild>
+                    <Link to="/" target="_blank" rel="noopener noreferrer">Cancel</Link>
+                  </Button>
               </Field>
             </FieldGroup>
           </form>
