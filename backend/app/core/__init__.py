@@ -9,6 +9,7 @@ from app.core.exceptions import (
   StorageError,
   FileTooLargeError,
   UnsupportedFileTypeError,
+  ForbiddenError,
 )
 from app.core.security import (
   create_token,
@@ -27,6 +28,7 @@ __all__ = [
   "UnsupportedFileTypeError",
   "StorageError",
   "FileTooLargeError",
+  "ForbiddenError"
   "Settings",
   "create_token",
   "decode_token",

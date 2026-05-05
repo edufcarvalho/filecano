@@ -7,11 +7,15 @@ from pydantic import BaseModel, ConfigDict, EmailStr as Email
 class MessageResponse(BaseModel):
   message: str
 
+  model_config = ConfigDict(from_attributes=True)
+
 
 class TokenResponse(BaseModel):
   access_token: str
   token_type: str
   expires_in: int
+
+  model_config = ConfigDict(from_attributes=True)
 
 
 class UserResponse(BaseModel):

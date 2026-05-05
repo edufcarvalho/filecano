@@ -1,6 +1,7 @@
 from uuid import UUID
-from typing import Optional
-from sqlmodel import Session, select
+from typing import Optional, List
+from datetime import datetime
+from sqlmodel import Session, select, or_
 
 from app.models import Link
 
@@ -24,6 +25,23 @@ class LinkRepository:
     return self.session.get(Link, link_id)
 
   def get_by_token(self, token: str) -> Optional[Link]:
-    query = select(Link).where(Link.token == token)
+    query = select(Link).where(
+      or_(Link.token == token, Link.custom_name == token)
+    )
 
     return self.session.exec(query).first()
+
+  def list_by_user_id(self, user_id: UUID) -> List[Link]:
+    query = select(Link).where(
+      Link.user_id == user_id,
+      Link.deleted_at == None
+    )
+
+    return self.session.exec(query).all()
+
+  def update(self, link: Link) -> Link:
+    return self._commit(link)
+
+  def delete(self, link: Link) -> None:
+    self.session.delete(link)
+    self.session.commit()

@@ -19,10 +19,4 @@ class FileResponse(BaseModel):
   model_config = ConfigDict(from_attributes=True)
 
 
-class LinkResponse(BaseModel):
-  id: UUID
-  token: str
-  expires_at: datetime
-  files: list[FileResponse]
 
-  model_config = ConfigDict(from_attributes=True)

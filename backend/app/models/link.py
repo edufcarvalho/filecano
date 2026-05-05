@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
 from sqlmodel import DateTime, Field, Relationship, SQLModel
@@ -16,8 +16,10 @@ class Link(SQLModel, table=True):
 
   id: UUID = Field(default_factory=uuid7, primary_key=True)
   token: str = Field(nullable=False, unique=True)
+  custom_name: Optional[str] = Field(default=None, unique=True)
   user_id: UUID = Field(nullable=False, foreign_key="users.id", ondelete="CASCADE")
   expires_at: datetime = Field(nullable=False, sa_type=DateTime(timezone=True))
+  deleted_at: Optional[datetime] = Field(default=None, sa_type=DateTime(timezone=True))
 
   files: list["File"] = Relationship(back_populates="links", link_model=FileLinkRelation)
   user: "User" = Relationship(back_populates="links")

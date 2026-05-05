@@ -1,7 +1,7 @@
 import re
 from typing import Optional
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, ConfigDict
 
 class FileUpdateParams(BaseModel):
   original_name: str
@@ -15,3 +15,5 @@ class FileUpdateParams(BaseModel):
       raise ValueError("Original name must not be blank")
 
     return original_name
+  
+  model_config = ConfigDict(from_attributes=True)

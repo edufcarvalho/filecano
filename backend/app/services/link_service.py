@@ -12,11 +12,12 @@ from app.core import (
 )
 from app.models import File, Link, User
 from app.repositories import FileRepository, LinkRepository
+from app.services.base_service import BaseService
 from app.services.file_storage_service import FileStorageService
 from app.utils.time import current_datetime
 
 
-class LinkService:
+class LinkService(BaseService):
   def __init__(
     self,
     repository: LinkRepository,
@@ -55,6 +56,9 @@ class LinkService:
     if link is None:
       raise NotFoundError("Share link not found")
 
+    if link.deleted_at is not None:
+      raise NotFoundError("Link deleted by creator")
+
     if link.expires_at <= current_datetime():
       raise GoneError("Share link expired")
 
@@ -89,3 +93,31 @@ class LinkService:
 
   def _generate_token(self, link: Link) -> str:
     return hashlib.shake_256(str(link.id).encode()).hexdigest(self.settings.share_token_length)
+
+  def list_user_links(self, user: User, user_id: UUID) -> list[Link]:
+    self._ensure_user_has_rights(user, user_id)
+
+    return self.repository.list_by_user_id(user_id)
+
+  def update_link_name(self, user: User, token: str, custom_name: str) -> Link:
+    existing = self.repository.get_by_token(custom_name)
+    if existing and existing.token != token:
+      raise ValueError("Link name already taken")
+
+    link = self.repository.get_by_token(token)
+    if not link:
+      raise NotFoundError("Link not found")
+
+    self._ensure_user_has_rights(user, link.user_id)
+
+    link.custom_name = custom_name
+    return self.repository.update(link)
+
+  def delete_link(self, user: User, token: str) -> None:
+    link = self.repository.get_by_token(token)
+    if not link:
+      raise NotFoundError("Link not found")
+
+    self._ensure_user_has_rights(user, link.user_id)
+
+    self.repository.delete(link)

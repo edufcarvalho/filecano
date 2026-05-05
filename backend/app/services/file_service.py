@@ -18,6 +18,7 @@ from app.core import GoneError, NotFoundError, StorageError, Settings, FileTooLa
 from app.models import File, User
 from app.repositories import FileRepository
 from app.schemas import FileUpdateParams
+from app.services.base_service import BaseService
 from app.services.file_storage_service import FileStorageService
 from app.utils.time import current_datetime
 from app.utils.file import is_content_type_supported
@@ -26,7 +27,7 @@ SUPPORTED_PREVIEW_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 
 GB_SCALE = 1024*1024*1024
 
-class FileService:
+class FileService(BaseService):
   def __init__(
     self,
     file_repository: FileRepository,
@@ -47,7 +48,7 @@ class FileService:
     if size_bytes > self.settings.max_file_size_bytes:
       raise FileTooLargeError(f"Uploaded file is bigger than max allowed size ({(self.settings.max_file_size_bytes/GB_SCALE):.2f} GB)")
 
-    self._validate_file_type(upload.content_type, original_name)
+    self._validate_file_type(upload.content_type)
 
     if file := self._file_already_exists_deleted(checksum, display_name, user.id):
       self.repository.restore_file(file)
@@ -173,6 +174,8 @@ class FileService:
 
     if file is None:
       raise NotFoundError("File not found")
+
+    self._ensure_user_has_rights(user, file.user_id)
 
     return file
 

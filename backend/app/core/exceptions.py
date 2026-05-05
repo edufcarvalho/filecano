@@ -8,8 +8,10 @@ class AppError(HTTPException):
   def __init__(self, message: str, headers: Optional[dict] = None):
     super().__init__(status_code=self.status_code, detail=message, headers=headers)
 
+
 class PasswordValidationError(AppError):
   status_code = status.HTTP_400_BAD_REQUEST
+
 
 class AuthenticationError(AppError):
   status_code = status.HTTP_401_UNAUTHORIZED
@@ -30,8 +32,14 @@ class NotFoundError(AppError):
 class StorageError(AppError):
   status_code = status.HTTP_502_BAD_GATEWAY
 
+
 class FileTooLargeError(AppError):
   status_code = status.HTTP_413_CONTENT_TOO_LARGE
 
+
 class UnsupportedFileTypeError(AppError):
   status_code = status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
+
+
+class ForbiddenError(AppError):
+  status_code = status.HTTP_403_FORBIDDEN
