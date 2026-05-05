@@ -49,6 +49,7 @@ Basic FastAPI + SQLModel on back-end Vite + React + Typescript on front-end with
 ```
 docker
 docker-compose
+docker-buildx-plugin
 bash
 make
 ```
