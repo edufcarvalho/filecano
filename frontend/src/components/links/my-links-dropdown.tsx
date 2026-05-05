@@ -21,6 +21,7 @@ import { Button } from "@ui/button"
 import { Input } from "@ui/input"
 
 import {
+  ApiError,
   listUserLinks,
   deleteLink,
   updateLinkName,
@@ -169,6 +170,7 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
   }
 
   const handleEdit = (token: string, currentName: string | null) => {
+    setError(null)
     setEditingToken(token)
     setEditName(currentName || token)
     setOriginalName(currentName || token)
@@ -190,12 +192,28 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
       return
     }
 
+    const isTaken = links.some(
+      (link) =>
+        link.token !== editingToken &&
+        (link.token === trimmedName || link.custom_name === trimmedName)
+    )
+
+    if (isTaken) {
+      setError("Link already taken")
+      return
+    }
+
     try {
+      setError(null)
       await updateLinkName(accessToken, editingToken, trimmedName)
       handleCancelEdit()
       await loadLinks()
     } catch (err) {
-      setError(getErrorMessage(err, "Link already taken"))
+      setError(
+        err instanceof ApiError && err.status === 409
+          ? "Link already taken"
+          : getErrorMessage(err, "Link already taken")
+      )
     }
   }
 
@@ -233,7 +251,7 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
         className="w-fit max-w-[calc(100vw-1rem)] min-w-0"
       >
         <DropdownMenuGroup
-          className="grid max-w-full justify-start"
+          className="grid max-h-[11rem] max-w-full justify-start overflow-y-auto overscroll-y-contain pr-1"
           style={{
             gridTemplateColumns:
               "auto fit-content(min(390px, calc(100vw - 8rem))) auto",

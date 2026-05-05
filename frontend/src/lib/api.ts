@@ -54,8 +54,8 @@ export type LinkResponse = {
 }
 
 export type LinkUpdateResponse = {
-  message: string
-  custom_name: string | null
+  id: string
+  custom_name: string
 }
 
 let onUnauthorized: (() => void) | null = null
@@ -339,7 +339,7 @@ export async function updateLinkName(
   customName: string
 ): Promise<LinkUpdateResponse> {
   const response = await authFetch(
-    `${API_URL}/v1/share/${token}`,
+    `${API_URL}/v1/share/${encodeURIComponent(token)}`,
     accessToken,
     {
       method: "PUT",
