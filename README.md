@@ -50,11 +50,12 @@ Basic FastAPI + SQLModel on back-end Vite + React + Typescript on front-end with
 docker
 docker-compose
 bash
+make
 ```
 
 ### Script
 ```bash
-docker compose up --build
+make up
 ```
 
 The compose defaults envs to `APP_ENV=development` and `NODE_ENV=development`, so backend reload and Vite HMR are enabled with source bind mounts.
