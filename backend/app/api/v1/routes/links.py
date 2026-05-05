@@ -1,11 +1,9 @@
 from typing import Annotated
 from uuid import UUID
-from urllib.parse import quote
 
 from fastapi import APIRouter, Body, Depends, status
 from fastapi.responses import StreamingResponse
 
-from app.services import LinkService
 from app.api.dependencies import get_current_user, get_link_service
 from app.models import User
 from app.schemas import (
@@ -14,7 +12,7 @@ from app.schemas import (
   LinkUpdateResponse,
   TokenResponse,
 )
-
+from app.services import LinkService
 
 router = APIRouter(prefix="/share", tags=["links"])
 
@@ -78,29 +76,6 @@ def delete_link(
   service: LinkService = Depends(get_link_service),
 ):
   service.delete_link(current_user, token)
-
-
-@router.get("/{token}/{file_id}")
-def download_shared_file(
-  token: str,
-  file_id: UUID,
-  service: LinkService = Depends(get_link_service),
-) -> StreamingResponse:
-  file, response = service.get_download(token, file_id)
-
-  headers = {
-    "Content-Disposition": f"attachment; filename*=UTF-8''{file.original_name.encode()}",
-    "X-Checksum-SHA256": file.checksum or "",
-  }
-
-  if file.size_bytes is not None:
-    headers["Content-Length"] = str(file.size_bytes)
-
-  return StreamingResponse(
-    service.stream_response(response),
-    media_type=file.content_type or "application/octet-stream",
-    headers=headers,
-  )
 
 
 @router.get("/{token}/{file_id}")

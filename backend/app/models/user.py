@@ -1,13 +1,13 @@
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
-from datetime import datetime
 
 from pydantic import EmailStr as Email
 from sqlmodel import DateTime, Field, Relationship, SQLModel
 from uuid6 import uuid7
 
-from app.models.link import Link
 from app.models.file import File
+from app.models.link import Link
 from app.utils.time import current_datetime
 
 

@@ -5,10 +5,10 @@ from app.api.dependencies.services import (
   get_file_repository,
   get_file_service,
   get_file_storage_service,
-  get_user_repository,
-  get_user_service,
   get_link_repository,
   get_link_service,
+  get_user_repository,
+  get_user_service,
 )
 
 __all__ = [

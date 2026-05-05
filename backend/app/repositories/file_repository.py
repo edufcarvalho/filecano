@@ -1,7 +1,7 @@
 from typing import Optional
 from uuid import UUID
 
-from sqlmodel import Session, select, func
+from sqlmodel import Session, func, select
 
 from app.models import File
 from app.models.file_link_relation import FileLinkRelation

@@ -1,9 +1,10 @@
 from typing import Annotated
 from uuid import UUID
+
 from fastapi import APIRouter, Body, Depends, File, UploadFile, status
 from fastapi.responses import StreamingResponse
 
-from app.api.dependencies import get_current_user, get_file_service, get_link_service
+from app.api.dependencies import get_current_user, get_file_service
 from app.core import NotFoundError
 from app.models import User
 from app.schemas import (
@@ -12,7 +13,6 @@ from app.schemas import (
   MessageResponse,
 )
 from app.services import FileService as Service
-
 
 router = APIRouter(prefix="/files", tags=["files"])
 

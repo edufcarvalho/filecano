@@ -1,6 +1,6 @@
 from typing import Annotated, Optional
 
-from fastapi import Depends, Security, status
+from fastapi import Depends, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.api.dependencies.services import get_auth_service

@@ -1,7 +1,7 @@
+from typing import List, Optional
 from uuid import UUID
-from typing import Optional, List
-from datetime import datetime
-from sqlmodel import Session, select, or_
+
+from sqlmodel import Session, or_, select
 
 from app.models import Link
 
@@ -34,7 +34,7 @@ class LinkRepository:
   def list_by_user_id(self, user_id: UUID) -> List[Link]:
     query = select(Link).where(
       Link.user_id == user_id,
-      Link.deleted_at == None
+      Link.deleted_at.is_(None)
     )
 
     return self.session.exec(query).all()

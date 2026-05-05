@@ -1,7 +1,7 @@
 import re
 from typing import Optional
 
-from pydantic import BaseModel, field_validator, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 from pydantic import EmailStr as Email
 
 from app.core import PasswordValidationError
@@ -47,7 +47,7 @@ class UserParams(BaseModel):
   @classmethod
   def password_should_be_valid(cls, password: str) -> str:
     return _validate_password(password)
-  
+
   model_config = ConfigDict(from_attributes=True)
 
 class UserCreationParams(UserParams):

@@ -1,7 +1,9 @@
 from datetime import datetime
-from uuid import UUID
 from typing import Optional
-from pydantic import BaseModel, ConfigDict, EmailStr as Email
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict
+from pydantic import EmailStr as Email
 
 
 class MessageResponse(BaseModel):

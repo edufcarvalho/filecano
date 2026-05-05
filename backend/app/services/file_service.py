@@ -1,11 +1,9 @@
 import hashlib
-import mimetypes
 from contextlib import suppress
 from io import BytesIO
-from typing import BinaryIO
-from uuid import UUID
-from typing import Optional
 from pathlib import Path
+from typing import BinaryIO, Optional
+from uuid import UUID
 
 import PIL.Image
 from fastapi import UploadFile
@@ -14,14 +12,21 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 from urllib3.response import BaseHTTPResponse
 
-from app.core import GoneError, NotFoundError, StorageError, Settings, FileTooLargeError, UnsupportedFileTypeError
+from app.core import (
+  FileTooLargeError,
+  GoneError,
+  NotFoundError,
+  Settings,
+  StorageError,
+  UnsupportedFileTypeError,
+)
 from app.models import File, User
 from app.repositories import FileRepository
 from app.schemas import FileUpdateParams
 from app.services.base_service import BaseService
 from app.services.file_storage_service import FileStorageService
-from app.utils.time import current_datetime
 from app.utils.file import is_content_type_supported
+from app.utils.time import current_datetime
 
 SUPPORTED_PREVIEW_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 
@@ -198,7 +203,7 @@ class FileService(BaseService):
   def _validate_file_type(self, content_type: str) -> None:
     if is_content_type_supported(content_type):
       return
-    
+
     raise UnsupportedFileTypeError("File type not supported")
 
 
