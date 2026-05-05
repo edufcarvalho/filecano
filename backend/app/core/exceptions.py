@@ -32,3 +32,6 @@ class StorageError(AppError):
 
 class FileTooLargeError(AppError):
   status_code = status.HTTP_413_CONTENT_TOO_LARGE
+
+class UnsupportedFileTypeError(AppError):
+  status_code = status.HTTP_415_UNSUPPORTED_MEDIA_TYPE

@@ -16,6 +16,7 @@ dependencies = [
     "passlib[argon2]>=1.7.4",
     "alembic>=1.18.4",
     "pillow>=12.2.0",
+    "content-types>=0.3.1",
 ]
 
 [project.optional-dependencies]

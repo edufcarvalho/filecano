@@ -8,6 +8,7 @@ from app.core.exceptions import (
   PasswordValidationError,
   StorageError,
   FileTooLargeError,
+  UnsupportedFileTypeError,
 )
 from app.core.security import (
   create_token,
@@ -23,9 +24,10 @@ __all__ = [
   "GoneError",
   "NotFoundError",
   "PasswordValidationError",
-  "Settings",
+  "UnsupportedFileTypeError",
   "StorageError",
-  "FileTooLargeError"
+  "FileTooLargeError",
+  "Settings",
   "create_token",
   "decode_token",
   "get_settings",

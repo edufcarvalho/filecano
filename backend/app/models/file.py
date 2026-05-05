@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
-
 from sqlmodel import DateTime, Field, Relationship, SQLModel, Column, BigInteger
 from uuid6 import uuid7
 

@@ -1,4 +1,5 @@
 import hashlib
+import mimetypes
 from contextlib import suppress
 from io import BytesIO
 from typing import BinaryIO
@@ -13,14 +14,16 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 from urllib3.response import BaseHTTPResponse
 
-from app.core import GoneError, NotFoundError, StorageError, Settings, FileTooLargeError
+from app.core import GoneError, NotFoundError, StorageError, Settings, FileTooLargeError, UnsupportedFileTypeError
 from app.models import File, User
 from app.repositories import FileRepository
 from app.schemas import FileUpdateParams
 from app.services.file_storage_service import FileStorageService
 from app.utils.time import current_datetime
+from app.utils.file import is_content_type_supported
 
 SUPPORTED_PREVIEW_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+
 GB_SCALE = 1024*1024*1024
 
 class FileService:
@@ -43,6 +46,8 @@ class FileService:
 
     if size_bytes > self.settings.max_file_size_bytes:
       raise FileTooLargeError(f"Uploaded file is bigger than max allowed size ({(self.settings.max_file_size_bytes/GB_SCALE):.2f} GB)")
+
+    self._validate_file_type(upload.content_type, original_name)
 
     if file := self._file_already_exists_deleted(checksum, display_name, user.id):
       self.repository.restore_file(file)
@@ -186,6 +191,13 @@ class FileService:
 
   def _can_generate_preview(self, content_type: Optional[str]) -> bool:
     return content_type in SUPPORTED_PREVIEW_TYPES
+
+  def _validate_file_type(self, content_type: str) -> None:
+    if is_content_type_supported(content_type):
+      return
+    
+    raise UnsupportedFileTypeError("File type not supported")
+
 
   def _get_unique_filename(self, user_id: UUID, original_name: str) -> str:
     count = self.repository.file_name_stored_by_user_count(original_name, user_id)
