@@ -17,7 +17,7 @@ WORKDIR /app
 RUN apk update \
     && apk add curl
 
-RUN python -m pip install --no-cache-dir uv --root-user-action
+RUN python -m pip install --no-cache-dir uv
 
 COPY pyproject.toml ./
 RUN uv sync --no-cache --no-dev
