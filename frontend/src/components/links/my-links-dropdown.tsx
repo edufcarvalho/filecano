@@ -1,10 +1,13 @@
-import { useState, useEffect, useCallback } from "react"
+import { Fragment, useState, useEffect, useCallback, useRef } from "react"
 import {
+  CheckIcon,
   CopyIcon,
+  Link2Icon,
   LinkIcon,
   PencilIcon,
   Trash2Icon,
   UnlinkIcon,
+  XIcon,
 } from "lucide-react"
 
 import {
@@ -34,6 +37,10 @@ type MyLinksDropdownProps = {
   userId?: string
 }
 
+function getLinkUrl(token: string, customName: string | null) {
+  return `${window.location.origin}/share/${customName || token}`
+}
+
 export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
   const [links, setLinks] = useState<LinkResponse[]>([])
   const [loading, setLoading] = useState(false)
@@ -42,6 +49,11 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
   const [editName, setEditName] = useState("")
   const [originalName, setOriginalName] = useState<string | null>(null)
   const [copySuccess, setCopySuccess] = useState<string | null>(null)
+  const [truncatedLinks, setTruncatedLinks] = useState<Record<string, boolean>>(
+    {}
+  )
+  const linkCellRefs = useRef(new Map<string, HTMLSpanElement>())
+  const editLinkCellRef = useRef<HTMLSpanElement | null>(null)
 
   const loadLinks = useCallback(async () => {
     if (!accessToken || !userId) return
@@ -62,6 +74,89 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
     loadLinks()
   }, [loadLinks])
 
+  const scrollLinkToEnd = useCallback((element: HTMLSpanElement) => {
+    element.scrollLeft = element.scrollWidth - element.clientWidth
+  }, [])
+
+  const measureLinkOverflow = useCallback(() => {
+    const next: Record<string, boolean> = {}
+
+    linkCellRefs.current.forEach((element, id) => {
+      next[id] = element.scrollWidth > element.clientWidth + 1
+      if (next[id]) {
+        scrollLinkToEnd(element)
+      }
+    })
+
+    setTruncatedLinks((current) => {
+      const currentKeys = Object.keys(current)
+      const nextKeys = Object.keys(next)
+
+      if (
+        currentKeys.length === nextKeys.length &&
+        nextKeys.every((key) => current[key] === next[key])
+      ) {
+        return current
+      }
+
+      return next
+    })
+  }, [scrollLinkToEnd])
+
+  useEffect(() => {
+    measureLinkOverflow()
+    window.addEventListener("resize", measureLinkOverflow)
+
+    return () => window.removeEventListener("resize", measureLinkOverflow)
+  }, [links, measureLinkOverflow])
+
+  useEffect(() => {
+    if (!editingToken || !editLinkCellRef.current) return
+
+    window.requestAnimationFrame(() => {
+      if (editLinkCellRef.current) {
+        scrollLinkToEnd(editLinkCellRef.current)
+      }
+    })
+  }, [editingToken, editName, scrollLinkToEnd])
+
+  const setLinkCellRef = useCallback(
+    (id: string) => (element: HTMLSpanElement | null) => {
+      if (element) {
+        linkCellRefs.current.set(id, element)
+        window.requestAnimationFrame(() => {
+          const isOverflowing = element.scrollWidth > element.clientWidth + 1
+
+          if (isOverflowing) {
+            scrollLinkToEnd(element)
+          }
+
+          setTruncatedLinks((current) => {
+            if (current[id] === isOverflowing) return current
+
+            return { ...current, [id]: isOverflowing }
+          })
+        })
+      } else {
+        linkCellRefs.current.delete(id)
+      }
+    },
+    [scrollLinkToEnd]
+  )
+
+  const handleLinkScroll = useCallback(
+    (id: string, element: HTMLSpanElement) => {
+      const isTruncatedFromStart = element.scrollLeft > 1
+
+      setTruncatedLinks((current) => {
+        if (current[id] === isTruncatedFromStart) return current
+
+        return { ...current, [id]: isTruncatedFromStart }
+      })
+    },
+    []
+  )
+
   const handleCopy = async (token: string, customName: string | null) => {
     const url = getShareUrl(token, customName)
     try {
@@ -79,23 +174,25 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
     setOriginalName(currentName || token)
   }
 
+  const handleCancelEdit = () => {
+    setEditingToken(null)
+    setEditName("")
+    setOriginalName(null)
+  }
+
   const handleSaveEdit = async () => {
     if (!editingToken || !accessToken) return
 
     const trimmedName = editName.trim()
 
     if (!trimmedName || trimmedName === originalName) {
-      setEditingToken(null)
-      setEditName("")
-      setOriginalName(null)
+      handleCancelEdit()
       return
     }
 
     try {
       await updateLinkName(accessToken, editingToken, trimmedName)
-      setEditingToken(null)
-      setEditName("")
-      setOriginalName(null)
+      handleCancelEdit()
       await loadLinks()
     } catch (err) {
       setError(getErrorMessage(err, "Link already taken"))
@@ -121,21 +218,39 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-2 px-2 sm:px-2.5"
+          aria-label="My links"
+        >
           <LinkIcon className="size-4" />
-          My Links
+          <span className="hidden sm:inline">My Links</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="center" className="w-[500px]">
-        <DropdownMenuGroup>
-          {loading && <DropdownMenuItem disabled>Loading...</DropdownMenuItem>}
+      <DropdownMenuContent
+        align="center"
+        className="w-fit max-w-[calc(100vw-1rem)] min-w-0"
+      >
+        <DropdownMenuGroup
+          className="grid max-w-full justify-start"
+          style={{
+            gridTemplateColumns:
+              "auto fit-content(min(390px, calc(100vw - 8rem))) auto",
+          }}
+        >
+          {loading && (
+            <DropdownMenuItem className="col-span-3" disabled>
+              Loading...
+            </DropdownMenuItem>
+          )}
           {error && (
-            <DropdownMenuItem className="text-destructive">
+            <DropdownMenuItem className="col-span-3 text-destructive">
               {error}
             </DropdownMenuItem>
           )}
           {!loading && links.length === 0 && (
-            <div className="flex flex-col items-center gap-2 py-6">
+            <div className="col-span-3 flex flex-col items-center gap-2 py-6">
               <UnlinkIcon className="size-8 text-muted-foreground" />
               <p className="px-4 text-center text-sm text-muted-foreground">
                 You don't have any links! Create one using the share button
@@ -143,82 +258,127 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
             </div>
           )}
           {links.map((link) => (
-            <div key={link.id}>
+            <Fragment key={link.id}>
               {editingToken === link.token ? (
-                <div className="flex items-center gap-1 p-2">
-                  <span className="shrink-0 text-sm text-muted-foreground">
-                    {window.location.origin}/share/
-                  </span>
-                  <Input
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    className="h-7 min-w-0 text-sm"
-                    placeholder="Enter custom name"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleSaveEdit()
-                      if (e.key === "Escape") {
-                        setEditingToken(null)
-                        setEditName("")
-                        setOriginalName(null)
-                      }
-                    }}
-                    autoFocus
-                  />
-                  <Button
-                    size="sm"
-                    onClick={handleSaveEdit}
-                    className="h-7 shrink-0"
+                <div className="col-span-3 grid min-w-0 grid-cols-subgrid items-center gap-[2px] rounded-md bg-muted/30 px-1.5 py-1 text-muted-foreground">
+                  <Link2Icon className="size-4 shrink-0 text-muted-foreground" />
+                  <span
+                    ref={editLinkCellRef}
+                    className="flex min-w-0 items-center overflow-x-auto overscroll-x-contain text-sm whitespace-nowrap text-muted-foreground [scrollbar-width:thin]"
                   >
-                    Save
-                  </Button>
+                    <span className="shrink-0">
+                      {window.location.origin}/share/
+                    </span>
+                    <Input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="h-6 min-w-[4ch] flex-none border-0 px-0 py-0 text-sm shadow-none focus-visible:border-transparent focus-visible:ring-0 md:text-sm dark:bg-transparent"
+                      style={{
+                        width: `${Math.max(editName.length, 4) + 1}ch`,
+                      }}
+                      placeholder="name"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveEdit()
+                        if (e.key === "Escape") handleCancelEdit()
+                      }}
+                      autoFocus
+                    />
+                  </span>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      variant="dropdown-menu-action"
+                      size="dropdown-menu-action"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleSaveEdit()
+                      }}
+                      aria-label="Save link name"
+                      title="Save link name"
+                    >
+                      <CheckIcon />
+                    </Button>
+                    <Button
+                      variant="dropdown-menu-action"
+                      size="dropdown-menu-action"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleCancelEdit()
+                      }}
+                      aria-label="Cancel editing link name"
+                      title="Cancel editing link name"
+                    >
+                      <XIcon />
+                    </Button>
+                  </div>
                 </div>
               ) : (
-                <DropdownMenuItem className="flex items-center justify-between">
-                  <button
-                    className="flex-1 truncate text-start"
-                    onClick={() =>
-                      handleLinkClick(link.token, link.custom_name)
-                    }
-                  >
-                    <span className="truncate text-sm">
-                      {`${window.location.origin}/share/${link.custom_name || link.token}`}
+                <DropdownMenuItem
+                  className="col-span-3 grid min-w-0 grid-cols-subgrid items-center gap-[2px] bg-muted/30 text-muted-foreground focus:bg-muted/60"
+                  onClick={() => handleLinkClick(link.token, link.custom_name)}
+                >
+                  <Link2Icon className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="relative min-w-0 text-sm text-muted-foreground">
+                    <span
+                      ref={setLinkCellRef(link.id)}
+                      onScroll={(event) =>
+                        handleLinkScroll(link.id, event.currentTarget)
+                      }
+                      className="block min-w-0 overflow-x-auto overscroll-x-contain whitespace-nowrap [scrollbar-width:thin]"
+                    >
+                      {getLinkUrl(link.token, link.custom_name)}
                     </span>
-                  </button>
+                    {truncatedLinks[link.id] && (
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute top-0 left-0 flex h-full items-center bg-muted/30 pr-1 group-focus/dropdown-menu-item:bg-muted/60"
+                      >
+                        ...
+                      </span>
+                    )}
+                  </span>
                   <div className="flex shrink-0 items-center gap-1">
-                    <button
+                    <Button
+                      variant="dropdown-menu-action"
+                      size="dropdown-menu-action"
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation()
                         handleCopy(link.token, link.custom_name)
                       }}
-                      className="rounded p-1 hover:bg-accent"
                       title="Copy link"
                     >
-                      <CopyIcon className="size-3.5" />
-                    </button>
-                    <button
+                      <CopyIcon />
+                    </Button>
+                    <Button
+                      variant="dropdown-menu-action"
+                      size="dropdown-menu-action"
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation()
                         handleEdit(link.token, link.custom_name)
                       }}
-                      className="rounded p-1 hover:bg-accent"
                       title="Edit link"
                     >
-                      <PencilIcon className="size-3.5" />
-                    </button>
-                    <button
+                      <PencilIcon />
+                    </Button>
+                    <Button
+                      variant="dropdown-menu-action"
+                      size="dropdown-menu-action"
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation()
                         handleDelete(link.token)
                       }}
-                      className="rounded p-1 hover:bg-accent"
                       title="Delete link"
                     >
-                      <Trash2Icon className="size-3.5 text-destructive" />
-                    </button>
+                      <Trash2Icon className="text-destructive" />
+                    </Button>
                   </div>
                 </DropdownMenuItem>
               )}
-            </div>
+            </Fragment>
           ))}
         </DropdownMenuGroup>
         {copySuccess && (

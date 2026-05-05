@@ -22,6 +22,8 @@ const buttonVariants = cva(
           "bg-blue-600/10 text-blue-700 hover:bg-blue-600/20 focus-visible:border-blue-600/40 focus-visible:ring-blue-600/20 dark:bg-blue-500/20 dark:text-blue-300 dark:hover:bg-blue-500/30 dark:focus-visible:ring-blue-500/40",
         download:
           "bg-emerald-600/10 text-emerald-700 hover:bg-emerald-600/20 focus-visible:border-emerald-600/40 focus-visible:ring-emerald-600/20 dark:bg-emerald-500/20 dark:text-emerald-300 dark:hover:bg-emerald-500/30 dark:focus-visible:ring-emerald-500/40",
+        "dropdown-menu-action":
+          "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
@@ -36,6 +38,7 @@ const buttonVariants = cva(
         "icon-sm":
           "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
         "icon-lg": "size-9",
+        "dropdown-menu-action": "size-6 rounded p-1 [&_svg]:size-4",
       },
     },
     defaultVariants: {

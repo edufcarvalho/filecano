@@ -9,6 +9,7 @@ import {
   FileSearchIcon,
   FileTextIcon,
   FileVideoIcon,
+  InfoIcon,
   LoaderCircleIcon,
   MoreVerticalIcon,
   PencilIcon,
@@ -18,6 +19,7 @@ import {
   Trash2Icon,
   XIcon,
 } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
 import type { ReactNode } from "react"
 
 import { Button } from "@ui/button"
@@ -31,6 +33,7 @@ import {
 } from "@ui/dropdown-menu"
 import { Field, FieldGroup, FieldLabel } from "@ui/field"
 import { Input } from "@ui/input"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@ui/tooltip"
 import { cn } from "@/lib/utils"
 
 import { LoadingButton } from "@misc/loading-button"
@@ -105,6 +108,12 @@ type FileListItemProps = Pick<
 }
 
 const checkboxClassName = "size-4 shrink-0"
+
+type FileInfoDetailsProps = {
+  file: FileResponse
+  isDeleted: boolean
+  isNewlyAdded: boolean
+}
 
 export function FileTypeIcon({ contentType }: { contentType: string | null }) {
   const className = "text-muted-foreground"
@@ -185,96 +194,120 @@ export function FileList({
       !searchQuery.trim() ||
       file.display_name.toLowerCase().includes(searchQuery.toLowerCase())
   )
+  const bulkActions = (
+    <>
+      {variant === "shared" ? (
+        <LoadingButton
+          type="button"
+          variant="download"
+          size="sm"
+          onClick={onDownloadAll}
+          disabled={!hasSelectedFiles || pendingFileId !== null}
+          isLoading={pendingFileId === "bulk-download"}
+          idleIcon={<DownloadIcon data-icon="inline-start" />}
+          className="min-w-0 justify-center px-1.5 min-[430px]:px-2.5"
+        >
+          Download ({selectedCount})
+        </LoadingButton>
+      ) : (
+        <>
+          <LoadingButton
+            type="button"
+            variant="download"
+            size="sm"
+            onClick={onBulkDownload}
+            disabled={!hasSelectedFiles || pendingFileId !== null}
+            isLoading={pendingFileId === "bulk-download"}
+            idleIcon={<DownloadIcon data-icon="inline-start" />}
+            className="min-w-0 justify-center px-1.5 min-[430px]:px-2.5"
+          >
+            Download ({selectedCount})
+          </LoadingButton>
+          <LoadingButton
+            type="button"
+            variant="share"
+            size="sm"
+            onClick={onBulkShare}
+            disabled={!hasSelectedFiles || pendingFileId !== null}
+            isLoading={pendingFileId === "bulk-share"}
+            idleIcon={<Share2Icon data-icon="inline-start" />}
+            className="min-w-0 justify-center px-1.5 min-[430px]:px-2.5"
+          >
+            Share ({selectedCount})
+          </LoadingButton>
+          <LoadingButton
+            type="button"
+            variant="destructive"
+            size="sm"
+            onClick={onBulkDelete}
+            disabled={!hasSelectedFiles || pendingFileId !== null}
+            isLoading={pendingFileId === "bulk-delete"}
+            idleIcon={<Trash2Icon data-icon="inline-start" />}
+            className="min-w-0 justify-center px-1.5 min-[430px]:px-2.5"
+          >
+            Delete ({selectedCount})
+          </LoadingButton>
+        </>
+      )}
+    </>
+  )
 
   return (
     <Card className={cn("flex min-h-0 flex-col", stretch && "flex-1")}>
-      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-3 ps-6">
-          <input
-            type="checkbox"
-            aria-label="Select all files"
-            checked={allFilesSelected}
-            disabled={selectableFiles.length === 0}
-            onChange={(event) =>
-              event.target.checked ? onSelectAll?.() : onClearSelection?.()
-            }
-            className={checkboxClassName}
-          />
-          <CardTitle>
-            {title}
-            <span className="ml-1 text-sm font-normal text-muted-foreground">
-              ({files.length})
-            </span>
-          </CardTitle>
+      <CardHeader className="flex flex-col gap-3">
+        <div className="flex w-full min-w-0 items-center gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-3 ps-2 sm:ps-6">
+            <input
+              type="checkbox"
+              aria-label="Select all files"
+              checked={allFilesSelected}
+              disabled={selectableFiles.length === 0}
+              onChange={(event) =>
+                event.target.checked ? onSelectAll?.() : onClearSelection?.()
+              }
+              className={checkboxClassName}
+            />
+            <CardTitle className="truncate">
+              {title}
+              <span className="ml-1 text-sm font-normal text-muted-foreground">
+                ({files.length})
+              </span>
+            </CardTitle>
+          </div>
+          <div className="ml-auto hidden shrink-0 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+            {bulkActions}
+          </div>
+          {variant === "default" ? (
+            <LoadingButton
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onRefresh}
+              disabled={isLoading || isUploading}
+              isLoading={isLoading}
+              idleIcon={<RefreshCwIcon data-icon="inline-start" />}
+              className="ml-auto"
+            >
+              Refresh
+            </LoadingButton>
+          ) : null}
         </div>
-        <div className="flex min-w-0 flex-1 items-center gap-2">
+        <div className="flex w-full min-w-0 items-center gap-2">
           <SearchForm
             value={searchQuery}
             onChange={handleSearch}
-            className="min-w-[315px] flex-1"
+            className="w-full min-w-0 flex-1"
           />
         </div>
-        <div className="flex flex-wrap gap-2">
-          {variant === "shared" ? (
-            <LoadingButton
-              type="button"
-              variant="download"
-              size="sm"
-              onClick={onDownloadAll}
-              disabled={!hasSelectedFiles || pendingFileId !== null}
-              isLoading={pendingFileId === "bulk-download"}
-              idleIcon={<DownloadIcon data-icon="inline-start" />}
-            >
-              Download ({selectedCount})
-            </LoadingButton>
-          ) : (
-            <>
-              <LoadingButton
-                type="button"
-                variant="download"
-                size="sm"
-                onClick={onBulkDownload}
-                disabled={!hasSelectedFiles || pendingFileId !== null}
-                isLoading={pendingFileId === "bulk-download"}
-                idleIcon={<DownloadIcon data-icon="inline-start" />}
-              >
-                Download ({selectedCount})
-              </LoadingButton>
-              <LoadingButton
-                type="button"
-                variant="share"
-                size="sm"
-                onClick={onBulkShare}
-                disabled={!hasSelectedFiles || pendingFileId !== null}
-                isLoading={pendingFileId === "bulk-share"}
-                idleIcon={<Share2Icon data-icon="inline-start" />}
-              >
-                Share ({selectedCount})
-              </LoadingButton>
-              <LoadingButton
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={onBulkDelete}
-                disabled={!hasSelectedFiles || pendingFileId !== null}
-                isLoading={pendingFileId === "bulk-delete"}
-                idleIcon={<Trash2Icon data-icon="inline-start" />}
-              >
-                Delete ({selectedCount})
-              </LoadingButton>
-              <LoadingButton
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onRefresh}
-                disabled={isLoading || isUploading}
-                isLoading={isLoading}
-                idleIcon={<RefreshCwIcon data-icon="inline-start" />}
-              >
-                Refresh
-              </LoadingButton>
-            </>
+        <div
+          className={cn(
+            "gap-2 sm:hidden",
+            variant === "default"
+              ? "flex flex-nowrap justify-center"
+              : "flex flex-wrap"
           )}
+        >
+          {bulkActions}
         </div>
       </CardHeader>
       <CardContent
@@ -349,6 +382,106 @@ function ScrollableList({
   return <div className="h-full overflow-y-auto">{children}</div>
 }
 
+function FileInfoDetails({
+  file,
+  isDeleted,
+  isNewlyAdded,
+}: FileInfoDetailsProps) {
+  return (
+    <div className="grid gap-1 text-xs">
+      <div>Size: {formatFileSize(file.size_bytes)}</div>
+      <div>Type: {file.content_type ?? "Unknown type"}</div>
+      <div>Created: {formatCreatedAt(file.created_at)}</div>
+      {isDeleted ? (
+        <div className="font-medium text-destructive">Deleted by owner</div>
+      ) : null}
+      {isNewlyAdded ? (
+        <div className="font-medium text-green-700 dark:text-green-400">
+          Newly added
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function FileInfoButton({
+  file,
+  isDeleted,
+  isNewlyAdded,
+}: FileInfoDetailsProps) {
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [isHoverOpen, setIsHoverOpen] = useState(false)
+  const [isPinnedOpen, setIsPinnedOpen] = useState(false)
+  const isOpen = isHoverOpen || isPinnedOpen
+
+  useEffect(() => {
+    if (!isPinnedOpen) return
+
+    function closeOnOutsidePointerDown(event: PointerEvent) {
+      const target = event.target
+      if (!(target instanceof Node)) return
+      if (triggerRef.current?.contains(target)) return
+      if (contentRef.current?.contains(target)) return
+
+      setIsPinnedOpen(false)
+      setIsHoverOpen(false)
+    }
+
+    document.addEventListener("pointerdown", closeOnOutsidePointerDown)
+
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointerDown)
+    }
+  }, [isPinnedOpen])
+
+  return (
+    <Tooltip open={isOpen}>
+      <TooltipTrigger asChild>
+        <Button
+          ref={triggerRef}
+          type="button"
+          size="icon-xs"
+          variant="ghost"
+          className="sm:hidden"
+          aria-label={`Show details for ${file.display_name}`}
+          onClick={(event) => {
+            event.stopPropagation()
+            setIsPinnedOpen(true)
+            setIsHoverOpen(false)
+          }}
+          onMouseEnter={() => setIsHoverOpen(true)}
+          onMouseLeave={() => {
+            if (!isPinnedOpen) setIsHoverOpen(false)
+          }}
+          onFocus={() => setIsHoverOpen(true)}
+          onBlur={() => {
+            if (!isPinnedOpen) setIsHoverOpen(false)
+          }}
+        >
+          <InfoIcon />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent
+        ref={contentRef}
+        side="bottom"
+        align="end"
+        className="max-w-64"
+        onMouseEnter={() => setIsHoverOpen(true)}
+        onMouseLeave={() => {
+          if (!isPinnedOpen) setIsHoverOpen(false)
+        }}
+      >
+        <FileInfoDetails
+          file={file}
+          isDeleted={isDeleted}
+          isNewlyAdded={isNewlyAdded}
+        />
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
 function FileListItem({
   file,
   previewUrls = {},
@@ -381,88 +514,92 @@ function FileListItem({
     <div
       onClick={() => onClearNewlyAdded?.(file.id)}
       className={cn(
-        "flex flex-col gap-4 rounded-lg border p-4 md:flex-row md:items-center md:justify-between",
+        "grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border p-3 sm:p-4",
         isSelected && "bg-muted/50",
         isNewlyAdded && "border-green-600/40 bg-green-500/10",
         isDeleted && "border-destructive/40 bg-destructive/5"
       )}
     >
-      <div className="flex min-w-0 items-center gap-3">
-        <input
-          type="checkbox"
-          aria-label={`Select ${file.display_name}`}
-          checked={isSelected}
-          disabled={isDeleted}
-          onClick={() => onClearNewlyAdded?.(file.id)}
-          onChange={() => onToggleSelection?.(file.id)}
-          className={checkboxClassName}
-        />
+      <input
+        type="checkbox"
+        aria-label={`Select ${file.display_name}`}
+        checked={isSelected}
+        disabled={isDeleted}
+        onClick={() => onClearNewlyAdded?.(file.id)}
+        onChange={() => onToggleSelection?.(file.id)}
+        className={checkboxClassName}
+      />
+      <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded">
         {isImageFile(file.content_type) && previewUrls[file.id] ? (
           <img
             src={previewUrls[file.id]}
             alt={file.display_name}
-            className="size-10 rounded object-cover"
+            className="size-full object-cover"
           />
         ) : (
           <FileTypeIcon contentType={file.content_type} />
         )}
-        <div className="min-w-0 flex-1">
-          {isEditing ? (
-            <FieldGroup>
-              <Field data-invalid={error ? true : undefined}>
-                <FieldLabel htmlFor={`file-name-${file.id}`}>
-                  Original name
-                </FieldLabel>
-                <Input
-                  id={`file-name-${file.id}`}
-                  value={editingName}
-                  onChange={(event) =>
-                    onEditingNameChange?.(event.target.value)
-                  }
-                  disabled={isPending}
-                  aria-invalid={error ? true : undefined}
-                />
-              </Field>
-            </FieldGroup>
-          ) : (
-            <div className="flex items-center gap-2">
-              <h2 className="truncate text-base font-medium">
-                {file.display_name}
-              </h2>
-              {isDeleted ? (
-                <CircleAlertIcon className="shrink-0 text-destructive" />
-              ) : null}
-              {variant === "default" ? (
-                <button
-                  type="button"
-                  onClick={() => onStartEditing?.(file)}
-                  disabled={pendingFileId !== null || editingFileId !== null}
-                  className="text-muted-foreground hover:text-foreground disabled:opacity-50"
-                >
-                  <PencilIcon size={14} />
-                </button>
-              ) : null}
-            </div>
-          )}
-          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
-            <span>{formatFileSize(file.size_bytes)}</span>
-            <span>{file.content_type ?? "Unknown type"}</span>
-            <span>{formatCreatedAt(file.created_at)}</span>
+      </div>
+      <div className="min-w-0">
+        {isEditing ? (
+          <FieldGroup>
+            <Field data-invalid={error ? true : undefined}>
+              <FieldLabel htmlFor={`file-name-${file.id}`}>
+                Original name
+              </FieldLabel>
+              <Input
+                id={`file-name-${file.id}`}
+                value={editingName}
+                onChange={(event) => onEditingNameChange?.(event.target.value)}
+                disabled={isPending}
+                aria-invalid={error ? true : undefined}
+                className="min-w-0"
+              />
+            </Field>
+          </FieldGroup>
+        ) : (
+          <div className="flex min-w-0 items-center gap-1.5">
+            <h2 className="min-w-0 max-w-fit overflow-x-auto overscroll-x-contain text-base font-medium whitespace-nowrap [scrollbar-width:thin]">
+              {file.display_name}
+            </h2>
             {isDeleted ? (
-              <span className="font-medium text-destructive">
-                Deleted by owner
-              </span>
+              <CircleAlertIcon className="shrink-0 text-destructive" />
             ) : null}
-            {isNewlyAdded ? (
-              <span className="font-medium text-green-700 dark:text-green-400">
-                Newly added
-              </span>
+            <FileInfoButton
+              file={file}
+              isDeleted={isDeleted}
+              isNewlyAdded={isNewlyAdded}
+            />
+            {variant === "default" ? (
+              <button
+                type="button"
+                onClick={() => onStartEditing?.(file)}
+                disabled={pendingFileId !== null || editingFileId !== null}
+                className="shrink-0 text-muted-foreground hover:text-foreground disabled:opacity-50"
+              >
+                <PencilIcon size={14} />
+              </button>
             ) : null}
           </div>
+        )}
+        <div className="mt-1 hidden flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground sm:flex">
+          <span>{formatFileSize(file.size_bytes)}</span>
+          <span>{file.content_type ?? "Unknown type"}</span>
+          <span>{formatCreatedAt(file.created_at)}</span>
+          {isDeleted ? (
+            <span className="font-medium text-destructive">
+              Deleted by owner
+            </span>
+          ) : null}
+          {isNewlyAdded ? (
+            <span className="font-medium text-green-700 dark:text-green-400">
+              Newly added
+            </span>
+          ) : null}
         </div>
       </div>
 
-      <div className="flex shrink-0 flex-wrap gap-2">
+      <div className="flex shrink-0 justify-end gap-2">
         {variant === "shared" ? (
           <LoadingButton
             type="button"

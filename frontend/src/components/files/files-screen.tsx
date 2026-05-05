@@ -562,7 +562,6 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         Array.from(selectedFileIds)
       )
       setNotice(await copyShareUrl(shareToken.access_token))
-      window.open("/", "_blank")
     } catch (error) {
       setError(getErrorMessage(error, "Unable to share files."))
     } finally {
@@ -591,7 +590,6 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     try {
       const shareToken = await shareFiles(accessToken, [file.id])
       setNotice(await copyShareUrl(shareToken.access_token))
-      window.open("/", "_blank")
     } catch (error) {
       setError(getErrorMessage(error, "Unable to share file."))
     } finally {
