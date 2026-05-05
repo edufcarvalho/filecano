@@ -1,7 +1,5 @@
 from typing import Annotated
-from urllib.parse import quote
 from uuid import UUID
-
 from fastapi import APIRouter, Body, Depends, File, UploadFile, status
 from fastapi.responses import StreamingResponse
 
@@ -11,12 +9,10 @@ from app.models import User
 from app.schemas import (
   FileResponse,
   FileUpdateParams,
-  LinkResponse,
   MessageResponse,
-  TokenResponse,
 )
 from app.services import FileService as Service
-from app.services import LinkService
+
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -63,9 +59,9 @@ def download_file(
   service: Service = Depends(get_file_service),
 ) -> StreamingResponse:
   file, response = service.get_download(current_user, file_id)
-  encoded_name = quote(file.original_name, safe="")
+
   headers = {
-    "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_name}",
+    "Content-Disposition": f"attachment; filename*=UTF-8''{file.original_name.encode()}",
     "X-Checksum-SHA256": file.checksum or "",
   }
 
@@ -123,42 +119,3 @@ def delete_file_permanently(
   service.delete_file_permanently(current_user, file_id)
 
   return MessageResponse(message="File permanently deleted")
-
-
-@router.post("/share", response_model=TokenResponse)
-def create_share_link(
-  files: Annotated[list[UUID] | UUID, Body()],
-  current_user: User = Depends(get_current_user),
-  service: LinkService = Depends(get_link_service),
-) -> TokenResponse:
-  file_ids = files if isinstance(files, list) else [files]
-
-  return service.create_link(current_user, file_ids)
-
-
-@router.get("/share/{token}", response_model=LinkResponse)
-def get_files(token: str, service: LinkService = Depends(get_link_service)) -> LinkResponse:
-  return service.authenticate_token(token)
-
-
-@router.get("/share/{token}/{file_id}")
-def download_shared_file(
-  token: str,
-  file_id: UUID,
-  service: LinkService = Depends(get_link_service),
-) -> StreamingResponse:
-  file, response = service.get_download(token, file_id)
-  encoded_name = quote(file.original_name, safe="")
-  headers = {
-    "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_name}",
-    "X-Checksum-SHA256": file.checksum or "",
-  }
-
-  if file.size_bytes is not None:
-    headers["Content-Length"] = str(file.size_bytes)
-
-  return StreamingResponse(
-    service.stream_response(response),
-    media_type=file.content_type or "application/octet-stream",
-    headers=headers,
-  )

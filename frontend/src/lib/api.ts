@@ -56,7 +56,6 @@ let onUnauthorized: (() => void) | null = null
 let onTokenRefresh: ((expiredToken: string) => Promise<string | null>) | null =
   null
 
-
 export function setUnauthorizedCallback(cb: (() => void) | null) {
   onUnauthorized = cb
 }
@@ -301,7 +300,7 @@ export async function shareFiles(
   accessToken: string,
   fileIds: string[]
 ): Promise<TokenResponse> {
-  const response = await authFetch(`${API_URL}/v1/files/share`, accessToken, {
+  const response = await authFetch(`${API_URL}/v1/share`, accessToken, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -315,7 +314,7 @@ export async function shareFiles(
 }
 
 export async function getSharedFiles(token: string): Promise<LinkResponse> {
-  const response = await fetch(`${API_URL}/v1/files/share/${token}`)
+  const response = await fetch(`${API_URL}/v1/share/${token}`)
 
   if (!response.ok) await readError(response, "Unable to load shared files.")
 
@@ -327,7 +326,7 @@ export async function downloadSharedFile(
   fileId: string,
   fileName: string
 ): Promise<void> {
-  const response = await fetch(`${API_URL}/v1/files/share/${token}/${fileId}`)
+  const response = await fetch(`${API_URL}/v1/share/${token}/${fileId}`)
 
   if (!response.ok) await readError(response, "Unable to download file.")
 
