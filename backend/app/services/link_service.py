@@ -101,8 +101,9 @@ class LinkService(BaseService):
 
   def update_link_name(self, user: User, token: str, custom_name: str) -> Link:
     existing = self.repository.get_by_token(custom_name)
+
     if existing and existing.token != token:
-      raise ValueError("Link name already taken")
+      raise ValueError("Link already taken")
 
     link = self.repository.get_by_token(token)
     if not link:
