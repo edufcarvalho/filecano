@@ -1,7 +1,4 @@
-
-from content_types import EXTENSION_TO_CONTENT_TYPE
-
-SUPPORTED_FILE_TYPES: set[str] = set(EXTENSION_TO_CONTENT_TYPE.values())
+from app.utils.mimetypes import SUPPORTED_MIMETYPES
 
 def is_content_type_supported(content_type: str) -> bool:
-  return content_type in SUPPORTED_FILE_TYPES
+  return content_type in SUPPORTED_MIMETYPES
