@@ -69,6 +69,11 @@ def list_user_links(
   return service.list_user_links(user_id)
 
 
+@router.get("/{token}", response_model=LinkResponse)
+def get_files(token: str, service: LinkService = Depends(get_link_service)) -> LinkResponse:
+  return service.authenticate_token(token)
+
+
 @router.delete("/{token}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_link(
   token: str,
