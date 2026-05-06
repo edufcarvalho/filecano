@@ -23,6 +23,7 @@ import {
   setTokenRefreshCallback,
   setUnauthorizedCallback,
 } from "@/lib/api"
+import { LinksProvider } from "@/lib/links-context"
 
 function SignedInScreen({
   token,
@@ -36,36 +37,38 @@ function SignedInScreen({
   onTokenUpdate: (token: StoredToken) => void
 }) {
   return (
-    <div className="fixed inset-0 flex min-h-0 flex-col overflow-hidden">
-      <SiteHeader user={displayUser} token={token} onSignOut={onSignOut} />
-      <div className="flex min-h-0 w-full flex-1">
-        <Routes>
-          <Route
-            path="/account"
-            element={
-              <EditUserForm
-                accessToken={token.access_token}
-                user={displayUser}
-                onUserUpdate={(user) => {
-                  onTokenUpdate({
-                    ...token,
-                    user: {
-                      ...displayUser,
-                      name: user.name,
-                      email: user.email,
-                    },
-                  })
-                }}
-              />
-            }
-          />
-          <Route
-            path="*"
-            element={<FilesScreen accessToken={token.access_token} />}
-          />
-        </Routes>
+    <LinksProvider>
+      <div className="fixed inset-0 flex min-h-0 flex-col overflow-hidden">
+        <SiteHeader user={displayUser} token={token} onSignOut={onSignOut} />
+        <div className="flex min-h-0 w-full flex-1">
+          <Routes>
+            <Route
+              path="/account"
+              element={
+                <EditUserForm
+                  accessToken={token.access_token}
+                  user={displayUser}
+                  onUserUpdate={(user) => {
+                    onTokenUpdate({
+                      ...token,
+                      user: {
+                        ...displayUser,
+                        name: user.name,
+                        email: user.email,
+                      },
+                    })
+                  }}
+                />
+              }
+            />
+            <Route
+              path="*"
+              element={<FilesScreen accessToken={token.access_token} />}
+            />
+          </Routes>
+        </div>
       </div>
-    </div>
+    </LinksProvider>
   )
 }
 

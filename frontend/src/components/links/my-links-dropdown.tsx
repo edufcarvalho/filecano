@@ -28,6 +28,7 @@ import {
   getShareUrl,
   type LinkResponse,
 } from "@/lib/api"
+import { useLinks } from "@/lib/links-context"
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
@@ -43,7 +44,7 @@ function getLinkUrl(token: string, customName: string | null) {
 }
 
 export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
-  const [links, setLinks] = useState<LinkResponse[]>([])
+  const { links, setLinks } = useLinks()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [editingToken, setEditingToken] = useState<string | null>(null)
@@ -69,9 +70,11 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
     } finally {
       setLoading(false)
     }
-  }, [accessToken, userId])
+  }, [accessToken, userId, setLinks])
 
   useEffect(() => {
+    /* Data fetching in effect is correct for syncing external API state */
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadLinks()
   }, [loadLinks])
 
@@ -105,6 +108,8 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
   }, [scrollLinkToEnd])
 
   useEffect(() => {
+    /* Measuring DOM overflow is a valid use of effect + setState */
+    //eslint-disable-next-line react-hooks/set-state-in-effect
     measureLinkOverflow()
     window.addEventListener("resize", measureLinkOverflow)
 
@@ -207,7 +212,13 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
       setError(null)
       await updateLinkName(accessToken, editingToken, trimmedName)
       handleCancelEdit()
-      await loadLinks()
+      setLinks((prev) =>
+        prev.map((link) =>
+          link.token === editingToken
+            ? { ...link, custom_name: trimmedName }
+            : link
+        )
+      )
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 409
@@ -223,7 +234,7 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
 
     try {
       await deleteLink(accessToken, token)
-      await loadLinks()
+      setLinks((prev: LinkResponse[]) => prev.filter((link) => link.token !== token))
     } catch (err) {
       setError(getErrorMessage(err, "Failed to delete link."))
     }

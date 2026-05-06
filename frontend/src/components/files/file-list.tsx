@@ -273,6 +273,20 @@ export function FileList({
                 ({files.length})
               </span>
             </CardTitle>
+            {variant === "shared" && (
+              <LoadingButton
+                type="button"
+                variant="download"
+                size="sm"
+                onClick={onDownloadAll}
+                disabled={!hasSelectedFiles || pendingFileId !== null}
+                isLoading={pendingFileId === "bulk-download"}
+                idleIcon={<DownloadIcon data-icon="inline-start" />}
+                className="ml-auto sm:hidden"
+              >
+                Download ({selectedCount})
+              </LoadingButton>
+            )}
           </div>
           <div className="ml-auto hidden shrink-0 gap-2 sm:flex sm:flex-wrap sm:justify-end">
             {bulkActions}
@@ -307,7 +321,9 @@ export function FileList({
               : "flex flex-wrap"
           )}
         >
-          {bulkActions}
+          {variant === "default" ? (
+            <>{bulkActions}</>
+          ) : null}
         </div>
       </CardHeader>
       <CardContent

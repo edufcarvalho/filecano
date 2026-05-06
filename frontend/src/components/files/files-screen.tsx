@@ -16,12 +16,14 @@ import {
   downloadFile,
   downloadMultipleFiles,
   fetchFilePreviewAsDataUrl,
+  getSharedFiles,
   listFiles,
   shareFiles,
   updateFile,
   uploadFile,
   type FileResponse,
 } from "@/lib/api"
+import { useLinks } from "@/lib/links-context"
 import { isPreviewSupportedFile } from "@/lib/file-display"
 
 type FilesScreenProps = {
@@ -127,6 +129,7 @@ function getPastedFiles(event: ClipboardEvent) {
 }
 
 export function FilesScreen({ accessToken }: FilesScreenProps) {
+  const { addLink } = useLinks()
   const [files, setFiles] = useState<FileResponse[]>([])
   const [error, setError] = useState<string | null>(null)
   const [editingFileId, setEditingFileId] = useState<string | null>(null)
@@ -562,6 +565,9 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         Array.from(selectedFileIds)
       )
       setNotice(await copyShareUrl(shareToken.access_token))
+
+      const link = await getSharedFiles(shareToken.access_token)
+      addLink(link)
     } catch (error) {
       setError(getErrorMessage(error, "Unable to share files."))
     } finally {
@@ -590,6 +596,9 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     try {
       const shareToken = await shareFiles(accessToken, [file.id])
       setNotice(await copyShareUrl(shareToken.access_token))
+
+      const link = await getSharedFiles(shareToken.access_token)
+      addLink(link)
     } catch (error) {
       setError(getErrorMessage(error, "Unable to share file."))
     } finally {
