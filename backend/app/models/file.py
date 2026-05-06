@@ -11,6 +11,7 @@ from app.utils.time import current_datetime
 if TYPE_CHECKING:
   from app.models.link import Link
   from app.models.user import User
+  from app.models.folder import Folder
 
 
 class File(SQLModel, table=True):
@@ -18,6 +19,7 @@ class File(SQLModel, table=True):
 
   id: UUID = Field(default_factory=uuid7, primary_key=True)
   user_id: UUID = Field(foreign_key="users.id", nullable=False, ondelete="CASCADE")
+  folder_id: UUID = Field(foreign_key="folders.id", nullable=True, ondelete="CASCADE")
   object_key: str = Field(nullable=False, unique=True)
   original_name: str = Field(nullable=False, index=True)
   display_name: str = Field(nullable=False)
@@ -42,3 +44,4 @@ class File(SQLModel, table=True):
 
   user: "User" = Relationship(back_populates="files")
   links: list["Link"] = Relationship(back_populates="files", link_model=FileLinkRelation)
+  folder: "Folder" = Relationship(back_populates="files")

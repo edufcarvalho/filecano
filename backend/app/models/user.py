@@ -1,13 +1,16 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from uuid import UUID
 
 from pydantic import EmailStr as Email
 from sqlmodel import DateTime, Field, Relationship, SQLModel
 from uuid6 import uuid7
 
-from app.models.file import File
-from app.models.link import Link
+if TYPE_CHECKING:
+  from app.models.file import File
+  from app.models.link import Link
+  from app.models.folder import Folder
+
 from app.utils.time import current_datetime
 
 
@@ -31,3 +34,4 @@ class User(SQLModel, table=True):
 
   files: list["File"] = Relationship(back_populates="user")
   links: list["Link"] = Relationship(back_populates="user")
+  folders: list["Folder"] = Relationship(back_populates="user")

@@ -6,8 +6,13 @@ from sqlalchemy import pool
 from alembic import context
 
 # Import SQLModel and all model classes so they register with SQLModel.metadata
-from app.models.user import User
-from app.models.file import File
+from app.models import (
+    Folder,
+    File,
+    Link,
+    FileLinkRelation,
+    User,
+)
 
 # Get project custom configs
 from app.core.config import get_settings
