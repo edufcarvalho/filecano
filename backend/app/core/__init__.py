@@ -28,7 +28,7 @@ __all__ = [
   "UnsupportedFileTypeError",
   "StorageError",
   "FileTooLargeError",
-  "ForbiddenError"
+  "ForbiddenError",
   "Settings",
   "create_token",
   "decode_token",

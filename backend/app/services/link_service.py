@@ -9,6 +9,7 @@ from app.core import (
   GoneError,
   NotFoundError,
   Settings,
+  ConflictError,
 )
 from app.models import File, Link, User
 from app.repositories import FileRepository, LinkRepository
@@ -103,7 +104,7 @@ class LinkService(BaseService):
     existing = self.repository.get_by_token(custom_name)
 
     if existing and existing.token != token:
-      raise ValueError("Link already taken")
+      raise ConflictError("Link already taken")
 
     link = self.repository.get_by_token(token)
     if not link:
