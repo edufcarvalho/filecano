@@ -126,11 +126,11 @@ class FileService(BaseService):
 
     return self.storage.download(file.preview_object_key)
 
-  def list_files(self, user: User) -> list[File]:
-    return self.repository.list_by_user(user.id)
+  def list_files(self, user: User, deleted: bool = False) -> list[File]:
+    if deleted:
+      return self.repository.list_deleted_by_user(user.id)
 
-  def list_deleted_files(self, user: User) -> list[File]:
-    return self.repository.list_deleted_by_user(user.id)
+    return self.repository.list_by_user(user.id)
 
   def update_file(self, user: User, file_id: UUID, params: FileUpdateParams) -> File:
     file = self._get_user_file(user, file_id)
@@ -147,8 +147,13 @@ class FileService(BaseService):
 
     return file
 
-  def delete_file(self, user: User, file_id: UUID) -> File:
+  def delete_file(
+    self, user: User, file_id: UUID, permanent: bool = False
+  ) -> File:
     file = self._get_user_file(user, file_id)
+
+    if permanent:
+      return self._delete_file_permanently(file)
 
     if file.deleted_at is not None:
       return file
@@ -162,9 +167,7 @@ class FileService(BaseService):
 
     return file
 
-  def delete_file_permanently(self, user: User, file_id: UUID) -> None:
-    file = self._get_user_file(user, file_id)
-
+  def _delete_file_permanently(self, file: File) -> None:
     self.storage.delete_all_versions(file.object_key)
     if file.preview_object_key:
       self.storage.delete_all_versions(file.preview_object_key)

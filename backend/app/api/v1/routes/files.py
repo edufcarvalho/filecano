@@ -28,18 +28,11 @@ def upload_file(
 
 @router.get("", response_model=list[FileResponse])
 def list_files(
+  deleted: bool = False,
   current_user: User = Depends(get_current_user),
   service: Service = Depends(get_file_service),
 ) -> list[FileResponse]:
-  return service.list_files(current_user)
-
-
-@router.get("/deleted", response_model=list[FileResponse])
-def list_deleted_files(
-  current_user: User = Depends(get_current_user),
-  service: Service = Depends(get_file_service),
-) -> list[FileResponse]:
-  return service.list_deleted_files(current_user)
+  return service.list_files(current_user, deleted)
 
 
 @router.put("/{file_id}", response_model=FileResponse)
@@ -102,20 +95,10 @@ def preview_file(
 @router.delete("/{file_id}", response_model=MessageResponse)
 def delete_file(
   file_id: UUID,
+  permanent: bool = False,
   current_user: User = Depends(get_current_user),
   service: Service = Depends(get_file_service),
 ) -> MessageResponse:
-  service.delete_file(current_user, file_id)
+  service.delete_file(current_user, file_id, permanent=permanent)
 
-  return MessageResponse(message="File deleted")
-
-
-@router.delete("/{file_id}/permanent", response_model=MessageResponse)
-def delete_file_permanently(
-  file_id: UUID,
-  current_user: User = Depends(get_current_user),
-  service: Service = Depends(get_file_service),
-) -> MessageResponse:
-  service.delete_file_permanently(current_user, file_id)
-
-  return MessageResponse(message="File permanently deleted")
+  return MessageResponse(message="File permanently deleted" if permanent else "File deleted")
