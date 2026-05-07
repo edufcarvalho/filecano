@@ -96,7 +96,7 @@ class LinkService(BaseService):
     return hashlib.shake_256(str(link.id).encode()).hexdigest(self.settings.share_token_length)
 
   def list_user_links(self, user: User, user_id: UUID) -> list[Link]:
-    self._ensure_user_has_rights(user, user_id)
+    self._ensure_user_has_rights(user.id, user_id)
 
     return self.repository.list_by_user_id(user_id)
 
@@ -110,7 +110,7 @@ class LinkService(BaseService):
     if not link:
       raise NotFoundError("Link not found")
 
-    self._ensure_user_has_rights(user, link.user_id)
+    self._ensure_user_has_rights(user.id, link.user_id)
 
     link.custom_name = custom_name
     return self.repository.update(link)
@@ -120,6 +120,6 @@ class LinkService(BaseService):
     if not link:
       raise NotFoundError("Link not found")
 
-    self._ensure_user_has_rights(user, link.user_id)
+    self._ensure_user_has_rights(user.id, link.user_id)
 
     self.repository.delete(link)

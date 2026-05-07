@@ -16,10 +16,8 @@ class FileRepository:
 
     return file
 
-  def get_by_id_and_user(self, file_id: UUID, user_id: UUID) -> Optional[File]:
-    query = select(File).where(File.id == file_id, File.user_id == user_id)
-
-    return self.session.exec(query).first()
+  def get_by_id(self, file_id: UUID) -> Optional[File]:
+    return self.session.get(File, file_id)
 
   def list_by_multiple_ids_and_user(
     self, file_ids: list[UUID], user_id: UUID
@@ -120,7 +118,7 @@ class FileRepository:
 
     return self.session.exec(query).first()
 
-  def restore_file(self, file: File) -> File:
+  def restore(self, file: File) -> File:
     file.deleted_at = None
 
     self.session.add(file)

@@ -44,6 +44,13 @@ def update_file(
 ) -> FileResponse:
   return service.update_file(current_user, file_id, params)
 
+@router.post("/{file_id}/restore")
+def restore_file(
+  file_id: UUID,
+  current_user: User = Depends(get_current_user),
+  service: Service = Depends(get_file_service)
+) -> FileResponse:
+  return service.restore_file(current_user, file_id)
 
 @router.get("/{file_id}")
 def download_file(

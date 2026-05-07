@@ -55,8 +55,7 @@ class FileService(BaseService):
 
     self._validate_file_type(upload.content_type)
 
-    if file := self._file_already_exists_deleted(checksum, display_name, user.id):
-      self.repository.restore_file(file)
+    if file := self._restore_file_if_deleted(checksum, display_name, user):
       return file
 
     file = File(
@@ -167,6 +166,16 @@ class FileService(BaseService):
 
     return file
 
+  def restore_file(self, user: User, file_id: UUID) -> File:
+    file = self.repository.get_by_id(file_id)
+
+    self._ensure_user_has_rights(user.id, file.id)
+
+    return self.repository.restore(file)
+
+  def stream_response(self, response: BaseHTTPResponse):
+    return self.storage.iter_response(response)
+
   def _delete_file_permanently(self, file: File) -> None:
     self.storage.delete_all_versions(file.object_key)
     if file.preview_object_key:
@@ -174,16 +183,13 @@ class FileService(BaseService):
     self.repository.delete(file)
     self.session.commit()
 
-  def stream_response(self, response: BaseHTTPResponse):
-    return self.storage.iter_response(response)
-
   def _get_user_file(self, user: User, file_id: UUID) -> File:
-    file = self.repository.get_by_id_and_user(file_id, user.id)
+    file = self.repository.get_by_id(file_id)
 
     if file is None:
       raise NotFoundError("File not found")
 
-    self._ensure_user_has_rights(user, file.user_id)
+    self._ensure_user_has_rights(user.id, file.user_id)
 
     return file
 
@@ -209,7 +215,6 @@ class FileService(BaseService):
 
     raise UnsupportedFileTypeError("File type not supported")
 
-
   def _get_unique_filename(self, user_id: UUID, original_name: str) -> str:
     count = self.repository.file_name_stored_by_user_count(original_name, user_id)
     original_name = self._remove_file_extension(original_name)
@@ -222,8 +227,9 @@ class FileService(BaseService):
   def _remove_file_extension(self, filename: str) -> str:
     return Path(filename).stem
 
-  def _file_already_exists_deleted(self, checksum: str, display_name: str, user_id: str):
-    return self.repository.get_deleted_file_by_checksum_and_user(checksum, display_name, user_id)
+  def _restore_file_if_deleted(self, checksum: str, display_name: str, user: User):
+    file = self.repository.get_deleted_file_by_checksum_and_user(checksum, display_name, user.id)
+    return self.repository.restore(file)
 
   def _generate_preview(self, data: BinaryIO) -> tuple[BinaryIO, int, str]:
     """Generate a thumbnail preview for images."""
@@ -249,3 +255,13 @@ class FileService(BaseService):
     data.seek(0)
 
     return preview_data, preview_size, preview_content_type
+
+  def _get_deleted_file_by_id(self, user: User, file_id: UUID) -> File:
+    file = self.repository.get_by_id(file_id, user.id)
+
+    if file is None:
+      raise NotFoundError("File not found")
+
+    self._ensure_user_has_rights(user.id, file.user_id)
+
+    return file
