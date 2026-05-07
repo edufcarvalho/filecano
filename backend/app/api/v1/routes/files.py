@@ -44,13 +44,15 @@ def update_file(
 ) -> FileResponse:
   return service.update_file(current_user, file_id, params)
 
-@router.post("/{file_id}/restore")
+
+@router.post("/{file_id}/restore", response_model=FileResponse)
 def restore_file(
   file_id: UUID,
   current_user: User = Depends(get_current_user),
-  service: Service = Depends(get_file_service)
+  service: Service = Depends(get_file_service),
 ) -> FileResponse:
   return service.restore_file(current_user, file_id)
+
 
 @router.get("/{file_id}")
 def download_file(
@@ -99,13 +101,11 @@ def preview_file(
   )
 
 
-@router.delete("/{file_id}", response_model=MessageResponse)
+@router.delete("/{file_id}")
 def delete_file(
   file_id: UUID,
   permanent: bool = False,
   current_user: User = Depends(get_current_user),
   service: Service = Depends(get_file_service),
-) -> MessageResponse:
-  service.delete_file(current_user, file_id, permanent=permanent)
-
-  return MessageResponse(message="File permanently deleted" if permanent else "File deleted")
+) -> None:
+  service.delete_file(current_user, file_id, permanent)

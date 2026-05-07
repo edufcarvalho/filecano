@@ -38,7 +38,7 @@ class FileService(BaseService):
     file_repository: FileRepository,
     storage_service: FileStorageService,
     session: Session,
-    settings: Settings
+    settings: Settings,
   ):
     self.repository = file_repository
     self.storage = storage_service
@@ -51,7 +51,9 @@ class FileService(BaseService):
     display_name = self._get_unique_filename(user.id, original_name)
 
     if size_bytes > self.settings.max_file_size_bytes:
-      raise FileTooLargeError(f"Uploaded file is bigger than max allowed size ({(self.settings.max_file_size_bytes/GB_SCALE):.2f} GB)")
+      raise FileTooLargeError(
+        f"Uploaded file is bigger than max allowed size ({(self.settings.max_file_size_bytes/GB_SCALE):.2f} GB)"
+      )
 
     self._validate_file_type(upload.content_type)
 
@@ -67,7 +69,7 @@ class FileService(BaseService):
       content_type=upload.content_type,
     )
 
-    file.object_key=f"users/{user.id}/files/{file.id}"
+    file.object_key = f"users/{user.id}/files/{file.id}"
 
     self.storage.upload(
       file.object_key,
@@ -148,7 +150,7 @@ class FileService(BaseService):
 
   def delete_file(
     self, user: User, file_id: UUID, permanent: bool = False
-  ) -> File:
+  ) -> Optional[File]:
     file = self._get_user_file(user, file_id)
 
     if permanent:
@@ -167,10 +169,12 @@ class FileService(BaseService):
     return file
 
   def restore_file(self, user: User, file_id: UUID) -> File:
-    file = self.repository.get_by_id(file_id)
+    file = self._get_user_file(user, file_id)
 
-    self._ensure_user_has_rights(user.id, file.id)
+    if file.deleted_at is None:
+      return file
 
+    self.storage.restore_soft_deleted(file.object_key)
     return self.repository.restore(file)
 
   def stream_response(self, response: BaseHTTPResponse):
@@ -228,7 +232,13 @@ class FileService(BaseService):
     return Path(filename).stem
 
   def _restore_file_if_deleted(self, checksum: str, display_name: str, user: User):
-    file = self.repository.get_deleted_file_by_checksum_and_user(checksum, display_name, user.id)
+    file = self.repository.get_deleted_file_by_checksum_and_user(
+      checksum, display_name, user.id
+    )
+    if file is None:
+      return None
+
+    self.storage.restore_soft_deleted(file.object_key)
     return self.repository.restore(file)
 
   def _generate_preview(self, data: BinaryIO) -> tuple[BinaryIO, int, str]:
@@ -255,13 +265,3 @@ class FileService(BaseService):
     data.seek(0)
 
     return preview_data, preview_size, preview_content_type
-
-  def _get_deleted_file_by_id(self, user: User, file_id: UUID) -> File:
-    file = self.repository.get_by_id(file_id, user.id)
-
-    if file is None:
-      raise NotFoundError("File not found")
-
-    self._ensure_user_has_rights(user.id, file.user_id)
-
-    return file

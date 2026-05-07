@@ -59,6 +59,34 @@ class FileStorageService:
 
       raise StorageError(f"Could not delete file: {str(error)}") from error
 
+  def restore_soft_deleted(self, object_key: str) -> None:
+    self._ensure_bucket()
+    try:
+      for item in self.client.list_objects(
+        self.bucket,
+        prefix=object_key,
+        recursive=True,
+        include_version=True,
+      ):
+        if item.object_name != object_key:
+          continue
+
+        is_latest = item.is_latest is True or item.is_latest == "true"
+        if not is_latest or not item.is_delete_marker or not item.version_id:
+          continue
+
+        self.client.remove_object(
+          self.bucket,
+          object_key,
+          version_id=item.version_id,
+        )
+        return
+    except S3Error as error:
+      if error.code in {"NoSuchKey", "NoSuchObject"}:
+        return
+
+      raise StorageError(f"Could not restore file: {str(error)}") from error
+
   def delete_all_versions(self, object_key: str) -> None:
     self._ensure_bucket()
     try:
@@ -82,9 +110,7 @@ class FileStorageService:
       if error.code in {"NoSuchKey", "NoSuchObject"}:
         return
 
-      raise StorageError(
-        f"Could not permanently delete file: {str(error)}"
-      ) from error
+      raise StorageError(f"Could not permanently delete file: {str(error)}") from error
 
     if errors:
       error = errors[0]
