@@ -14,4 +14,5 @@ up: setup
 
 debug: setup
 	docker compose up --scale back=0 -d
-	cd backend && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir ./app/
+	echo "Remember to point to database in localhost:5432 instead of database:5432"
+	cd backend && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir ./app/ && docker compose down
