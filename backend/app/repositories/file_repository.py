@@ -35,7 +35,7 @@ class FileRepository:
       .order_by(File.id)
     )
 
-    return list(self.session.exec(query).all())
+    return self.session.exec(query).all()
 
   def get_by_id_and_link(self, file_id: UUID, link_id: UUID) -> Optional[File]:
     query = (
@@ -69,7 +69,7 @@ class FileRepository:
     if file_ids is not None:
       query = query.where(File.id.in_(file_ids))
 
-    return list(self.session.exec(query).all())
+    return self.session.exec(query).all()
 
   def list_by_user(self, user_id: UUID) -> list[File]:
     query = (
@@ -78,7 +78,7 @@ class FileRepository:
       .order_by(File.created_at.desc())
     )
 
-    return list(self.session.exec(query).all())
+    return self.session.exec(query).all()
 
   def list_deleted_by_user(self, user_id: UUID) -> list[File]:
     query = (
@@ -87,7 +87,7 @@ class FileRepository:
       .order_by(File.deleted_at.desc())
     )
 
-    return list(self.session.exec(query).all())
+    return self.session.exec(query).all()
 
   def file_name_stored_by_user_count(self, original_name: str, user_id: UUID) -> int:
     query = (
@@ -129,10 +129,11 @@ class FileRepository:
       .order_by(File.created_at.desc())
     )
 
-    return list(self.session.exec(query).all())
+    return self.session.exec(query).all()
 
   def restore(self, file: File) -> File:
     file.deleted_at = None
+    file.folder_id = None
 
     self.session.add(file)
     self.session.commit()
