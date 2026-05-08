@@ -202,6 +202,7 @@ export async function updateUser(
 
 type ListFilesFilters = {
   deleted?: boolean
+  by_folder?: boolean
 }
 
 type DeleteFileFilters = {
