@@ -4,12 +4,10 @@ import hmac
 import json
 from datetime import datetime, timedelta, timezone
 
-from passlib.context import CryptContext
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
 
-_password_context = CryptContext(
-  schemes=["argon2"],
-  deprecated="auto",
-)
+_password_hasher = PasswordHasher()
 
 
 def create_token(
@@ -73,11 +71,14 @@ def decode_token(
 
 
 def hash_password(password: str) -> str:
-  return _password_context.hash(password)
+  return _password_hasher.hash(password)
 
 
 def verify_password(plain: str, hashed_password: str) -> bool:
-  return _password_context.verify(plain, hashed_password)
+  try:
+    return _password_hasher.verify(hashed_password, plain)
+  except VerifyMismatchError:
+    return False
 
 
 def _base64url_encode_json(value: dict[str, object]) -> str:

@@ -13,7 +13,7 @@ dependencies = [
     "python-multipart>=0.0.27",
     "uuid6>=2025.0.1",
     "email-validator>=2.3.0",
-    "passlib[argon2]>=1.7.4",
+    "argon2-cffi>=23.1,<24",
     "alembic>=1.18.4",
     "pillow>=12.2.0",
     "content-types>=0.3.1",
@@ -38,6 +38,7 @@ git=[
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["app/tests"]
+
 addopts = "--cov=src --cov-report=term-missing --cov-fail-under=70"
 
 [tool.uv]
@@ -62,4 +63,4 @@ line-length = 88
 target-version = ["py311"]
 
 [tool.coverage.run]
-omit = ["src/tests/*"]
+omit = ["app/tests/*"]
