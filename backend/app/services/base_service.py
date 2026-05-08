@@ -1,7 +1,6 @@
 from uuid import UUID
 
 from app.core import ForbiddenError
-from app.models import User
 
 
 class BaseService:

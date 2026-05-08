@@ -34,7 +34,8 @@ from app.utils.time import current_datetime
 
 SUPPORTED_PREVIEW_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 
-GB_SCALE = 1024*1024*1024
+GB_SCALE = 1024 * 1024 * 1024
+
 
 class FileService(BaseService):
   def __init__(
@@ -51,14 +52,16 @@ class FileService(BaseService):
     self.session = session
     self.settings = settings
 
-  def create_file(self, user: User, upload: UploadFile, folder_id: Optional[UUID] = None) -> File:
+  def create_file(
+    self, user: User, upload: UploadFile, folder_id: Optional[UUID] = None
+  ) -> File:
     checksum, size_bytes = self._checksum_and_size(upload.file)
     original_name = upload.filename or "unnamed"
     display_name = self._get_unique_filename(user.id, original_name)
 
     if size_bytes > self.settings.max_file_size_bytes:
       raise FileTooLargeError(
-        f"Uploaded file is bigger than max allowed size ({(self.settings.max_file_size_bytes/GB_SCALE):.2f} GB)"
+        f"Uploaded file is bigger than max allowed size ({(self.settings.max_file_size_bytes / GB_SCALE):.2f} GB)"
       )
 
     self._validate_file_type(upload.content_type)
@@ -134,7 +137,9 @@ class FileService(BaseService):
 
     return self.storage.download(file.preview_object_key)
 
-  def list_files(self, user: User, params: FileListParams) -> list[File] | FileByFolderReturn:
+  def list_files(
+    self, user: User, params: FileListParams
+  ) -> list[File] | FileByFolderReturn:
     if params.deleted:
       return self.repository.list_deleted_by_user(user.id)
 

@@ -4,7 +4,6 @@ from uuid import UUID
 from sqlmodel import Session, or_, select
 
 from app.models import Link
-from app.utils.time import current_datetime
 
 
 class LinkRepository:
@@ -26,9 +25,7 @@ class LinkRepository:
     return self.session.get(Link, link_id)
 
   def get_by_token(self, token: str) -> Optional[Link]:
-    query = select(Link).where(
-      or_(Link.token == token, Link.custom_name == token)
-    )
+    query = select(Link).where(or_(Link.token == token, Link.custom_name == token))
 
     return self.session.exec(query).first()
 

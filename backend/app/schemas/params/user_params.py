@@ -50,8 +50,10 @@ class UserParams(BaseModel):
 
   model_config = ConfigDict(from_attributes=True)
 
+
 class UserCreationParams(UserParams):
   name: str
+
 
 class UserLoginParams(UserParams):
   pass

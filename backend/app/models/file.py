@@ -9,9 +9,9 @@ from app.models.file_link_relation import FileLinkRelation
 from app.utils.time import current_datetime
 
 if TYPE_CHECKING:
+  from app.models.folder import Folder
   from app.models.link import Link
   from app.models.user import User
-  from app.models.folder import Folder
 
 
 class File(SQLModel, table=True):
@@ -43,5 +43,7 @@ class File(SQLModel, table=True):
   )
 
   user: "User" = Relationship(back_populates="files")
-  links: list["Link"] = Relationship(back_populates="files", link_model=FileLinkRelation)
+  links: list["Link"] = Relationship(
+    back_populates="files", link_model=FileLinkRelation
+  )
   folder: "Folder" = Relationship(back_populates="files")

@@ -24,7 +24,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 def create_user(
   params: Annotated[UserCreationParams, Body()],
   user_service: Service = Depends(get_user_service),
-  auth_service: AuthService = Depends(get_auth_service)
+  auth_service: AuthService = Depends(get_auth_service),
 ) -> TokenResponse:
   user_service.create_user(params)
 

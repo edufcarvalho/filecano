@@ -13,13 +13,10 @@ class FolderRepository:
     if not folder_ids:
       return []
 
-    query = (
-      select(Folder)
-      .where(
-        Folder.id.in_(folder_ids),
-        Folder.user_id == user_id,
-        Folder.deleted_at.is_(None),
-      )
+    query = select(Folder).where(
+      Folder.id.in_(folder_ids),
+      Folder.user_id == user_id,
+      Folder.deleted_at.is_(None),
     )
 
     return list(self.session.exec(query).all())

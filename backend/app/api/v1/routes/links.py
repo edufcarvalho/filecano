@@ -75,6 +75,26 @@ def delete_link(
   service.delete_link(current_user, token)
 
 
+@router.get("/{token}/preview/{file_id}")
+def preview_shared_file(
+  token: str,
+  file_id: UUID,
+  service: LinkService = Depends(get_link_service),
+) -> StreamingResponse:
+  file, response = service.get_preview_download(token, file_id)
+
+  headers = {}
+
+  if file.preview_size_bytes is not None:
+    headers["Content-Length"] = str(file.preview_size_bytes)
+
+  return StreamingResponse(
+    service.stream_response(response),
+    media_type=file.preview_content_type or "image/jpeg",
+    headers=headers,
+  )
+
+
 @router.get("/{token}/{file_id}")
 def download_shared_file(
   token: str,

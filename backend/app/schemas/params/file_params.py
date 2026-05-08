@@ -1,4 +1,3 @@
-
 from pydantic import BaseModel, ConfigDict, field_validator
 
 
@@ -16,6 +15,7 @@ class FileUpdateParams(BaseModel):
     return original_name
 
   model_config = ConfigDict(from_attributes=True)
+
 
 class FileListParams(BaseModel):
   deleted: bool = False

@@ -260,6 +260,26 @@ export async function fetchFilePreviewAsDataUrl(
   })
 }
 
+export async function fetchSharedFilePreviewAsDataUrl(
+  shareToken: string,
+  fileId: string
+): Promise<string> {
+  const response = await fetch(
+    `${API_URL}/v1/share/${encodeURIComponent(shareToken)}/preview/${fileId}`
+  )
+
+  if (!response.ok) await readError(response, "Failed to load preview.")
+
+  const blob = await response.blob()
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
+}
+
 export async function updateFile(
   accessToken: string,
   fileId: string,

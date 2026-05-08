@@ -1,4 +1,3 @@
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -11,21 +10,23 @@ settings = get_settings()
 app = FastAPI(title=settings.app_name)
 
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origin_list,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+  CORSMiddleware,
+  allow_origins=settings.cors_origin_list,
+  allow_credentials=True,
+  allow_methods=["*"],
+  allow_headers=["*"],
 )
 
 app.include_router(v1_router, prefix="/api")
 
 register_exception_handlers(app)
 
+
 @app.get("/")
 def root():
-    return {"name": settings.app_name, "status": "running"}
+  return {"name": settings.app_name, "status": "running"}
+
 
 @app.get("/health", tags=["Health"])
 def health():
-    return {"status": "ok"}
+  return {"status": "ok"}

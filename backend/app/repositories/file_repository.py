@@ -105,15 +105,14 @@ class FileRepository:
   def delete(self, file: File) -> None:
     self.session.delete(file)
 
-  def get_deleted_file_by_checksum_and_user(self, checksum: str, display_name: str, user_id: UUID) -> File:
-    query = (
-      select(File)
-      .where(
-        File.user_id == user_id,
-        File.checksum == checksum,
-        File.display_name == display_name,
-        File.deleted_at.is_not(None)
-      )
+  def get_deleted_file_by_checksum_and_user(
+    self, checksum: str, display_name: str, user_id: UUID
+  ) -> File:
+    query = select(File).where(
+      File.user_id == user_id,
+      File.checksum == checksum,
+      File.display_name == display_name,
+      File.deleted_at.is_not(None),
     )
 
     return self.session.exec(query).first()

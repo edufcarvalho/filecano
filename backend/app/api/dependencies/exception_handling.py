@@ -9,7 +9,9 @@ from app.core import AppError
 
 
 def app_error_handler(request: Request, error: AppError) -> JSONResponse:
-  return _error_response(request, status_code=error.status_code, message=error.detail, headers=error.headers)
+  return _error_response(
+    request, status_code=error.status_code, message=error.detail, headers=error.headers
+  )
 
 
 def request_validation_error_handler(

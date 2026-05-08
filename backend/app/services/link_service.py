@@ -6,10 +6,10 @@ from uuid import UUID
 from urllib3.response import BaseHTTPResponse
 
 from app.core import (
+  ConflictError,
   GoneError,
   NotFoundError,
   Settings,
-  ConflictError,
 )
 from app.models import File, Link, User
 from app.repositories import FileRepository, LinkRepository
@@ -38,7 +38,7 @@ class LinkService(BaseService):
       expires_at=current_datetime()
       + timedelta(seconds=self.settings.shared_url_expire_seconds),
       files=files,
-      user=user
+      user=user,
     )
 
     link.token = self._generate_token(link)
@@ -89,11 +89,26 @@ class LinkService(BaseService):
 
     return file, self.storage.download(file.object_key)
 
+  def get_preview_download(
+    self, token: str, file_id: UUID
+  ) -> tuple[File, BaseHTTPResponse]:
+    file = self.get_file(token, file_id)
+
+    if file is None:
+      raise NotFoundError("File not found")
+
+    if not file.preview_object_key:
+      raise NotFoundError("Preview not available for this file")
+
+    return file, self.storage.download(file.preview_object_key)
+
   def stream_response(self, response: BaseHTTPResponse):
     return self.storage.iter_response(response)
 
   def _generate_token(self, link: Link) -> str:
-    return hashlib.shake_256(str(link.id).encode()).hexdigest(self.settings.share_token_length)
+    return hashlib.shake_256(str(link.id).encode()).hexdigest(
+      self.settings.share_token_length
+    )
 
   def list_user_links(self, user: User, user_id: UUID) -> list[Link]:
     self._ensure_user_has_rights(user.id, user_id)
@@ -122,9 +137,7 @@ class LinkService(BaseService):
 
     self._ensure_user_has_rights(user.id, link.user_id)
 
-    link.expires_at = current_datetime() + timedelta(
-      seconds=link.expiration_term
-    )
+    link.expires_at = current_datetime() + timedelta(seconds=link.expiration_term)
 
     return self.repository.update(link)
 

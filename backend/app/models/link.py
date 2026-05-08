@@ -1,15 +1,17 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
+
 from sqlmodel import DateTime, Field, Relationship, SQLModel
 from uuid6 import uuid7
 
-from app.models.file_link_relation import FileLinkRelation
 from app.core import get_settings
+from app.models.file_link_relation import FileLinkRelation
 
 if TYPE_CHECKING:
   from app.models.file import File
   from app.models.user import User
+
 
 class Link(SQLModel, table=True):
   __tablename__ = "links"
@@ -20,8 +22,12 @@ class Link(SQLModel, table=True):
   user_id: UUID = Field(nullable=False, foreign_key="users.id", ondelete="CASCADE")
   expires_at: datetime = Field(nullable=False, sa_type=DateTime(timezone=True))
   created_at: datetime = Field(nullable=False, sa_type=DateTime(timezone=True))
-  expiration_term: int = Field(nullable=False, default=get_settings().shared_url_expire_seconds)
+  expiration_term: int = Field(
+    nullable=False, default=get_settings().shared_url_expire_seconds
+  )
   deleted_at: Optional[datetime] = Field(default=None, sa_type=DateTime(timezone=True))
 
-  files: list["File"] = Relationship(back_populates="links", link_model=FileLinkRelation)
+  files: list["File"] = Relationship(
+    back_populates="links", link_model=FileLinkRelation
+  )
   user: "User" = Relationship(back_populates="links")

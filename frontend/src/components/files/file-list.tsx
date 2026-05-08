@@ -124,7 +124,7 @@ type FileInfoDetailsProps = {
 }
 
 export function FileTypeIcon({ contentType }: { contentType: string | null }) {
-  const className = "text-muted-foreground"
+  const className = "size-full text-muted-foreground"
 
   switch (getFileKind(contentType)) {
     case "archive":

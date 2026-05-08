@@ -156,21 +156,23 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       filesToPreview: FileResponse[],
       isCurrent: () => boolean = () => true
     ) => {
-      for (const file of filesToPreview) {
-        if (!isCurrent()) return
-        if (!isPreviewSupportedFile(file.content_type)) continue
+      const previewFiles = filesToPreview.filter((file) =>
+        isPreviewSupportedFile(file.content_type)
+      )
 
-        try {
-          const dataUrl = await fetchFilePreviewAsDataUrl(accessToken, file.id)
-          if (!isCurrent()) return
-          setPreviewUrls((currentUrls) => ({
-            ...currentUrls,
-            [file.id]: dataUrl,
-          }))
-        } catch {
-          // Missing previews should not block the file list.
-        }
-      }
+      await Promise.all(
+        previewFiles.map((file) =>
+          fetchFilePreviewAsDataUrl(accessToken, file.id)
+            .then((dataUrl) => {
+              if (!isCurrent()) return
+              setPreviewUrls((currentUrls) => ({
+                ...currentUrls,
+                [file.id]: dataUrl,
+              }))
+            })
+            .catch(() => {})
+        )
+      )
     },
     [accessToken]
   )
@@ -191,7 +193,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
               .map((file) => file.id)
           )
       )
-      await loadPreviews(loadedFiles, isCurrent)
+      void loadPreviews(loadedFiles, isCurrent)
     },
     [loadPreviews]
   )

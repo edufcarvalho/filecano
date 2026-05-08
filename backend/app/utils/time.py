@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta
+
 from app.core import Settings
+
 
 def current_datetime() -> datetime:
   return datetime.now().astimezone()

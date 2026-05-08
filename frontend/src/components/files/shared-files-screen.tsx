@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useParams } from "react-router-dom"
 
 import { FileList } from "@files/file-list"
@@ -11,9 +11,11 @@ import { ErrorField } from "@misc/status-field"
 import {
   ApiError,
   downloadSharedFile,
+  fetchSharedFilePreviewAsDataUrl,
   getSharedFiles,
   type FileResponse,
 } from "@/lib/api"
+import { isPreviewSupportedFile } from "@/lib/file-display"
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
@@ -32,8 +34,36 @@ export function SharedFilesScreen() {
   const [pendingFileId, setPendingFileId] = useState<string | null>(null)
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState("")
+  const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({})
+  const isCurrentRef = useRef(true)
 
+  const loadPreviews = useCallback(
+    (loadedFiles: FileResponse[]) => {
+      const previewFiles = loadedFiles.filter((file) =>
+        isPreviewSupportedFile(file.content_type)
+      )
+
+      if (previewFiles.length === 0) return
+
+      Promise.all(
+        previewFiles.map((file) =>
+          fetchSharedFilePreviewAsDataUrl(shareToken!, file.id)
+            .then((dataUrl) => {
+              if (!isCurrentRef.current) return
+              setPreviewUrls((currentUrls) => ({
+                ...currentUrls,
+                [file.id]: dataUrl,
+              }))
+            })
+            .catch(() => {})
+        )
+      )
+    },
+    [shareToken]
+  )
   useEffect(() => {
+    isCurrentRef.current = true
+
     if (!shareToken) {
       setLinkError("not-found")
       setIsLoading(false)
@@ -46,6 +76,7 @@ export function SharedFilesScreen() {
 
     getSharedFiles(shareToken)
       .then((sharedLink) => {
+        if (!isCurrentRef.current) return
         setFiles(sharedLink.files)
         setSelectedFileIds(
           (currentSelection) =>
@@ -58,8 +89,10 @@ export function SharedFilesScreen() {
                 .map((file) => file.id)
             )
         )
+        loadPreviews(sharedLink.files)
       })
       .catch((error) => {
+        if (!isCurrentRef.current) return
         if (error instanceof ApiError && error.status === 410) {
           setLinkError("expired")
         } else if (error instanceof ApiError && error.status === 404) {
@@ -73,9 +106,13 @@ export function SharedFilesScreen() {
         }
       })
       .finally(() => {
-        setIsLoading(false)
+        if (isCurrentRef.current) setIsLoading(false)
       })
-  }, [shareToken])
+
+    return () => {
+      isCurrentRef.current = false
+    }
+  }, [shareToken, loadPreviews])
 
   async function handleDownload(file: FileResponse) {
     if (!shareToken) return
@@ -152,6 +189,7 @@ export function SharedFilesScreen() {
         <FileList
           variant="shared"
           files={files}
+          previewUrls={previewUrls}
           selectedFileIds={selectedFileIds}
           pendingFileId={pendingFileId}
           isLoading={isLoading}

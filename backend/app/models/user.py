@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
 from pydantic import EmailStr as Email
@@ -8,8 +8,8 @@ from uuid6 import uuid7
 
 if TYPE_CHECKING:
   from app.models.file import File
-  from app.models.link import Link
   from app.models.folder import Folder
+  from app.models.link import Link
 
 from app.utils.time import current_datetime
 
