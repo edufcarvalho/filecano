@@ -2,6 +2,7 @@ from app.core.config import Settings, get_settings
 from app.core.exceptions import (
   AppError,
   AuthenticationError,
+  BadRequestError,
   ConflictError,
   FileTooLargeError,
   ForbiddenError,
@@ -21,6 +22,7 @@ from app.core.security import (
 __all__ = [
   "AppError",
   "AuthenticationError",
+  "BadRequestError",
   "ConflictError",
   "GoneError",
   "NotFoundError",

@@ -372,14 +372,18 @@ export async function downloadMultipleFiles(
 
 export async function shareFiles(
   accessToken: string,
-  fileIds: string[]
+  fileIds: string[],
+  expiresAt?: string
 ): Promise<TokenResponse> {
+  const body: Record<string, unknown> = { files: fileIds }
+  if (expiresAt) body.expires_at = expiresAt
+
   const response = await authFetch(`${API_URL}/v1/share`, accessToken, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(fileIds),
+    body: JSON.stringify(body),
   })
 
   if (!response.ok) await readError(response, "Unable to share files.")
@@ -440,13 +444,21 @@ export async function deleteLink(
 
 export async function restoreLink(
   accessToken: string,
-  token: string
+  token: string,
+  expiresAt?: string
 ): Promise<{ id: string; expires_at: string }> {
+  const body: Record<string, unknown> = {}
+  if (expiresAt) body.expires_at = expiresAt
+
   const response = await authFetch(
     `${API_URL}/v1/share/${encodeURIComponent(token)}/restore`,
     accessToken,
     {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
     }
   )
 

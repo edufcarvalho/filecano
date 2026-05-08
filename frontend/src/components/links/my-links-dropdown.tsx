@@ -32,6 +32,13 @@ import {
   type LinkResponse,
 } from "@/lib/api"
 import { useLinks } from "@/lib/links-context"
+import {
+  LinkExpirationDialog,
+} from "@/components/links/link-expiration-dialog"
+import {
+  resolveExpiresAt,
+  type LinkExpiration,
+} from "@/lib/link-expiration"
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
@@ -63,6 +70,10 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
   )
   const linkCellRefs = useRef(new Map<string, HTMLSpanElement>())
   const editLinkCellRef = useRef<HTMLSpanElement | null>(null)
+  const [showRestoreDialog, setShowRestoreDialog] = useState(false)
+  const [pendingRestoreToken, setPendingRestoreToken] = useState<string | null>(
+    null
+  )
 
   const loadLinks = useCallback(async () => {
     if (!accessToken || !userId) return
@@ -247,11 +258,22 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
     }
   }
 
-  const handleRestore = async (token: string) => {
+  const handleRestore = (token: string) => {
     if (!accessToken) return
+    setPendingRestoreToken(token)
+    setShowRestoreDialog(true)
+  }
+
+  const executeRestore = async (expiration: LinkExpiration) => {
+    const token = pendingRestoreToken
+    if (!token || !accessToken) return
 
     try {
-      const result = await restoreLink(accessToken, token)
+      const result = await restoreLink(
+        accessToken,
+        token,
+        resolveExpiresAt(expiration)
+      )
       setLinks((prev: LinkResponse[]) =>
         prev.map((link) =>
           link.token === token
@@ -261,6 +283,8 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
       )
     } catch (err) {
       setError(getErrorMessage(err, "Failed to restore link."))
+    } finally {
+      setPendingRestoreToken(null)
     }
   }
 
@@ -269,6 +293,7 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
   }
 
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
@@ -471,5 +496,13 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
         )}
       </DropdownMenuContent>
     </DropdownMenu>
+    <LinkExpirationDialog
+      open={showRestoreDialog}
+      onOpenChange={setShowRestoreDialog}
+      title="Restore link"
+      description="Choose how long the restored link should last."
+      onConfirm={executeRestore}
+    />
+    </>
   )
 }

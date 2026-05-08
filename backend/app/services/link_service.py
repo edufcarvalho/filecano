@@ -1,18 +1,20 @@
 import hashlib
-from datetime import timedelta
+from datetime import timedelta, datetime
 from typing import Optional
 from uuid import UUID
 
 from urllib3.response import BaseHTTPResponse
 
 from app.core import (
-  ConflictError,
+  BadRequestError,
   GoneError,
   NotFoundError,
   Settings,
+  ConflictError,
 )
 from app.models import File, Link, User
 from app.repositories import FileRepository, LinkRepository
+from app.schemas import LinkCreateParams, LinkRestoreParams
 from app.services.base_service import BaseService
 from app.services.file_storage_service import FileStorageService
 from app.utils.time import current_datetime
@@ -31,12 +33,13 @@ class LinkService(BaseService):
     self.storage = storage_service
     self.settings = settings
 
-  def create_link(self, user: User, file_ids: list[UUID]) -> dict[str, object]:
-    files = self.file_repository.list_by_multiple_ids_and_user(file_ids, user.id)
+  def create_link(self, user: User, params: LinkCreateParams) -> dict[str, object]:
+    files = self.file_repository.list_by_multiple_ids_and_user(params.files, user.id)
+
+    expires_at = self._resolve_expires_at(params.expires_at)
 
     link = Link(
-      expires_at=current_datetime()
-      + timedelta(seconds=self.settings.shared_url_expire_seconds),
+      expires_at=expires_at,
       files=files,
       user=user,
     )
@@ -130,14 +133,19 @@ class LinkService(BaseService):
     link.custom_name = custom_name
     return self.repository.update(link)
 
-  def restore_link(self, user: User, token: str) -> Link:
+  def restore_link(
+    self, user: User, token: str, params: LinkRestoreParams | None = None
+  ) -> Link:
     link = self.repository.get_by_token(token)
     if not link:
       raise NotFoundError("Link not found")
 
     self._ensure_user_has_rights(user.id, link.user_id)
 
-    link.expires_at = current_datetime() + timedelta(seconds=link.expiration_term)
+    if params:
+      link.expires_at = self._resolve_expires_at(params.expires_at)
+    else:
+      link.expires_at = self._resolve_expires_at()
 
     return self.repository.update(link)
 
@@ -149,3 +157,16 @@ class LinkService(BaseService):
     self._ensure_user_has_rights(user.id, link.user_id)
 
     self.repository.delete(link)
+
+  def _resolve_expires_at(
+    self,
+    expires_at: Optional[datetime] = None,
+  ) -> datetime:
+    if expires_at:
+      now = current_datetime()
+      if expires_at < now:
+        raise BadRequestError("Expiration date must be in the future")
+      return expires_at
+    return current_datetime() + timedelta(
+      seconds=self.settings.shared_url_expire_seconds
+    )

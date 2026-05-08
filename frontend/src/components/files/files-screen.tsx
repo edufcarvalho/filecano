@@ -25,6 +25,13 @@ import {
 } from "@/lib/api"
 import { useLinks } from "@/lib/links-context"
 import { isPreviewSupportedFile } from "@/lib/file-display"
+import {
+  LinkExpirationDialog,
+} from "@/components/links/link-expiration-dialog"
+import {
+  resolveExpiresAt,
+  type LinkExpiration,
+} from "@/lib/link-expiration"
 
 type FilesScreenProps = {
   accessToken: string
@@ -146,6 +153,9 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({})
   const [searchQuery, setSearchQuery] = useState("")
   const [notice, setNotice] = useState<string | null>(null)
+  const [showExpirationDialog, setShowExpirationDialog] = useState(false)
+  const [pendingShareCount, setPendingShareCount] = useState(0)
+  const pendingShareFileIdsRef = useRef<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const newlyAddedTimersRef = useRef<Record<string, number>>({})
   const uploadErrorTimerRef = useRef<number>(0)
@@ -565,12 +575,23 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
 
     setError(null)
     setNotice(null)
-    setPendingFileId("bulk-share")
+    pendingShareFileIdsRef.current = Array.from(selectedFileIds)
+    setPendingShareCount(selectedFileIds.size)
+    setShowExpirationDialog(true)
+  }
+
+  async function executeShare(expiration: LinkExpiration) {
+    const fileIds = pendingShareFileIdsRef.current
+    if (fileIds.length === 0) return
+
+    const isBulk = fileIds.length > 1
+    setPendingFileId(isBulk ? "bulk-share" : `share-${fileIds[0]}`)
 
     try {
       const shareToken = await shareFiles(
         accessToken,
-        Array.from(selectedFileIds)
+        fileIds,
+        resolveExpiresAt(expiration)
       )
       setNotice(await copyShareUrl(shareToken.access_token))
 
@@ -580,6 +601,8 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       setError(getErrorMessage(error, "Unable to share files."))
     } finally {
       setPendingFileId(null)
+      pendingShareFileIdsRef.current = []
+      setPendingShareCount(0)
     }
   }
 
@@ -599,19 +622,9 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   async function handleShare(file: FileResponse) {
     setError(null)
     setNotice(null)
-    setPendingFileId(`share-${file.id}`)
-
-    try {
-      const shareToken = await shareFiles(accessToken, [file.id])
-      setNotice(await copyShareUrl(shareToken.access_token))
-
-      const link = await getSharedFiles(shareToken.access_token)
-      addLink(link)
-    } catch (error) {
-      setError(getErrorMessage(error, "Unable to share file."))
-    } finally {
-      setPendingFileId(null)
-    }
+    pendingShareFileIdsRef.current = [file.id]
+    setPendingShareCount(1)
+    setShowExpirationDialog(true)
   }
 
   return (
@@ -678,6 +691,17 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         onToggleCollapse={() =>
           setIsUploadPanelCollapsed((isCollapsed) => !isCollapsed)
         }
+      />
+      <LinkExpirationDialog
+        open={showExpirationDialog}
+        onOpenChange={setShowExpirationDialog}
+        title="Share files"
+        description={
+          pendingShareCount > 1
+            ? `Choose how long the share link for ${pendingShareCount} files should last.`
+            : "Choose how long the share link should last."
+        }
+        onConfirm={executeShare}
       />
     </main>
   )
