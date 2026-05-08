@@ -15,6 +15,7 @@ import {
   CardTitle,
 } from "@ui/card"
 import { cn } from "@/lib/utils"
+import { useTranslation } from "@/i18n"
 
 export type UploadingFile = {
   id: string
@@ -44,10 +45,11 @@ export function FileUploadDropzone({
   onDrop,
   onFileSelect,
 }: FileUploadDropzoneProps) {
+  const { t } = useTranslation()
   return (
     <div
       role="region"
-      aria-label="File upload area"
+      aria-label={t("files.dropzone.area")}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
@@ -62,7 +64,7 @@ export function FileUploadDropzone({
     >
       <UploadIcon className="mx-auto mb-2 text-muted-foreground" size={32} />
       <p className="text-sm text-muted-foreground">
-        Drag and drop a file here, click to select, or paste a file
+        {t("files.dropzone.instruction")}
       </p>
       <input
         ref={fileInputRef}
@@ -90,16 +92,17 @@ export function UploadActivityPanel({
   onDismiss,
   onToggleCollapse,
 }: UploadActivityPanelProps) {
+  const { t } = useTranslation()
   if (uploadingFiles.length === 0) return null
 
   const activeCount = uploadingFiles.filter((file) => !file.done).length
   const failedCount = uploadingFiles.filter((file) => file.error).length
   const title =
     activeCount > 0
-      ? `Uploading ${activeCount}`
+      ? t("files.dropzone.uploading", { count: activeCount })
       : failedCount > 0
-        ? `${failedCount} failed`
-        : "Uploads complete"
+        ? t("files.dropzone.failedCount", { count: failedCount })
+        : t("files.dropzone.uploadsComplete")
 
   return (
     <Card className="fixed right-4 bottom-4 z-40 w-[calc(100vw-2rem)] max-w-sm shadow-lg">
@@ -120,8 +123,8 @@ export function UploadActivityPanel({
             onClick={onToggleCollapse}
             aria-label={
               isCollapsed
-                ? "Expand upload activity"
-                : "Collapse upload activity"
+                ? t("files.dropzone.expand")
+                : t("files.dropzone.collapse")
             }
           >
             {isCollapsed ? <ChevronUpIcon /> : <ChevronDownIcon />}
@@ -131,7 +134,7 @@ export function UploadActivityPanel({
             variant="ghost"
             size="icon-sm"
             onClick={onClear}
-            aria-label="Close upload activity"
+            aria-label={t("files.dropzone.close")}
           >
             <XIcon />
           </Button>
@@ -148,9 +151,9 @@ export function UploadActivityPanel({
                   </span>
                   <span className="shrink-0 text-muted-foreground">
                     {file.error
-                      ? "Failed"
+                      ? t("files.dropzone.failed")
                       : file.done
-                        ? "Done"
+                        ? t("files.dropzone.done")
                         : `${file.progress}%`}
                   </span>
                   {file.done ? (
@@ -158,7 +161,7 @@ export function UploadActivityPanel({
                       type="button"
                       onClick={() => onDismiss(file.id)}
                       className="shrink-0 text-muted-foreground hover:text-foreground"
-                      aria-label={`Dismiss ${file.name}`}
+                       aria-label={t("files.dropzone.dismiss", { name: file.name })}
                     >
                       <XIcon size={14} />
                     </button>

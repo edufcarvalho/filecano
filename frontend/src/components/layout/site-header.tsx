@@ -7,6 +7,7 @@ import {
 } from "lucide-react"
 import { Link } from "react-router-dom"
 
+import { useTranslation } from "@/i18n"
 import { Avatar, AvatarFallback } from "@ui/avatar"
 import {
   Breadcrumb,
@@ -28,6 +29,7 @@ import {
 import { ThemeToggle } from "@ui/theme-toggle"
 
 import { Icon } from "@misc/icon"
+import { LanguageSwitcher } from "@misc/language-switcher"
 import { MyLinksDropdown } from "@/components/links/my-links-dropdown"
 
 import type { StoredToken } from "@/lib/session"
@@ -57,29 +59,31 @@ function getInitials(name: string) {
 }
 
 export function SiteHeader({
-  pageTitle = "All files",
+  pageTitle,
   user,
   token,
   onSignOut,
 }: SiteHeaderProps) {
+  const { t } = useTranslation()
   const initials = user ? getInitials(user.name) : "FC"
+  const title = pageTitle ?? t("app.allFiles")
 
   return (
     <header className="sticky top-0 z-50 flex w-full shrink-0 items-center border-b bg-background">
       <div className="flex h-14 w-full min-w-0 items-center gap-2 px-3 font-sans sm:gap-3 sm:px-5 lg:px-8">
-        <Link to="/" className="shrink-0" aria-label="Filecano home">
+        <Link to="/" className="shrink-0" aria-label={t("app.filecanoHome")}>
           <Icon className="size-7 sm:size-8" markClassName="size-7 sm:size-8" />
         </Link>
         <Breadcrumb className="shrink-0">
           <BreadcrumbList className="flex flex-row items-center gap-1.5 whitespace-nowrap">
             <BreadcrumbItem>
               <BreadcrumbLink asChild className="text-sm">
-                <Link to="/">Filecano</Link>
+                <Link to="/">{t("app.filecano")}</Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem className="min-w-0">
-              <BreadcrumbPage className="text-sm">{pageTitle}</BreadcrumbPage>
+              <BreadcrumbPage className="text-sm">{title}</BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
@@ -90,12 +94,13 @@ export function SiteHeader({
             userId={token?.user?.id}
           />
         ) : undefined}
+        <LanguageSwitcher className="shrink-0" />
         <ThemeToggle className="shrink-0" />
         <div className="flex shrink-0 items-stretch">
           {!user ? (
             <Button asChild variant="outline" size="sm">
               <Link to="/login" target="_blank" rel="noopener noreferrer">
-                Sign in
+                {t("app.signIn")}
               </Link>
             </Button>
           ) : (
@@ -146,7 +151,7 @@ export function SiteHeader({
                   <DropdownMenuItem asChild>
                     <Link to="/trash" className="flex items-center gap-2">
                       <TrashIcon className="size-4" />
-                      Trash
+                      {t("app.trash")}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
@@ -155,14 +160,14 @@ export function SiteHeader({
                       className="flex items-center gap-2"
                     >
                       <BookOpenIcon className="size-4" />
-                      Docs
+                      {t("app.docs")}
                     </a>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem variant="destructive" onSelect={onSignOut}>
                   <LogOutIcon className="size-4" />
-                  Log out
+                  {t("app.logOut")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

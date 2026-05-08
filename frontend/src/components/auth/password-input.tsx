@@ -1,5 +1,6 @@
 import { EyeIcon, EyeOffIcon } from "lucide-react"
 
+import { useTranslation } from "@/i18n"
 import { Input } from "@ui/input"
 
 type PasswordInputProps = Omit<React.ComponentProps<typeof Input>, "type"> & {
@@ -13,6 +14,8 @@ export function PasswordInput({
   disabled,
   ...props
 }: PasswordInputProps) {
+  const { t } = useTranslation()
+
   return (
     <div className="relative">
       <Input
@@ -22,7 +25,7 @@ export function PasswordInput({
       />
       <button
         type="button"
-        aria-label={isVisible ? "Hide password" : "Show password"}
+        aria-label={isVisible ? t("auth.password.hide") : t("auth.password.show")}
         className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground"
         onClick={() => onVisibilityChange(!isVisible)}
         disabled={disabled}

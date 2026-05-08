@@ -39,6 +39,7 @@ import {
   resolveExpiresAt,
   type LinkExpiration,
 } from "@/lib/link-expiration"
+import { useTranslation } from "@/i18n"
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
@@ -59,6 +60,7 @@ function isLinkExpired(expiresAt: string): boolean {
 
 export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
   const { links, setLinks } = useLinks()
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [editingToken, setEditingToken] = useState<string | null>(null)
@@ -84,11 +86,11 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
       const data = await listUserLinks(accessToken, userId)
       setLinks(data)
     } catch (err) {
-      setError(getErrorMessage(err, "Failed to load links."))
+      setError(getErrorMessage(err, t("links.loadError")))
     } finally {
       setLoading(false)
     }
-  }, [accessToken, userId, setLinks])
+  }, [accessToken, userId, setLinks, t])
 
   useEffect(() => {
     /* Data fetching in effect is correct for syncing external API state */
@@ -188,7 +190,7 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
       setCopySuccess(token)
       setTimeout(() => setCopySuccess(null), 2000)
     } catch {
-      setError("Failed to copy link.")
+      setError(t("links.copyError"))
     }
   }
 
@@ -222,7 +224,7 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
     )
 
     if (isTaken) {
-      setError("Link already taken")
+      setError(t("links.linkAlreadyTaken"))
       return
     }
 
@@ -240,21 +242,21 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 409
-          ? "Link already taken"
-          : getErrorMessage(err, "Link already taken")
+          ? t("links.linkAlreadyTaken")
+          : getErrorMessage(err, t("links.linkAlreadyTaken"))
       )
     }
   }
 
   const handleDelete = async (token: string) => {
     if (!accessToken) return
-    if (!confirm("Are you sure you want to delete this link?")) return
+    if (!confirm(t("links.deleteConfirm"))) return
 
     try {
       await deleteLink(accessToken, token)
       setLinks((prev: LinkResponse[]) => prev.filter((link) => link.token !== token))
     } catch (err) {
-      setError(getErrorMessage(err, "Failed to delete link."))
+      setError(getErrorMessage(err, t("links.deleteError")))
     }
   }
 
@@ -282,7 +284,7 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
         )
       )
     } catch (err) {
-      setError(getErrorMessage(err, "Failed to restore link."))
+      setError(getErrorMessage(err, t("links.restoreError")))
     } finally {
       setPendingRestoreToken(null)
     }
@@ -300,10 +302,10 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
           variant="ghost"
           size="sm"
           className="gap-2 px-2 sm:px-2.5"
-          aria-label="My links"
+          aria-label={t("links.myLinksAria")}
         >
           <LinkIcon className="size-4" />
-          <span className="hidden sm:inline">My Links</span>
+          <span className="hidden sm:inline">{t("links.myLinks")}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -319,7 +321,7 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
         >
           {loading && (
             <DropdownMenuItem className="col-span-3" disabled>
-              Loading...
+              {t("links.loading")}
             </DropdownMenuItem>
           )}
           {error && (
@@ -331,7 +333,7 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
             <div className="col-span-3 flex flex-col items-center gap-2 py-6">
               <UnlinkIcon className="size-8 text-muted-foreground" />
               <p className="px-4 text-center text-sm text-muted-foreground">
-                You don't have any links! Create one using the share button
+                {t("links.emptyState")}
               </p>
             </div>
           )}
@@ -371,8 +373,8 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
                         e.stopPropagation()
                         handleSaveEdit()
                       }}
-                      aria-label="Save link name"
-                      title="Save link name"
+                      aria-label={t("links.saveLinkName")}
+                      title={t("links.saveLinkName")}
                     >
                       <CheckIcon />
                     </Button>
@@ -384,8 +386,8 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
                         e.stopPropagation()
                         handleCancelEdit()
                       }}
-                      aria-label="Cancel editing link name"
-                      title="Cancel editing link name"
+                      aria-label={t("links.cancelEditLinkName")}
+                      title={t("links.cancelEditLinkName")}
                     >
                       <XIcon />
                     </Button>
@@ -428,7 +430,7 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
                           size="dropdown-menu-action"
                           type="button"
                           disabled
-                          title="Link expired"
+                          title={t("links.linkExpired")}
                         >
                           <ClockAlertIcon />
                         </Button>
@@ -440,7 +442,7 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
                             e.stopPropagation()
                             handleRestore(link.token)
                           }}
-                          title="Restore link"
+                          title={t("links.restoreLink")}
                         >
                           <ArchiveRestoreIcon />
                         </Button>
@@ -455,7 +457,7 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
                             e.stopPropagation()
                             handleCopy(link.token, link.custom_name)
                           }}
-                          title="Copy link"
+                          title={t("links.copyLink")}
                         >
                           <CopyIcon />
                         </Button>
@@ -467,7 +469,7 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
                             e.stopPropagation()
                             handleEdit(link.token, link.custom_name)
                           }}
-                          title="Edit link"
+                          title={t("links.editLink")}
                         >
                           <PencilIcon />
                         </Button>
@@ -481,7 +483,7 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
                         e.stopPropagation()
                         handleDelete(link.token)
                       }}
-                      title="Delete link"
+                      title={t("links.deleteLink")}
                     >
                       <Trash2Icon className="text-destructive" />
                     </Button>
@@ -492,15 +494,15 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
           ))}
         </DropdownMenuGroup>
         {copySuccess && (
-          <div className="px-2 py-1 text-xs text-green-600">Link copied!</div>
+          <div className="px-2 py-1 text-xs text-green-600">{t("links.linkCopied")}</div>
         )}
       </DropdownMenuContent>
     </DropdownMenu>
     <LinkExpirationDialog
       open={showRestoreDialog}
       onOpenChange={setShowRestoreDialog}
-      title="Restore link"
-      description="Choose how long the restored link should last."
+      title={t("links.restoreDialogTitle")}
+      description={t("links.restoreDialogDescription")}
       onConfirm={executeRestore}
     />
     </>

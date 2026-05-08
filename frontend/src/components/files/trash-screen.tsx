@@ -10,6 +10,7 @@ import {
   type FileResponse,
 } from "@/lib/api"
 import { isPreviewSupportedFile } from "@/lib/file-display"
+import { useTranslation } from "@/i18n"
 
 type TrashScreenProps = {
   accessToken: string
@@ -20,6 +21,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 export function TrashScreen({ accessToken }: TrashScreenProps) {
+  const { t } = useTranslation()
   const [files, setFiles] = useState<FileResponse[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -83,11 +85,11 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
       const loadedFiles = await listDeletedFiles(accessToken)
       await applyLoadedFiles(loadedFiles)
     } catch (error) {
-      setError(getErrorMessage(error, "Unable to load deleted files."))
+      setError(getErrorMessage(error, t("files.error.loadDeletedFiles")))
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, applyLoadedFiles])
+  }, [accessToken, applyLoadedFiles, t])
 
   const removeFiles = useCallback((fileIds: Set<string>) => {
     setFiles((currentFiles) =>
@@ -114,7 +116,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
         await applyLoadedFiles(loadedFiles, () => isCurrent)
       } catch (error) {
         if (!isCurrent) return
-        setError(getErrorMessage(error, "Unable to load deleted files."))
+        setError(getErrorMessage(error, t("files.error.loadDeletedFiles")))
       } finally {
         if (isCurrent) setIsLoading(false)
       }
@@ -125,7 +127,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
     return () => {
       isCurrent = false
     }
-  }, [accessToken, applyLoadedFiles])
+  }, [accessToken, applyLoadedFiles, t])
 
   function toggleFileSelection(fileId: string) {
     setSelectedFileIds((currentSelection) => {
@@ -155,7 +157,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
       await deleteFile(accessToken, file.id, { permanent: true })
       removeFiles(new Set([file.id]))
     } catch (error) {
-      setError(getErrorMessage(error, "Unable to delete file permanently."))
+      setError(getErrorMessage(error, t("files.error.deleteFilePermanently")))
     } finally {
       setPendingFileId(null)
     }
@@ -169,7 +171,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
       await restoreFile(accessToken, file.id)
       removeFiles(new Set([file.id]))
     } catch (error) {
-      setError(getErrorMessage(error, "Unable to restore file."))
+      setError(getErrorMessage(error, t("files.error.restoreFile")))
     } finally {
       setPendingFileId(null)
     }
@@ -190,7 +192,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
       )
       removeFiles(fileIds)
     } catch (error) {
-      setError(getErrorMessage(error, "Unable to delete files permanently."))
+      setError(getErrorMessage(error, t("files.error.deleteFilesPermanently")))
     } finally {
       setPendingFileId(null)
     }
@@ -209,7 +211,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
       )
       removeFiles(fileIds)
     } catch (error) {
-      setError(getErrorMessage(error, "Unable to restore files."))
+      setError(getErrorMessage(error, t("files.error.restoreFiles")))
     } finally {
       setPendingFileId(null)
     }

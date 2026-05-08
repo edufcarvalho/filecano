@@ -1,3 +1,5 @@
+import { translate } from "@/i18n"
+
 const FILE_SIZE_UNITS = ["B", "KB", "MB", "GB", "TB"] as const
 
 const TEXT_MIME_TYPES = new Set(["text/plain", "text/markdown", "text/csv"])
@@ -105,7 +107,7 @@ export type FileKind =
   | "video"
 
 export function formatFileSize(sizeBytes: number | null) {
-  if (sizeBytes === null) return "Unknown size"
+  if (sizeBytes === null) return translate("files.unknownSize")
 
   let size = sizeBytes
   let unitIndex = 0

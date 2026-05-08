@@ -31,6 +31,7 @@ import {
   setUnauthorizedCallback,
 } from "@/lib/api"
 import { LinksProvider } from "@/lib/links-context"
+import { useTranslation } from "@/i18n"
 
 function getUsableStoredToken(token: StoredToken | null) {
   if (!token) return null
@@ -52,11 +53,12 @@ function SignedInScreen({
   onTokenUpdate: (token: StoredToken) => void
 }) {
   const location = useLocation()
+  const { t } = useTranslation()
   const pageTitle = location.pathname.startsWith("/trash")
-    ? "Trash"
+    ? t("app.trash")
     : location.pathname.startsWith("/account")
-      ? "Account"
-      : "All files"
+      ? t("app.account")
+      : t("app.allFiles")
 
   return (
     <LinksProvider>

@@ -37,6 +37,7 @@ import { Field, FieldGroup, FieldLabel } from "@ui/field"
 import { Input } from "@ui/input"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@ui/tooltip"
 import { cn } from "@/lib/utils"
+import { useTranslation } from "@/i18n"
 
 import { LoadingButton } from "@misc/loading-button"
 import { SearchForm } from "@misc/search-form"
@@ -146,11 +147,7 @@ export function FileTypeIcon({ contentType }: { contentType: string | null }) {
 
 export function FileList({
   variant = "default",
-  title = variant === "shared"
-    ? "Shared files"
-    : variant === "trash"
-      ? "Trash"
-      : "Files",
+  title,
   files,
   previewUrls = {},
   selectedFileIds = new Set(),
@@ -161,21 +158,9 @@ export function FileList({
   error = null,
   isLoading = false,
   isUploading = false,
-  loadingLabel = variant === "shared"
-    ? "Loading shared files"
-    : variant === "trash"
-      ? "Loading deleted files"
-      : "Loading files",
-  emptyLabel = variant === "shared"
-    ? "No shared files are available"
-    : variant === "trash"
-      ? "Trash is empty"
-      : "Uploaded files will appear here",
-  noMatchesLabel = variant === "shared"
-    ? "No shared files match your search"
-    : variant === "trash"
-      ? "No deleted files match your search"
-      : "No files match your search",
+  loadingLabel,
+  emptyLabel,
+  noMatchesLabel,
   searchQuery = "",
   onSearch,
   onBulkDelete,
@@ -200,6 +185,7 @@ export function FileList({
   onToggleSelection,
   stretch = true,
 }: FileListProps) {
+  const { t } = useTranslation()
   const selectedCount = selectedFileIds.size
   const selectableFiles =
     variant === "trash" ? files : files.filter((file) => !file.deleted_at)
@@ -230,7 +216,7 @@ export function FileList({
           idleIcon={<DownloadIcon data-icon="inline-start" />}
           className="min-w-0 justify-center px-1.5 min-[430px]:px-2.5"
         >
-          Download
+          {t("files.download")}
         </LoadingButton>
       ) : variant === "trash" ? (
         <>
@@ -244,7 +230,7 @@ export function FileList({
             idleIcon={<ArchiveRestoreIcon data-icon="inline-start" />}
             className="max-sm:flex-1 min-w-0 justify-center"
           >
-            Restore
+            {t("files.restore")}
           </LoadingButton>
           <LoadingButton
             type="button"
@@ -256,7 +242,7 @@ export function FileList({
             idleIcon={<EraserIcon data-icon="inline-start" />}
             className="max-sm:flex-1 min-w-0 justify-center"
           >
-            Erase
+            {t("files.erase")}
           </LoadingButton>
         </>
       ) : (
@@ -271,7 +257,7 @@ export function FileList({
             idleIcon={<DownloadIcon data-icon="inline-start" />}
             className="max-sm:flex-1 min-w-0 justify-center"
           >
-            Download
+            {t("files.download")}
           </LoadingButton>
           <LoadingButton
             type="button"
@@ -283,7 +269,7 @@ export function FileList({
             idleIcon={<Share2Icon data-icon="inline-start" />}
             className="max-sm:flex-1 min-w-0 justify-center"
           >
-            Share
+            {t("files.share")}
           </LoadingButton>
           <LoadingButton
             type="button"
@@ -295,7 +281,7 @@ export function FileList({
             idleIcon={<Trash2Icon data-icon="inline-start" />}
             className="max-sm:flex-1 min-w-0 justify-center"
           >
-            Delete
+            {t("files.delete")}
           </LoadingButton>
         </>
       )}
@@ -309,7 +295,7 @@ export function FileList({
           <div className="flex min-w-0 flex-1 items-center gap-3 ps-3 sm:ps-4">
             <input
               type="checkbox"
-              aria-label="Select all files"
+              aria-label={t("files.selectAll")}
               checked={allFilesSelected}
               disabled={selectableFiles.length === 0}
               onChange={(event) =>
@@ -318,7 +304,7 @@ export function FileList({
               className={checkboxClassName}
             />
             <CardTitle className="truncate">
-              {title}
+              {title ?? (variant === "shared" ? t("app.sharedFiles") : variant === "trash" ? t("app.trash") : t("app.files"))}
               <span className="ml-1 text-sm font-normal text-muted-foreground">
                 ({files.length})
               </span>
@@ -334,7 +320,7 @@ export function FileList({
                 idleIcon={<DownloadIcon data-icon="inline-start" />}
                 className="ml-auto sm:hidden"
               >
-                Download
+                {t("files.download")}
               </LoadingButton>
             )}
           </div>
@@ -352,7 +338,7 @@ export function FileList({
               idleIcon={<RefreshCwIcon data-icon="inline-start" />}
               className="ml-auto"
             >
-              Refresh
+              {t("files.refresh")}
             </LoadingButton>
           ) : null}
         </div>
@@ -383,7 +369,7 @@ export function FileList({
         {isLoading ? (
           <div className="flex items-center gap-3 py-6 text-sm text-muted-foreground">
             <LoaderCircleIcon className="animate-spin" />
-            {loadingLabel}
+            {loadingLabel ?? (variant === "shared" ? t("files.loadingSharedFiles") : variant === "trash" ? t("files.loadingDeletedFiles") : t("files.loadingFiles"))}
           </div>
         ) : filteredFiles.length === 0 ? (
           <div
@@ -397,7 +383,9 @@ export function FileList({
               strokeWidth={1.75}
             />
             <p className="absolute top-[calc(50%+var(--empty-icon-size)/2+0.75rem)] left-1/2 w-[min(26rem,62cqw)] -translate-x-1/2 text-[clamp(1rem,var(--empty-text-size),1.4rem)] leading-tight font-medium text-muted-foreground">
-              {files.length === 0 ? emptyLabel : noMatchesLabel}
+              {files.length === 0
+                ? (emptyLabel ?? (variant === "shared" ? t("files.emptyShared") : variant === "trash" ? t("files.emptyTrash") : t("files.emptyDefault")))
+                : (noMatchesLabel ?? (variant === "shared" ? t("files.noMatchesShared") : variant === "trash" ? t("files.noMatchesTrash") : t("files.noMatchesDefault")))}
             </p>
           </div>
         ) : (
@@ -453,20 +441,21 @@ function FileInfoDetails({
   isDeleted,
   isNewlyAdded,
 }: FileInfoDetailsProps) {
+  const { t } = useTranslation()
   return (
     <div className="grid gap-1 text-xs">
-      <div>Size: {formatFileSize(file.size_bytes)}</div>
-      <div>Type: {file.content_type ?? "Unknown type"}</div>
-      <div>Created: {formatCreatedAt(file.created_at)}</div>
+      <div>{t("files.sizeLabel")} {formatFileSize(file.size_bytes)}</div>
+      <div>{t("files.typeLabel")} {file.content_type ?? t("files.unknownType")}</div>
+      <div>{t("files.createdLabel")} {formatCreatedAt(file.created_at)}</div>
       {file.deleted_at ? (
-        <div>Deleted: {formatCreatedAt(file.deleted_at)}</div>
+        <div>{t("files.deletedLabel")} {formatCreatedAt(file.deleted_at)}</div>
       ) : null}
       {isDeleted ? (
-        <div className="font-medium text-destructive">Deleted by owner</div>
+        <div className="font-medium text-destructive">{t("files.deletedByOwner")}</div>
       ) : null}
       {isNewlyAdded ? (
         <div className="font-medium text-green-700 dark:text-green-400">
-          Newly added
+          {t("files.newlyAdded")}
         </div>
       ) : null}
     </div>
@@ -478,6 +467,7 @@ function FileInfoButton({
   isDeleted,
   isNewlyAdded,
 }: FileInfoDetailsProps) {
+  const { t } = useTranslation()
   const triggerRef = useRef<HTMLButtonElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
   const [isHoverOpen, setIsHoverOpen] = useState(false)
@@ -516,7 +506,7 @@ function FileInfoButton({
             "sm:hidden",
             isDeleted && "text-destructive hover:text-destructive"
           )}
-          aria-label={`Show details for ${file.display_name}`}
+          aria-label={t("files.showDetails", { name: file.display_name })}
           onClick={(event) => {
             event.stopPropagation()
             setIsPinnedOpen(true)
@@ -576,6 +566,7 @@ function FileListItem({
   onToggleSelection,
   variant,
 }: FileListItemProps) {
+  const { t } = useTranslation()
   const isEditing = editingFileId === file.id
   const isPending = pendingFileId === file.id
   const isSelected = selectedFileIds.has(file.id)
@@ -600,7 +591,7 @@ function FileListItem({
     >
       <input
         type="checkbox"
-        aria-label={`Select ${file.display_name}`}
+        aria-label={t("files.select", { name: file.display_name })}
         checked={isSelected}
         disabled={!isSelectable}
         onClick={() => onClearNewlyAdded?.(file.id)}
@@ -623,7 +614,7 @@ function FileListItem({
           <FieldGroup>
             <Field data-invalid={error ? true : undefined}>
               <FieldLabel htmlFor={`file-name-${file.id}`}>
-                Original name
+                {t("files.originalName")}
               </FieldLabel>
               <Input
                 id={`file-name-${file.id}`}
@@ -662,17 +653,17 @@ function FileListItem({
         )}
         <div className="mt-1 hidden flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground sm:flex">
           <span>{formatFileSize(file.size_bytes)}</span>
-          <span>{file.content_type ?? "Unknown type"}</span>
+          <span>{file.content_type ?? t("files.unknownType")}</span>
           <span>{formatCreatedAt(file.created_at)}</span>
           {showDeletedState ? (
             <span className="font-medium text-destructive">
-              Deleted by owner
-            </span>
+                {t("files.deletedByOwner")}
+              </span>
           ) : null}
           {isNewlyAdded ? (
             <span className="font-medium text-green-700 dark:text-green-400">
-              Newly added
-            </span>
+                {t("files.newlyAdded")}
+              </span>
           ) : null}
         </div>
       </div>
@@ -693,7 +684,7 @@ function FileListItem({
             isLoading={isDownloading || pendingFileId === file.id}
             idleIcon={<DownloadIcon data-icon="inline-start" />}
           >
-            Download
+            {t("files.download")}
           </LoadingButton>
         ) : variant === "trash" ? (
           <>
@@ -707,7 +698,7 @@ function FileListItem({
                 isLoading={isRestoring}
                 idleIcon={<ArchiveRestoreIcon data-icon="inline-start" />}
               >
-                Restore
+                {t("files.restore")}
               </LoadingButton>
               <LoadingButton
                 type="button"
@@ -718,7 +709,7 @@ function FileListItem({
                 isLoading={isPermanentlyDeleting}
                 idleIcon={<EraserIcon data-icon="inline-start" />}
               >
-                Erase
+                {t("files.erase")}
               </LoadingButton>
             </div>
             <DropdownMenu>
@@ -728,7 +719,7 @@ function FileListItem({
                   size="icon-sm"
                   variant="outline"
                   disabled={pendingFileId !== null}
-                  aria-label={`Open actions for ${file.display_name}`}
+                  aria-label={t("files.openActions", { name: file.display_name })}
                   className="sm:hidden"
                 >
                   <MoreVerticalIcon />
@@ -745,7 +736,7 @@ function FileListItem({
                     ) : (
                       <ArchiveRestoreIcon />
                     )}
-                    Restore
+                    {t("files.restore")}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     variant="destructive"
@@ -756,7 +747,7 @@ function FileListItem({
                     ) : (
                       <EraserIcon />
                     )}
-                    Erase
+                    {t("files.erase")}
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
               </DropdownMenuContent>
@@ -772,7 +763,7 @@ function FileListItem({
               isLoading={isPending}
               idleIcon={<SaveIcon data-icon="inline-start" />}
             >
-              Save
+              {t("files.save")}
             </LoadingButton>
             <Button
               type="button"
@@ -782,7 +773,7 @@ function FileListItem({
               disabled={isPending}
             >
               <XIcon data-icon="inline-start" />
-              Cancel
+              {t("files.cancel")}
             </Button>
           </>
         ) : (
@@ -793,7 +784,7 @@ function FileListItem({
                 size="icon-sm"
                 variant="outline"
                 disabled={pendingFileId !== null}
-                aria-label={`Open actions for ${file.display_name}`}
+                aria-label={t("files.openActions", { name: file.display_name })}
               >
                 <MoreVerticalIcon />
               </Button>
@@ -807,9 +798,9 @@ function FileListItem({
                   {isDownloading ? (
                     <LoaderCircleIcon className="animate-spin" />
                   ) : (
-                    <DownloadIcon />
+                      <DownloadIcon />
                   )}
-                  Download
+                  {t("files.download")}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   variant="share"
@@ -818,9 +809,9 @@ function FileListItem({
                   {isSharing ? (
                     <LoaderCircleIcon className="animate-spin" />
                   ) : (
-                    <Share2Icon />
+                      <Share2Icon />
                   )}
-                  Share
+                  {t("files.share")}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   variant="destructive"
@@ -829,9 +820,9 @@ function FileListItem({
                   {isPending ? (
                     <LoaderCircleIcon className="animate-spin" />
                   ) : (
-                    <Trash2Icon />
+                      <Trash2Icon />
                   )}
-                  Delete
+                  {t("files.delete")}
                 </DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>

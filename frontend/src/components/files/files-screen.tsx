@@ -32,6 +32,7 @@ import {
   resolveExpiresAt,
   type LinkExpiration,
 } from "@/lib/link-expiration"
+import { useTranslation } from "@/i18n"
 
 type FilesScreenProps = {
   accessToken: string
@@ -63,9 +64,9 @@ async function copyShareUrl(shareToken: string) {
   try {
     if (!navigator.clipboard) throw new Error("Clipboard unavailable")
     await navigator.clipboard.writeText(shareUrl)
-    return "Share link copied to clipboard."
+    return "copied"
   } catch {
-    return `Share link created: ${shareUrl}`
+    return shareUrl
   }
 }
 
@@ -137,6 +138,7 @@ function getPastedFiles(event: ClipboardEvent) {
 
 export function FilesScreen({ accessToken }: FilesScreenProps) {
   const { addLink } = useLinks()
+  const { t } = useTranslation()
   const [files, setFiles] = useState<FileResponse[]>([])
   const [error, setError] = useState<string | null>(null)
   const [editingFileId, setEditingFileId] = useState<string | null>(null)
@@ -216,11 +218,11 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       const loadedFiles = await listFiles(accessToken)
       await applyLoadedFiles(loadedFiles)
     } catch (error) {
-      setError(getErrorMessage(error, "Unable to load files."))
+      setError(getErrorMessage(error, t("files.error.loadFiles")))
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, applyLoadedFiles])
+  }, [accessToken, applyLoadedFiles, t])
 
   useEffect(() => {
     let isCurrent = true
@@ -231,7 +233,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         await applyLoadedFiles(loadedFiles, () => isCurrent)
       } catch (error) {
         if (!isCurrent) return
-        setError(getErrorMessage(error, "Unable to load files."))
+        setError(getErrorMessage(error, t("files.error.loadFiles")))
       } finally {
         if (isCurrent) setIsLoading(false)
       }
@@ -242,7 +244,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     return () => {
       isCurrent = false
     }
-  }, [accessToken, applyLoadedFiles])
+  }, [accessToken, applyLoadedFiles, t])
 
   useEffect(() => {
     const timers = newlyAddedTimersRef.current
@@ -285,9 +287,9 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   const dismissUploadError = useCallback(() => {
     window.clearTimeout(uploadErrorTimerRef.current)
     setError((current) =>
-      current === "Some files failed to upload." ? null : current
+      current === t("files.error.someUploadFailed") ? null : current
     )
-  }, [])
+  }, [t])
 
   function startEditing(file: FileResponse) {
     setEditingFileId(file.id)
@@ -304,7 +306,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     const newName = editingName.trim()
 
     if (!newName) {
-      setError("File name must not be blank.")
+      setError(t("files.error.nameBlank"))
       return
     }
 
@@ -328,7 +330,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       )
       stopEditing()
     } catch (error) {
-      setError(getErrorMessage(error, "Unable to update file."))
+      setError(getErrorMessage(error, t("files.error.updateFile")))
     } finally {
       setPendingFileId(null)
     }
@@ -363,7 +365,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
 
       if (editingFileId === file.id) stopEditing()
     } catch (error) {
-      setError(getErrorMessage(error, "Unable to delete file."))
+      setError(getErrorMessage(error, t("files.error.deleteFile")))
     } finally {
       setPendingFileId(null)
     }
@@ -424,7 +426,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
             return uploadedFile
           })
           .catch((error) => {
-            const message = getErrorMessage(error, "Unable to upload file.")
+            const message = getErrorMessage(error, t("files.error.uploadFile"))
             setUploadingFiles((currentFiles) =>
               updateUploadingFile(currentFiles, status.id, {
                 done: true,
@@ -439,12 +441,12 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       const results = await Promise.allSettled(uploadPromises)
 
       if (results.some((result) => result.status === "rejected")) {
-        setError("Some files failed to upload.")
+        setError(t("files.error.someUploadFailed"))
         window.clearTimeout(uploadErrorTimerRef.current)
         uploadErrorTimerRef.current = window.setTimeout(dismissUploadError, 3000)
       }
     },
-    [accessToken, loadPreviews, markFileAsNewlyAdded]
+    [accessToken, loadPreviews, markFileAsNewlyAdded, dismissUploadError, t]
   )
 
   useEffect(() => {
@@ -541,7 +543,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       )
       clearFileSelection()
     } catch (error) {
-      setError(getErrorMessage(error, "Unable to delete files."))
+      setError(getErrorMessage(error, t("files.error.deleteFiles")))
     } finally {
       setPendingFileId(null)
     }
@@ -564,7 +566,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         }))
       )
     } catch (error) {
-      setError(getErrorMessage(error, "Unable to download files."))
+      setError(getErrorMessage(error, t("files.error.downloadFiles")))
     } finally {
       setPendingFileId(null)
     }
@@ -593,12 +595,17 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         fileIds,
         resolveExpiresAt(expiration)
       )
-      setNotice(await copyShareUrl(shareToken.access_token))
+      const result = await copyShareUrl(shareToken.access_token)
+      setNotice(
+        result === "copied"
+          ? t("files.error.shareLinkCopied")
+          : t("files.error.shareLinkCreated", { url: result })
+      )
 
       const link = await getSharedFiles(shareToken.access_token)
       addLink(link)
     } catch (error) {
-      setError(getErrorMessage(error, "Unable to share files."))
+      setError(getErrorMessage(error, t("files.error.shareFiles")))
     } finally {
       setPendingFileId(null)
       pendingShareFileIdsRef.current = []
@@ -613,7 +620,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     try {
       await downloadFile(accessToken, file.id, file.original_name)
     } catch (error) {
-      setError(getErrorMessage(error, "Unable to download file."))
+      setError(getErrorMessage(error, t("files.error.downloadFile")))
     } finally {
       setPendingFileId(null)
     }
@@ -649,7 +656,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         <Card>
           <CardContent className="flex items-center gap-3 py-6 text-sm text-muted-foreground">
             <LoaderCircleIcon className="animate-spin" />
-            Loading files
+            {t("files.loadingFiles")}
           </CardContent>
         </Card>
       ) : (
@@ -695,11 +702,11 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       <LinkExpirationDialog
         open={showExpirationDialog}
         onOpenChange={setShowExpirationDialog}
-        title="Share files"
+        title={t("files.shareDialog.title")}
         description={
           pendingShareCount > 1
-            ? `Choose how long the share link for ${pendingShareCount} files should last.`
-            : "Choose how long the share link should last."
+            ? t("files.shareDialog.descriptionMultiple", { count: pendingShareCount })
+            : t("files.shareDialog.descriptionSingle")
         }
         onConfirm={executeShare}
       />

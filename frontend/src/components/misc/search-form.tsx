@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslation } from "@/i18n"
 import { Label } from "@ui/label"
 import { Input } from "@ui/input"
 import { SearchIcon } from "lucide-react"
@@ -15,15 +16,17 @@ export function SearchForm({
   onChange?: (query: string) => void
   style?: React.CSSProperties
 }) {
+  const { t } = useTranslation()
+
   return (
     <form className={className} {...props}>
       <div className="relative w-full" style={style}>
         <Label htmlFor="search" className="sr-only">
-          Search
+          {t("search.label")}
         </Label>
         <Input
           id="search"
-          placeholder="Search files..."
+          placeholder={t("search.placeholder")}
           className="h-8 w-full ps-7"
           value={value}
           onChange={(event) => onChange?.(event.target.value)}

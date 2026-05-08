@@ -1,5 +1,7 @@
 import type { ComponentProps } from "react"
 import { useState } from "react"
+
+import { useTranslation } from "@/i18n"
 import { Link } from "react-router-dom"
 
 import { Field, FieldDescription } from "@ui/field"
@@ -18,6 +20,7 @@ type SignupFormProps = Omit<ComponentProps<"div">, "onSubmit"> & {
 }
 
 export function SignupForm({ className, onLogin, ...props }: SignupFormProps) {
+  const { t } = useTranslation()
   const [error, setError] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -35,7 +38,7 @@ export function SignupForm({ className, onLogin, ...props }: SignupFormProps) {
 
     const validationErrors = validatePassword(password)
     if (validationErrors.length > 0) {
-      setError("Password does not meet the requirements")
+      setError(t("auth.signup.passwordValidationError"))
       return
     }
 
@@ -46,7 +49,7 @@ export function SignupForm({ className, onLogin, ...props }: SignupFormProps) {
       const token = await signupUser({ name, email, password })
       onLogin?.(token)
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Unable to sign up.")
+      setError(error instanceof Error ? error.message : t("auth.signup.fallbackError"))
     } finally {
       setIsPending(false)
     }
@@ -55,41 +58,41 @@ export function SignupForm({ className, onLogin, ...props }: SignupFormProps) {
   return (
     <AuthCard
       className={className}
-      title="Create your account"
-      description="Sign up to manage your files."
-      sessionDescription="Your session is kept on this device after sign up."
+      title={t("auth.signup.title")}
+      description={t("auth.signup.description")}
+      sessionDescription={t("auth.signup.sessionDescription")}
       onSubmit={handleSubmit}
       {...props}
     >
       <ErrorField message={error} />
       <AuthTextField
         id="name"
-        label="Name"
+        label={t("auth.signup.nameLabel")}
         name="name"
         type="text"
         autoComplete="name"
-        placeholder="Eduardo de Carvalho"
+        placeholder={t("auth.signup.namePlaceholder")}
         required
         invalid={!!error}
         disabled={isPending}
       />
       <AuthTextField
         id="email"
-        label="Email"
+        label={t("auth.signup.emailLabel")}
         name="email"
         type="email"
         autoComplete="email"
-        placeholder="your@email.com"
+        placeholder={t("auth.signup.emailPlaceholder")}
         required
         invalid={!!error}
         disabled={isPending}
       />
       <AuthPasswordField
         id="password"
-        label="Password"
+        label={t("auth.signup.passwordLabel")}
         name="password"
         autoComplete="new-password"
-        placeholder="your password"
+        placeholder={t("auth.signup.passwordPlaceholder")}
         required
         invalid={!!error}
         disabled={isPending}
@@ -109,16 +112,16 @@ export function SignupForm({ className, onLogin, ...props }: SignupFormProps) {
           isLoading={isPending}
           disabled={isPending || (passwordTouched && passwordErrors.length > 0)}
         >
-          Create Account
+          {t("auth.signup.submitButton")}
         </LoadingButton>
       </Field>
       <FieldDescription className="text-center">
-        Already have an account?{" "}
+        {t("auth.signup.hasAccountPrompt")}{" "}
         <Link
           to="/login"
           className="text-primary underline underline-offset-4 hover:text-primary/90"
         >
-          Sign in
+          {t("auth.signup.signInLink")}
         </Link>
       </FieldDescription>
     </AuthCard>

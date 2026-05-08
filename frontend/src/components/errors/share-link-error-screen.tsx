@@ -1,5 +1,7 @@
 import { ClockAlertIcon, Link2OffIcon, Trash2Icon } from "lucide-react"
 import { Link } from "react-router-dom"
+
+import { useTranslation } from "@/i18n"
 import { Button } from "@ui/button"
 
 import { SiteHeader } from "@layout/site-header"
@@ -7,6 +9,7 @@ import { SiteHeader } from "@layout/site-header"
 export type ShareLinkErrorKind = "expired" | "not-found" | "deleted"
 
 export function ShareLinkErrorScreen({ kind }: { kind: ShareLinkErrorKind }) {
+  const { t } = useTranslation()
   const isExpired = kind === "expired"
   const isDeleted = kind === "deleted"
   const Icon = isExpired
@@ -15,19 +18,19 @@ export function ShareLinkErrorScreen({ kind }: { kind: ShareLinkErrorKind }) {
       ? Trash2Icon
       : Link2OffIcon
   const title = isExpired
-    ? "Share link expired"
+    ? t("errors.shareLink.expired.title")
     : isDeleted
-      ? "Link deleted by creator"
-      : "Share link not found"
+      ? t("errors.shareLink.deleted.title")
+      : t("errors.shareLink.notFound.title")
   const description = isExpired
-    ? "This shared file link is no longer active. Ask the owner to create a new share link."
+    ? t("errors.shareLink.expired.description")
     : isDeleted
-      ? "This share link has been deleted by its creator."
-      : "This shared file link does not exist or may have been removed."
+      ? t("errors.shareLink.deleted.description")
+      : t("errors.shareLink.notFound.description")
 
   return (
     <div className="fixed inset-0 flex min-h-0 flex-col overflow-hidden">
-      <SiteHeader pageTitle="Shared files" />
+      <SiteHeader pageTitle={t("errors.shareLink.pageTitle")} />
       <main className="flex min-h-0 flex-1 items-center justify-center bg-muted/40 p-4">
         <div className="flex max-w-md flex-col items-center gap-4 text-center">
           <Icon className="size-16 text-muted-foreground" strokeWidth={1.75} />
@@ -37,7 +40,7 @@ export function ShareLinkErrorScreen({ kind }: { kind: ShareLinkErrorKind }) {
           </div>
           <Button asChild variant="outline">
             <Link to="/login" target="_blank" rel="noopener noreferrer">
-              Sign in
+              {t("errors.shareLink.signIn")}
             </Link>
           </Button>
         </div>

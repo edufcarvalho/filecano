@@ -1,0 +1,233 @@
+{
+  "app": {
+    "allFiles": "All files",
+    "trash": "Trash",
+    "account": "Account",
+    "sharedFiles": "Shared files",
+    "files": "Files",
+    "filecano": "Filecano",
+    "filecanoHome": "Filecano home",
+    "docs": "Docs",
+    "logOut": "Log out",
+    "signIn": "Sign in",
+    "iconAlt": "Filecano logo"
+  },
+  "marketing": {
+    "headline": "Store, organize, and retrieve files with a clean workspace",
+    "description": "Pick up where you left off with a focused workspace for your uploads"
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome to Filecano",
+      "description": "Sign in to manage your files",
+      "sessionDescription": "Your session is kept on this device after sign in",
+      "emailLabel": "Email",
+      "emailPlaceholder": "you@example.com",
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "your password",
+      "submitButton": "Sign in",
+      "helpText": "Use your Filecano account credentials",
+      "noAccountPrompt": "Don't have an account?",
+      "signUpLink": "Sign up",
+      "fallbackError": "Unable to sign in"
+    },
+    "signup": {
+      "title": "Create your account",
+      "description": "Sign up to manage your files",
+      "sessionDescription": "Your session is kept on this device after sign up",
+      "nameLabel": "Name",
+      "namePlaceholder": "Eduardo de Carvalho",
+      "emailLabel": "Email",
+      "emailPlaceholder": "your@email.com",
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "your password",
+      "submitButton": "Create Account",
+      "hasAccountPrompt": "Already have an account?",
+      "signInLink": "Sign in",
+      "passwordValidationError": "Password does not meet the requirements",
+      "fallbackError": "Unable to sign up"
+    },
+    "editUser": {
+      "title": "Edit user data",
+      "nameLabel": "Name",
+      "emailLabel": "Email",
+      "newPasswordLabel": "New password",
+      "passwordPlaceholder": "Leave blank to keep current password",
+      "submitButton": "Save changes",
+      "cancelButton": "Cancel",
+      "successMessage": "User data updated",
+      "currentPasswordError": "Confirm your current password before saving",
+      "passwordError": "New password does not meet the requirements",
+      "noChangesError": "Change at least one field before saving",
+      "fallbackError": "Unable to update user"
+    },
+    "password": {
+      "show": "Show password",
+      "hide": "Hide password"
+    }
+  },
+  "password": {
+    "req": {
+      "length": "Between 8 and 128 characters",
+      "lowercase": "At least one lowercase letter",
+      "uppercase": "At least one uppercase letter",
+      "digit": "At least one digit",
+      "special": "At least one special character: @$!%*#?&.,",
+      "noInvalid": "No invalid characters"
+    }
+  },
+  "errors": {
+    "shareLink": {
+      "pageTitle": "Shared files",
+      "expired": {
+        "title": "Share link expired",
+        "description": "This shared file link is no longer active. Ask the owner to create a new share link or restore that one"
+      },
+      "deleted": {
+        "title": "Link deleted by creator",
+        "description": "This share link has been deleted by its creator"
+      },
+      "notFound": {
+        "title": "Share link not found",
+        "description": "This shared file link does not exist or may have been removed"
+      },
+      "signIn": "Sign in"
+    },
+    "unauthorized": {
+      "pageTitle": "All files",
+      "title": "Session expired",
+      "description": "Your session is no longer authorized. Sign in again to continue managing your files",
+      "signIn": "Sign in"
+    }
+  },
+  "files": {
+    "loadingFiles": "Loading files",
+    "loadingSharedFiles": "Loading shared files",
+    "loadingDeletedFiles": "Loading deleted files",
+    "emptyDefault": "Uploaded files will appear here",
+    "emptyShared": "No shared files are available",
+    "emptyTrash": "Trash is empty",
+    "noMatchesDefault": "No files match your search",
+    "noMatchesShared": "No shared files match your search",
+    "noMatchesTrash": "No deleted files match your search",
+    "selectAll": "Select all files",
+    "showDetails": "Show details for {{name}}",
+    "select": "Select {{name}}",
+    "openActions": "Open actions for {{name}}",
+    "originalName": "Original name",
+    "unknownType": "Unknown type",
+    "unknownSize": "Unknown size",
+    "sizeLabel": "Size:",
+    "typeLabel": "Type:",
+    "createdLabel": "Created:",
+    "deletedLabel": "Deleted:",
+    "deletedByOwner": "Deleted by owner",
+    "newlyAdded": "Newly added",
+    "download": "Download",
+    "restore": "Restore",
+    "erase": "Erase",
+    "share": "Share",
+    "delete": "Delete",
+    "refresh": "Refresh",
+    "save": "Save",
+    "cancel": "Cancel",
+    "dropzone": {
+      "area": "File upload area",
+      "instruction": "Drag and drop a file here, click to select, or paste a file",
+      "expand": "Expand upload activity",
+      "collapse": "Collapse upload activity",
+      "close": "Close upload activity",
+      "failed": "Failed",
+      "done": "Done",
+      "uploadsComplete": "Uploads complete",
+      "uploading": "Uploading {{count}}",
+      "failedCount": "{{count}} failed",
+      "dismiss": "Dismiss {{name}}"
+    },
+    "shareDialog": {
+      "title": "Share files",
+      "descriptionSingle": "Choose how long the share link should last",
+      "descriptionMultiple": "Choose how long the share link for {{count}} files should last"
+    },
+    "error": {
+      "shareLinkCopied": "Share link copied to clipboard",
+      "shareLinkCreated": "Share link created: {{url}}",
+      "loadFiles": "Unable to load files",
+      "loadDeletedFiles": "Unable to load deleted files",
+      "loadSharedFiles": "Unable to load shared files",
+      "nameBlank": "File name must not be blank",
+      "updateFile": "Unable to update file",
+      "deleteFile": "Unable to delete file",
+      "deleteFilePermanently": "Unable to delete file permanently",
+      "deleteFilesPermanently": "Unable to delete files permanently",
+      "restoreFile": "Unable to restore file",
+      "restoreFiles": "Unable to restore files",
+      "uploadFile": "Unable to upload file",
+      "someUploadFailed": "Some files failed to upload",
+      "deleteFiles": "Unable to delete files",
+      "downloadFiles": "Unable to download files",
+      "downloadFile": "Unable to download file",
+      "shareFiles": "Unable to share files",
+      "fileDeletedByOwner": "This file was deleted by the owner",
+      "someDownloadFailed": "Some files failed to download"
+    }
+  },
+  "links": {
+    "myLinks": "My Links",
+    "myLinksAria": "My links",
+    "loading": "Loading..",
+    "emptyState": "You don't have any links! Create one using the share button",
+    "loadError": "Failed to load links",
+    "copyError": "Failed to copy link",
+    "deleteError": "Failed to delete link",
+    "restoreError": "Failed to restore link",
+    "linkAlreadyTaken": "Link already taken",
+    "deleteConfirm": "Are you sure you want to delete this link?",
+    "linkCopied": "Link copied!",
+    "linkExpired": "Link expired",
+    "restoreLink": "Restore link",
+    "copyLink": "Copy link",
+    "editLink": "Edit link",
+    "deleteLink": "Delete link",
+    "saveLinkName": "Save link name",
+    "cancelEditLinkName": "Cancel editing link name",
+    "restoreDialogTitle": "Restore link",
+    "restoreDialogDescription": "Choose how long the restored link should last"
+  },
+  "expiration": {
+    "units": {
+      "minutes": "Minutes",
+      "hours": "Hours",
+      "days": "Days",
+      "months": "Months",
+      "years": "Years"
+    },
+    "fromNow": "From now",
+    "exactDate": "Exact date",
+    "amount": "Amount",
+    "unit": "Unit",
+    "permanent": "Permanent (never expires)",
+    "expiryDate": "Expiry date",
+    "timeOptional": "Time (optional, defaults current hour)",
+    "dateInPast": "The selected date is in the past",
+    "cancel": "Cancel",
+    "confirm": "Confirm"
+  },
+  "search": {
+    "label": "Search",
+    "placeholder": "Search files.."
+  },
+  "api": {
+    "error": {
+      "tokenExpired": "Access token expired",
+      "refreshSession": "Unable to refresh session",
+      "loadPreview": "Failed to load preview",
+      "updateUser": "Unable to update user",
+      "checksumMismatch": "File integrity check failed: checksums do not match",
+      "loadLinks": "Unable to load links",
+      "updateLink": "Unable to update link",
+      "deleteLink": "Unable to delete link",
+      "restoreLink": "Unable to restore link"
+    }
+  }
+}

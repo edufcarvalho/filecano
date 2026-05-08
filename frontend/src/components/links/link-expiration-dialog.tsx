@@ -1,6 +1,7 @@
 import { useRef, useState } from "react"
 import { CalendarIcon, ClockIcon, InfinityIcon } from "lucide-react"
 
+import { useTranslation } from "@/i18n"
 import {
   Dialog,
   DialogContent,
@@ -22,13 +23,7 @@ export type { LinkExpiration }
 
 type Mode = "from-now" | "exact"
 
-const UNITS = [
-  { value: "minutes", label: "Minutes" },
-  { value: "hours", label: "Hours" },
-  { value: "days", label: "Days" },
-  { value: "months", label: "Months" },
-  { value: "years", label: "Years" },
-]
+const UNITS = ["minutes", "hours", "days", "months", "years"]
 
 type LinkExpirationDialogProps = {
   open: boolean
@@ -45,6 +40,7 @@ export function LinkExpirationDialog({
   description,
   onConfirm,
 }: LinkExpirationDialogProps) {
+  const { t } = useTranslation()
   const [mode, setMode] = useState<Mode>("from-now")
   const [amount, setAmount] = useState(1)
   const [unit, setUnit] = useState("days")
@@ -110,7 +106,7 @@ export function LinkExpirationDialog({
               }}
               className="flex-1"
             >
-              From now
+              {t("expiration.fromNow")}
             </Button>
             <Button
               variant={mode === "exact" ? "default" : "outline"}
@@ -119,7 +115,7 @@ export function LinkExpirationDialog({
               className="flex-1"
             >
               <CalendarIcon data-icon="inline-start" />
-              Exact date
+              {t("expiration.exactDate")}
             </Button>
           </div>
 
@@ -131,7 +127,7 @@ export function LinkExpirationDialog({
               >
                 <div className="flex-1">
                   <label className="mb-1 block text-xs text-muted-foreground">
-                    Amount
+                    {t("expiration.amount")}
                   </label>
                   <Input
                     type="number"
@@ -143,7 +139,7 @@ export function LinkExpirationDialog({
                 </div>
                 <div className="flex-1">
                   <label className="mb-1 block text-xs text-muted-foreground">
-                    Unit
+                    {t("expiration.unit")}
                   </label>
                   <select
                     value={unit}
@@ -152,8 +148,8 @@ export function LinkExpirationDialog({
                     className="h-8 w-full min-w-0 rounded-lg border border-input bg-background px-2.5 py-1 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {UNITS.map((u) => (
-                      <option key={u.value} value={u.value}>
-                        {u.label}
+                      <option key={u} value={u}>
+                        {t(`expiration.units.${u}`)}
                       </option>
                     ))}
                   </select>
@@ -175,14 +171,14 @@ export function LinkExpirationDialog({
                   className="size-4 shrink-0"
                 />
                 <InfinityIcon className="size-4 shrink-0 text-muted-foreground" />
-                <span className="text-sm">Permanent (never expires)</span>
+                <span className="text-sm">{t("expiration.permanent")}</span>
               </label>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
               <div>
                 <label className="mb-1 block text-xs text-muted-foreground">
-                  Expiry date
+                  {t("expiration.expiryDate")}
                 </label>
                 <div className="relative">
                   <input
@@ -209,7 +205,7 @@ export function LinkExpirationDialog({
               </div>
               <div>
                 <label className="mb-1 block text-xs text-muted-foreground">
-                  Time (optional, defaults current hour)
+                  {t("expiration.timeOptional")}
                 </label>
                 <div className="relative">
                   <input
@@ -229,7 +225,7 @@ export function LinkExpirationDialog({
               </div>
               {isDateInPast && (
                 <p className="text-xs text-destructive">
-                  The selected date is in the past.
+                  {t("expiration.dateInPast")}
                 </p>
               )}
             </div>
@@ -238,10 +234,10 @@ export function LinkExpirationDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleCancel}>
-            Cancel
+            {t("expiration.cancel")}
           </Button>
           <Button onClick={handleConfirm} disabled={isDateInPast}>
-            Confirm
+            {t("expiration.confirm")}
           </Button>
         </DialogFooter>
       </DialogContent>

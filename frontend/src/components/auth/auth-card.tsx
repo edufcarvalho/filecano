@@ -1,5 +1,6 @@
 import type { ComponentProps, ReactNode } from "react"
 
+import { useTranslation } from "@/i18n"
 import { Card, CardContent } from "@ui/card"
 import { FieldDescription, FieldGroup } from "@ui/field"
 import { cn } from "@/lib/utils"
@@ -15,12 +16,6 @@ type AuthCardProps = Omit<ComponentProps<"div">, "children" | "onSubmit"> & {
   children: ReactNode
 }
 
-const workspaceHeadline =
-  "Store, organize, and retrieve files with a clean workspace."
-
-const workspaceDescription =
-  "Pick up where you left off with a focused workspace for your uploads."
-
 export function AuthCard({
   className,
   title,
@@ -30,6 +25,8 @@ export function AuthCard({
   children,
   ...props
 }: AuthCardProps) {
+  const { t } = useTranslation()
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card className="overflow-hidden p-0">
@@ -53,10 +50,10 @@ export function AuthCard({
               <Icon />
               <div className="flex flex-col gap-3">
                 <p className="text-3xl font-semibold tracking-normal">
-                  {workspaceHeadline}
+                  {t("marketing.headline")}
                 </p>
                 <p className="text-balance text-muted-foreground">
-                  {workspaceDescription}
+                  {t("marketing.description")}
                 </p>
               </div>
             </div>

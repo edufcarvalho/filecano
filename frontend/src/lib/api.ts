@@ -1,3 +1,5 @@
+import { translate } from "@/i18n"
+
 const DEFAULT_API_URL = "http://localhost:8000/api"
 
 export const API_URL = (
@@ -109,8 +111,7 @@ async function authFetch(
       }
     }
     onUnauthorized?.()
-    throw new Error("Access token expired.")
-  }
+    throw new Error(translate("api.error.tokenExpired"))  }
 
   return response
 }
@@ -139,7 +140,7 @@ export async function loginUser(credentials: {
     body: JSON.stringify(credentials),
   })
 
-  if (!response.ok) await readError(response, "Unable to sign in.")
+  if (!response.ok) await readError(response, translate("auth.login.fallbackError"))
 
   return response.json()
 }
@@ -154,7 +155,7 @@ export async function refreshAccessToken(
     },
   })
 
-  if (!response.ok) await readError(response, "Unable to refresh session.")
+  if (!response.ok) await readError(response, translate("api.error.refreshSession"))
 
   return response.json()
 }
@@ -172,7 +173,7 @@ export async function signupUser(data: {
     body: JSON.stringify(data),
   })
 
-  if (!response.ok) await readError(response, "Unable to sign up.")
+  if (!response.ok) await readError(response, translate("auth.signup.fallbackError"))
 
   return response.json()
 }
@@ -195,7 +196,7 @@ export async function updateUser(
     body: JSON.stringify(data),
   })
 
-  if (!response.ok) await readError(response, "Unable to update user.")
+  if (!response.ok) await readError(response, translate("api.error.updateUser"))
 
   return response.json()
 }
@@ -229,7 +230,7 @@ export async function listFiles(
     accessToken
   )
 
-  if (!response.ok) await readError(response, "Unable to load files.")
+  if (!response.ok) await readError(response, translate("files.error.loadFiles"))
 
   return response.json()
 }
@@ -248,7 +249,7 @@ export async function fetchFilePreviewAsDataUrl(
 ): Promise<string> {
   const response = await authFetch(getFilePreviewUrl(fileId), accessToken)
 
-  if (!response.ok) await readError(response, "Failed to load preview.")
+  if (!response.ok) await readError(response, translate("api.error.loadPreview"))
 
   const blob = await response.blob()
 
@@ -268,7 +269,7 @@ export async function fetchSharedFilePreviewAsDataUrl(
     `${API_URL}/v1/share/${encodeURIComponent(shareToken)}/preview/${fileId}`
   )
 
-  if (!response.ok) await readError(response, "Failed to load preview.")
+  if (!response.ok) await readError(response, translate("api.error.loadPreview"))
 
   const blob = await response.blob()
 
@@ -299,7 +300,7 @@ export async function updateFile(
     }
   )
 
-  if (!response.ok) await readError(response, "Unable to update file.")
+  if (!response.ok) await readError(response, translate("files.error.updateFile"))
 
   return response.json()
 }
@@ -317,7 +318,7 @@ export async function deleteFile(
     }
   )
 
-  if (!response.ok) await readError(response, "Unable to delete file.")
+  if (!response.ok) await readError(response, translate("files.error.deleteFile"))
 }
 
 export async function restoreFile(
@@ -332,7 +333,7 @@ export async function restoreFile(
     }
   )
 
-  if (!response.ok) await readError(response, "Unable to restore file.")
+  if (!response.ok) await readError(response, translate("files.error.restoreFile"))
 
   return response.json()
 }
@@ -344,12 +345,12 @@ export async function downloadFile(
 ): Promise<void> {
   const response = await authFetch(`${API_URL}/v1/files/${fileId}`, accessToken)
 
-  if (!response.ok) await readError(response, "Unable to download file.")
+  if (!response.ok) await readError(response, translate("files.error.downloadFile"))
 
   // Check for checksum mismatch
   const checksumError = response.headers.get("X-Checksum-Error")
   if (checksumError === "true") {
-    throw new Error("File integrity check failed: checksums do not match.")
+    throw new Error(translate("api.error.checksumMismatch"))
   }
 
   await downloadResponse(response, fileName)
@@ -366,7 +367,7 @@ export async function downloadMultipleFiles(
   try {
     await Promise.all(downloadPromises)
   } catch {
-    throw new Error("Some files failed to download.")
+    throw new Error(translate("files.error.someDownloadFailed"))
   }
 }
 
@@ -386,7 +387,7 @@ export async function shareFiles(
     body: JSON.stringify(body),
   })
 
-  if (!response.ok) await readError(response, "Unable to share files.")
+  if (!response.ok) await readError(response, translate("files.error.shareFiles"))
 
   return response.json()
 }
@@ -400,7 +401,7 @@ export async function listUserLinks(
     accessToken
   )
 
-  if (!response.ok) await readError(response, "Unable to load links.")
+  if (!response.ok) await readError(response, translate("api.error.loadLinks"))
 
   return response.json()
 }
@@ -422,7 +423,7 @@ export async function updateLinkName(
     }
   )
 
-  if (!response.ok) await readError(response, "Unable to update link.")
+  if (!response.ok) await readError(response, translate("api.error.updateLink"))
 
   return response.json()
 }
@@ -439,7 +440,7 @@ export async function deleteLink(
     }
   )
 
-  if (!response.ok) await readError(response, "Unable to delete link.")
+  if (!response.ok) await readError(response, translate("api.error.deleteLink"))
 }
 
 export async function restoreLink(
@@ -462,7 +463,7 @@ export async function restoreLink(
     }
   )
 
-  if (!response.ok) await readError(response, "Unable to restore link.")
+  if (!response.ok) await readError(response, translate("api.error.restoreLink"))
 
   return response.json()
 }
@@ -478,7 +479,7 @@ export function getShareUrl(token: string, customName: string | null): string {
 export async function getSharedFiles(token: string): Promise<LinkResponse> {
   const response = await fetch(`${API_URL}/v1/share/${token}`)
 
-  if (!response.ok) await readError(response, "Unable to load shared files.")
+  if (!response.ok) await readError(response, translate("files.error.loadSharedFiles"))
 
   return response.json()
 }
@@ -490,7 +491,7 @@ export async function downloadSharedFile(
 ): Promise<void> {
   const response = await fetch(`${API_URL}/v1/share/${token}/${fileId}`)
 
-  if (!response.ok) await readError(response, "Unable to download file.")
+  if (!response.ok) await readError(response, translate("files.error.downloadFile"))
 
   const blob = await response.blob()
   const url = window.URL.createObjectURL(blob)
@@ -566,10 +567,10 @@ function uploadFileWithToken(
           const data = JSON.parse(xhr.responseText)
           resolve(data)
         } catch {
-          reject(new Error("Unable to upload file."))
+          reject(new Error(translate("files.error.uploadFile")))
         }
       } else {
-        let message = "Unable to upload file."
+        let message = translate("files.error.uploadFile")
         try {
           const body = JSON.parse(xhr.responseText)
           message = body.message ?? body.detail ?? message
@@ -581,7 +582,7 @@ function uploadFileWithToken(
     })
 
     xhr.addEventListener("error", () => {
-      reject(new Error("Unable to upload file."))
+      reject(new Error(translate("files.error.uploadFile")))
     })
 
     xhr.open("POST", `${API_URL}/v1/files`)

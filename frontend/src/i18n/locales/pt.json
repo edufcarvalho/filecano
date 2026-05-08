@@ -1,0 +1,233 @@
+{
+  "app": {
+    "allFiles": "Todos os arquivos",
+    "trash": "Lixeira",
+    "account": "Conta",
+    "sharedFiles": "Arquivos compartilhados",
+    "files": "Arquivos",
+    "filecano": "Filecano",
+    "filecanoHome": "Início do Filecano",
+    "docs": "Documentação",
+    "logOut": "Sair",
+    "signIn": "Entrar",
+    "iconAlt": "Logotipo do Filecano"
+  },
+  "marketing": {
+    "headline": "Armazene, organize e recupere arquivos em um espaço de trabalho limpo",
+    "description": "Continue de onde parou com um espaço de trabalho focado para seus uploads"
+  },
+  "auth": {
+    "login": {
+      "title": "Bem-vindo ao Filecano",
+      "description": "Faça login para gerenciar seus arquivos",
+      "sessionDescription": "Sua sessão é mantida neste dispositivo após o login",
+      "emailLabel": "E-mail",
+      "emailPlaceholder": "voce@exemplo.com",
+      "passwordLabel": "Senha",
+      "passwordPlaceholder": "sua senha",
+      "submitButton": "Entrar",
+      "helpText": "Use as credenciais da sua conta Filecano",
+      "noAccountPrompt": "Não tem uma conta?",
+      "signUpLink": "Cadastre-se",
+      "fallbackError": "Não foi possível fazer login"
+    },
+    "signup": {
+      "title": "Crie sua conta",
+      "description": "Cadastre-se para gerenciar seus arquivos",
+      "sessionDescription": "Sua sessão é mantida neste dispositivo após o cadastro",
+      "nameLabel": "Nome",
+      "namePlaceholder": "Eduardo de Carvalho",
+      "emailLabel": "E-mail",
+      "emailPlaceholder": "seu@email.com",
+      "passwordLabel": "Senha",
+      "passwordPlaceholder": "sua senha",
+      "submitButton": "Criar Conta",
+      "hasAccountPrompt": "Já tem uma conta?",
+      "signInLink": "Entrar",
+      "passwordValidationError": "A senha não atende aos requisitos",
+      "fallbackError": "Não foi possível cadastrar"
+    },
+    "editUser": {
+      "title": "Editar dados do usuário",
+      "nameLabel": "Nome",
+      "emailLabel": "E-mail",
+      "newPasswordLabel": "Nova senha",
+      "passwordPlaceholder": "Deixe em branco para manter a senha atual",
+      "submitButton": "Salvar alterações",
+      "cancelButton": "Cancelar",
+      "successMessage": "Dados do usuário atualizados",
+      "currentPasswordError": "Confirme sua senha atual antes de salvar",
+      "passwordError": "A nova senha não atende aos requisitos",
+      "noChangesError": "Altere pelo menos um campo antes de salvar",
+      "fallbackError": "Não foi possível atualizar o usuário"
+    },
+    "password": {
+      "show": "Mostrar senha",
+      "hide": "Ocultar senha"
+    }
+  },
+  "password": {
+    "req": {
+      "length": "Entre 8 e 128 caracteres",
+      "lowercase": "Pelo menos uma letra minúscula",
+      "uppercase": "Pelo menos uma letra maiúscula",
+      "digit": "Pelo menos um dígito",
+      "special": "Pelo menos um caractere especial: @$!%*#?&.,",
+      "noInvalid": "Nenhum caractere inválido"
+    }
+  },
+  "errors": {
+    "shareLink": {
+      "pageTitle": "Arquivos compartilhados",
+      "expired": {
+        "title": "Link de compartilhamento expirado",
+        "description": "Este link de compartilhamento não está mais ativo. Peça ao proprietário que crie um novo link ou reative esse novamente"
+      },
+      "deleted": {
+        "title": "Link excluído pelo criador",
+        "description": "Este link de compartilhamento foi excluído pelo criador"
+      },
+      "notFound": {
+        "title": "Link de compartilhamento não encontrado",
+        "description": "Este link de compartilhamento não existe ou pode ter sido removido"
+      },
+      "signIn": "Entrar"
+    },
+    "unauthorized": {
+      "pageTitle": "Todos os arquivos",
+      "title": "Sessão expirada",
+      "description": "Sua sessão não está mais autorizada. Faça login novamente para continuar gerenciando seus arquivos",
+      "signIn": "Entrar"
+    }
+  },
+  "files": {
+    "loadingFiles": "Carregando arquivos",
+    "loadingSharedFiles": "Carregando arquivos compartilhados",
+    "loadingDeletedFiles": "Carregando arquivos excluídos",
+    "emptyDefault": "Os arquivos enviados aparecerão aqui",
+    "emptyShared": "Nenhum arquivo compartilhado disponível",
+    "emptyTrash": "A lixeira está vazia",
+    "noMatchesDefault": "Nenhum arquivo corresponde à pesquisa",
+    "noMatchesShared": "Nenhum arquivo compartilhado corresponde à pesquisa",
+    "noMatchesTrash": "Nenhum arquivo excluído corresponde à pesquisa",
+    "selectAll": "Selecionar todos os arquivos",
+    "showDetails": "Mostrar detalhes de {{name}}",
+    "select": "Selecionar {{name}}",
+    "openActions": "Abrir ações para {{name}}",
+    "originalName": "Nome original",
+    "unknownType": "Tipo desconhecido",
+    "unknownSize": "Tamanho desconhecido",
+    "sizeLabel": "Tamanho:",
+    "typeLabel": "Tipo:",
+    "createdLabel": "Criado:",
+    "deletedLabel": "Excluído:",
+    "deletedByOwner": "Excluído pelo proprietário",
+    "newlyAdded": "Recém-adicionado",
+    "download": "Baixar",
+    "restore": "Restaurar",
+    "erase": "Apagar",
+    "share": "Compartilhar",
+    "delete": "Excluir",
+    "refresh": "Atualizar",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "dropzone": {
+      "area": "Área de upload de arquivos",
+      "instruction": "Arraste um arquivo aqui, clique para selecionar ou cole um arquivo",
+      "expand": "Expandir atividade de upload",
+      "collapse": "Recolher atividade de upload",
+      "close": "Fechar atividade de upload",
+      "failed": "Falhou",
+      "done": "Concluído",
+      "uploadsComplete": "Uploads concluídos",
+      "uploading": "Enviando {{count}}",
+      "failedCount": "{{count}} falharam",
+      "dismiss": "Descartar {{name}}"
+    },
+    "shareDialog": {
+      "title": "Compartilhar arquivos",
+      "descriptionSingle": "Escolha por quanto tempo o link de compartilhamento deve durar",
+      "descriptionMultiple": "Escolha por quanto tempo o link para {{count}} arquivos deve durar"
+    },
+    "error": {
+      "shareLinkCopied": "Link de compartilhamento copiado para a área de transferência",
+      "shareLinkCreated": "Link de compartilhamento criado: {{url}}",
+      "loadFiles": "Não foi possível carregar os arquivos",
+      "loadDeletedFiles": "Não foi possível carregar os arquivos excluídos",
+      "loadSharedFiles": "Não foi possível carregar os arquivos compartilhados",
+      "nameBlank": "O nome do arquivo não pode estar em branco",
+      "updateFile": "Não foi possível atualizar o arquivo",
+      "deleteFile": "Não foi possível excluir o arquivo",
+      "deleteFilePermanently": "Não foi possível excluir o arquivo permanentemente",
+      "deleteFilesPermanently": "Não foi possível excluir os arquivos permanentemente",
+      "restoreFile": "Não foi possível restaurar o arquivo",
+      "restoreFiles": "Não foi possível restaurar os arquivos",
+      "uploadFile": "Não foi possível enviar o arquivo",
+      "someUploadFailed": "Alguns arquivos falharam no envio",
+      "deleteFiles": "Não foi possível excluir os arquivos",
+      "downloadFiles": "Não foi possível baixar os arquivos",
+      "downloadFile": "Não foi possível baixar o arquivo",
+      "shareFiles": "Não foi possível compartilhar os arquivos",
+      "fileDeletedByOwner": "Este arquivo foi excluído pelo proprietário",
+      "someDownloadFailed": "Alguns arquivos falharam no download"
+    }
+  },
+  "links": {
+    "myLinks": "Meus Links",
+    "myLinksAria": "Meus links",
+    "loading": "Carregando..",
+    "emptyState": "Você não tem links! Crie um usando o botão de compartilhar",
+    "loadError": "Falha ao carregar os links",
+    "copyError": "Falha ao copiar o link",
+    "deleteError": "Falha ao excluir o link",
+    "restoreError": "Falha ao restaurar o link",
+    "linkAlreadyTaken": "Link já está em uso",
+    "deleteConfirm": "Tem certeza que deseja excluir este link?",
+    "linkCopied": "Link copiado!",
+    "linkExpired": "Link expirado",
+    "restoreLink": "Restaurar link",
+    "copyLink": "Copiar link",
+    "editLink": "Editar link",
+    "deleteLink": "Excluir link",
+    "saveLinkName": "Salvar nome do link",
+    "cancelEditLinkName": "Cancelar edição do nome do link",
+    "restoreDialogTitle": "Restaurar link",
+    "restoreDialogDescription": "Escolha por quanto tempo o link restaurado deve durar"
+  },
+  "expiration": {
+    "units": {
+      "minutes": "Minutos",
+      "hours": "Horas",
+      "days": "Dias",
+      "months": "Meses",
+      "years": "Anos"
+    },
+    "fromNow": "A partir de agora",
+    "exactDate": "Data exata",
+    "amount": "Quantidade",
+    "unit": "Unidade",
+    "permanent": "Permanente (nunca expira)",
+    "expiryDate": "Data de expiração",
+    "timeOptional": "Hora (opcional, padrão: hora atual)",
+    "dateInPast": "A data selecionada está no passado",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar"
+  },
+  "search": {
+    "label": "Pesquisar",
+    "placeholder": "Pesquisar arquivos.."
+  },
+  "api": {
+    "error": {
+      "tokenExpired": "Token de acesso expirado",
+      "refreshSession": "Não foi possível atualizar a sessão",
+      "loadPreview": "Falha ao carregar a pré-visualização",
+      "updateUser": "Não foi possível atualizar o usuário",
+      "checksumMismatch": "Falha na verificação de integridade: checksums não correspondem",
+      "loadLinks": "Não foi possível carregar os links",
+      "updateLink": "Não foi possível atualizar o link",
+      "deleteLink": "Não foi possível excluir o link",
+      "restoreLink": "Não foi possível restaurar o link"
+    }
+  }
+}

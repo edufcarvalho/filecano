@@ -1,29 +1,29 @@
 export const passwordRequirements = [
   {
+    key: "password.req.length",
     test: (p: string) => p.length >= 8 && p.length <= 128,
-    label: "Between 8 and 128 characters",
   },
   {
+    key: "password.req.lowercase",
     test: (p: string) => /[a-z]/.test(p),
-    label: "At least one lowercase letter",
   },
   {
+    key: "password.req.uppercase",
     test: (p: string) => /[A-Z]/.test(p),
-    label: "At least one uppercase letter",
   },
-  { test: (p: string) => /\d/.test(p), label: "At least one digit" },
+  { key: "password.req.digit", test: (p: string) => /\d/.test(p) },
   {
+    key: "password.req.special",
     test: (p: string) => /[@$!%*#?&.,]/.test(p),
-    label: "At least one special character: @$!%*#?&.,",
   },
   {
+    key: "password.req.noInvalid",
     test: (p: string) => /^[A-Za-z\d@$!#%*?&.,]+$/.test(p),
-    label: "No invalid characters",
   },
 ]
 
 export function validatePassword(password: string): string[] {
   return passwordRequirements
     .filter((requirement) => !requirement.test(password))
-    .map((requirement) => requirement.label)
+    .map((requirement) => requirement.key)
 }

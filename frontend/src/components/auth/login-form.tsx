@@ -1,5 +1,7 @@
 import type { ComponentProps } from "react"
 import { useState } from "react"
+
+import { useTranslation } from "@/i18n"
 import { Link } from "react-router-dom"
 
 import { Field, FieldDescription } from "@/components/ui/field"
@@ -16,6 +18,7 @@ type LoginFormProps = Omit<ComponentProps<"div">, "onSubmit"> & {
 }
 
 export function LoginForm({ className, onLogin, ...props }: LoginFormProps) {
+  const { t } = useTranslation()
   const [error, setError] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -34,7 +37,7 @@ export function LoginForm({ className, onLogin, ...props }: LoginFormProps) {
       const token = await loginUser({ email, password })
       onLogin?.(token)
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Unable to sign in.")
+      setError(error instanceof Error ? error.message : t("auth.login.fallbackError"))
     } finally {
       setIsPending(false)
     }
@@ -43,30 +46,30 @@ export function LoginForm({ className, onLogin, ...props }: LoginFormProps) {
   return (
     <AuthCard
       className={className}
-      title="Welcome to Filecano"
-      description="Sign in to manage your files."
-      sessionDescription="Your session is kept on this device after sign in."
+      title={t("auth.login.title")}
+      description={t("auth.login.description")}
+      sessionDescription={t("auth.login.sessionDescription")}
       onSubmit={handleSubmit}
       {...props}
     >
       <ErrorField message={error} />
       <AuthTextField
         id="email"
-        label="Email"
+        label={t("auth.login.emailLabel")}
         name="email"
         type="email"
         autoComplete="email"
-        placeholder="you@example.com"
+        placeholder={t("auth.login.emailPlaceholder")}
         required
         invalid={!!error}
         disabled={isPending}
       />
       <AuthPasswordField
         id="password"
-        label="Password"
+        label={t("auth.login.passwordLabel")}
         name="password"
         autoComplete="current-password"
-        placeholder="your password"
+        placeholder={t("auth.login.passwordPlaceholder")}
         required
         invalid={!!error}
         disabled={isPending}
@@ -75,19 +78,19 @@ export function LoginForm({ className, onLogin, ...props }: LoginFormProps) {
       />
       <Field>
         <LoadingButton type="submit" isLoading={isPending}>
-          Sign in
+          {t("auth.login.submitButton")}
         </LoadingButton>
       </Field>
       <FieldDescription className="text-center">
-        Use your Filecano account credentials.
+        {t("auth.login.helpText")}
       </FieldDescription>
       <FieldDescription className="text-center">
-        Don&apos;t have an account?{" "}
+        {t("auth.login.noAccountPrompt")}{" "}
         <Link
           to="/register"
           className="text-primary underline underline-offset-4 hover:text-primary/90"
         >
-          Sign up
+          {t("auth.login.signUpLink")}
         </Link>
       </FieldDescription>
     </AuthCard>

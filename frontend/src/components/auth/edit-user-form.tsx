@@ -1,6 +1,8 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
 
+import { useTranslation } from "@/i18n"
+
 import { Button } from "@ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@ui/card"
 import { Field, FieldGroup } from "@ui/field"
@@ -27,6 +29,7 @@ export function EditUserForm({
   user,
   onUserUpdate,
 }: EditUserFormProps) {
+  const { t } = useTranslation()
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
@@ -53,7 +56,7 @@ export function EditUserForm({
     }
 
     if (!currentPassword) {
-      setError("Confirm your current password before saving.")
+      setError(t("auth.editUser.currentPasswordError"))
       setSuccess(null)
       return
     }
@@ -63,13 +66,13 @@ export function EditUserForm({
     if (password) payload.password = password
 
     if (password && passwordErrors.length > 0) {
-      setError("New password does not meet the requirements.")
+      setError(t("auth.editUser.passwordError"))
       setSuccess(null)
       return
     }
 
     if (Object.keys(payload).length === 1) {
-      setError("Change at least one field before saving.")
+      setError(t("auth.editUser.noChangesError"))
       setSuccess(null)
       return
     }
@@ -81,10 +84,10 @@ export function EditUserForm({
     try {
       const updatedUser = await updateUser(accessToken, payload)
       onUserUpdate(updatedUser)
-      setSuccess("User data updated.")
+      setSuccess(t("auth.editUser.successMessage"))
     } catch (error) {
       setError(
-        error instanceof Error ? error.message : "Unable to update user."
+        error instanceof Error ? error.message : t("auth.editUser.fallbackError")
       )
     } finally {
       setIsPending(false)
@@ -95,7 +98,7 @@ export function EditUserForm({
     <main className="flex flex-1 items-center justify-center bg-muted/40 p-6">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Edit user data</CardTitle>
+          <CardTitle>{t("auth.editUser.title")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit}>
@@ -104,7 +107,7 @@ export function EditUserForm({
               <DescriptionField>{success}</DescriptionField>
               <AuthTextField
                 id="name"
-                label="Name"
+                label={t("auth.editUser.nameLabel")}
                 name="name"
                 type="text"
                 autoComplete="name"
@@ -114,7 +117,7 @@ export function EditUserForm({
               />
               <AuthTextField
                 id="email"
-                label="Email"
+                label={t("auth.editUser.emailLabel")}
                 name="email"
                 type="email"
                 autoComplete="email"
@@ -124,10 +127,10 @@ export function EditUserForm({
               />
               <AuthPasswordField
                 id="password"
-                label="New password"
+                label={t("auth.editUser.newPasswordLabel")}
                 name="password"
                 autoComplete="new-password"
-                placeholder="Leave blank to keep current password"
+                placeholder={t("auth.editUser.passwordPlaceholder")}
                 disabled={isPending}
                 invalid={!!error}
                 value={password}
@@ -148,10 +151,10 @@ export function EditUserForm({
                     isPending || (passwordTouched && passwordErrors.length > 0)
                   }
                 >
-                  Save changes
+                  {t("auth.editUser.submitButton")}
                 </LoadingButton>
                   <Button variant="outline" asChild>
-                    <Link to="/" target="_blank" rel="noopener noreferrer">Cancel</Link>
+                    <Link to="/" target="_blank" rel="noopener noreferrer">{t("auth.editUser.cancelButton")}</Link>
                   </Button>
               </Field>
             </FieldGroup>

@@ -1,4 +1,5 @@
 import { useTheme } from "@ui/theme-provider"
+import { useTranslation } from "@/i18n"
 import { cn } from "@/lib/utils"
 
 type IconProps = {
@@ -8,6 +9,7 @@ type IconProps = {
 
 export function Icon({ className, markClassName }: IconProps) {
   const { resolvedTheme } = useTheme()
+  const { t } = useTranslation()
   const isDark = resolvedTheme === "dark"
 
   return (
@@ -19,10 +21,10 @@ export function Icon({ className, markClassName }: IconProps) {
     >
       <img
         src={isDark ? "/favicon.svg" : "/favicon_light.svg"}
-        alt="Filecano logo"
+        alt={t("app.iconAlt")}
         className={cn("block size-12 rounded-lg", markClassName)}
       />
-      <span className="sr-only">Filecano</span>
+      <span className="sr-only">{t("app.filecano")}</span>
     </div>
   )
 }

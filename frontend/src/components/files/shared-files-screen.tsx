@@ -16,6 +16,7 @@ import {
   type FileResponse,
 } from "@/lib/api"
 import { isPreviewSupportedFile } from "@/lib/file-display"
+import { useTranslation } from "@/i18n"
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
@@ -26,6 +27,7 @@ function isAvailableFile(file: FileResponse) {
 }
 
 export function SharedFilesScreen() {
+  const { t } = useTranslation()
   const { shareToken } = useParams()
   const [files, setFiles] = useState<FileResponse[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -102,7 +104,7 @@ export function SharedFilesScreen() {
             setLinkError("not-found")
           }
         } else {
-          setError(getErrorMessage(error, "Unable to load shared files."))
+          setError(getErrorMessage(error, t("files.error.loadSharedFiles")))
         }
       })
       .finally(() => {
@@ -112,13 +114,13 @@ export function SharedFilesScreen() {
     return () => {
       isCurrentRef.current = false
     }
-  }, [shareToken, loadPreviews])
+  }, [shareToken, loadPreviews, t])
 
   async function handleDownload(file: FileResponse) {
     if (!shareToken) return
 
     if (!isAvailableFile(file)) {
-      setError("This file was deleted by the owner.")
+      setError(t("files.error.fileDeletedByOwner"))
       return
     }
     setError(null)
@@ -127,7 +129,7 @@ export function SharedFilesScreen() {
     try {
       await downloadSharedFile(shareToken, file.id, file.original_name)
     } catch (error) {
-      setError(getErrorMessage(error, "Unable to download file."))
+      setError(getErrorMessage(error, t("files.error.downloadFile")))
     } finally {
       setPendingFileId(null)
     }
@@ -150,7 +152,7 @@ export function SharedFilesScreen() {
         )
       )
     } catch {
-      setError("Some files failed to download.")
+      setError(t("files.error.someDownloadFailed"))
     } finally {
       setPendingFileId(null)
     }
@@ -182,7 +184,7 @@ export function SharedFilesScreen() {
 
   return (
     <div className="fixed inset-0 flex min-h-0 flex-col overflow-hidden">
-      <SiteHeader pageTitle="Shared files" />
+      <SiteHeader pageTitle={t("app.sharedFiles")} />
       <main className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden bg-muted/40 p-4">
         <ErrorField message={error} />
 
