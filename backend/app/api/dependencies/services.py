@@ -3,7 +3,12 @@ from sqlmodel import Session
 
 from app.core import Settings, get_settings
 from app.db import get_session
-from app.repositories import FileRepository, LinkRepository, UserRepository
+from app.repositories import (
+  FileRepository,
+  FolderRepository,
+  LinkRepository,
+  UserRepository,
+)
 from app.services import (
   AuthService,
   FileService,
@@ -23,13 +28,18 @@ def get_file_storage_service(
   return FileStorageService(settings)
 
 
+def get_folder_repository(session: Session = Depends(get_session)) -> FolderRepository:
+  return FolderRepository(session)
+
+
 def get_file_service(
   repository: FileRepository = Depends(get_file_repository),
+  folder_repository: FolderRepository = Depends(get_folder_repository),
   storage_service: FileStorageService = Depends(get_file_storage_service),
   session: Session = Depends(get_session),
   settings: Settings = Depends(get_settings),
 ) -> FileService:
-  return FileService(repository, storage_service, session, settings)
+  return FileService(repository, folder_repository, storage_service, session, settings)
 
 
 def get_link_repository(session: Session = Depends(get_session)) -> LinkRepository:

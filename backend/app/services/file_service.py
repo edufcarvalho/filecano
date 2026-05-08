@@ -21,8 +21,12 @@ from app.core import (
   UnsupportedFileTypeError,
 )
 from app.models import File, User
-from app.repositories import FileRepository
-from app.schemas import FileUpdateParams
+from app.repositories import FileRepository, FolderRepository
+from app.schemas import (
+  FileByFolderReturn,
+  FileListParams,
+  FileUpdateParams,
+)
 from app.services.base_service import BaseService
 from app.services.file_storage_service import FileStorageService
 from app.utils.file import is_content_type_supported
@@ -36,11 +40,13 @@ class FileService(BaseService):
   def __init__(
     self,
     file_repository: FileRepository,
+    folder_repository: FolderRepository,
     storage_service: FileStorageService,
     session: Session,
     settings: Settings,
   ):
     self.repository = file_repository
+    self.folder_repository = folder_repository
     self.storage = storage_service
     self.session = session
     self.settings = settings
@@ -127,11 +133,23 @@ class FileService(BaseService):
 
     return self.storage.download(file.preview_object_key)
 
-  def list_files(self, user: User, deleted: bool = False) -> list[File]:
-    if deleted:
+  def list_files(self, user: User, params: FileListParams) -> list[File] | FileByFolderReturn:
+    if params.deleted:
       return self.repository.list_deleted_by_user(user.id)
 
-    return self.repository.list_by_user(user.id)
+    if not params.by_folder:
+      return self.repository.list_by_user(user.id)
+
+    folders = self.folder_repository.list_by_user(user.id)
+    for folder in folders:
+      folder.files = [f for f in (folder.files or []) if f.deleted_at is None]
+
+    orphans = self.repository.list_folder_orphans_by_user(user.id)
+
+    return FileByFolderReturn(
+      folders=folders,
+      other_files=orphans,
+    )
 
   def update_file(self, user: User, file_id: UUID, params: FileUpdateParams) -> File:
     file = self._get_user_file(user, file_id)

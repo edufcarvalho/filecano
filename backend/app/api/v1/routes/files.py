@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Union
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, File, UploadFile, status
@@ -8,9 +8,10 @@ from app.api.dependencies import get_current_user, get_file_service
 from app.core import NotFoundError
 from app.models import User
 from app.schemas import (
+  FileByFolderReturn,
+  FileListParams,
   FileResponse,
   FileUpdateParams,
-  MessageResponse,
 )
 from app.services import FileService as Service
 
@@ -26,13 +27,13 @@ def upload_file(
   return service.create_file(current_user, file)
 
 
-@router.get("", response_model=list[FileResponse])
+@router.get("", response_model=Union[list[FileResponse], FileByFolderReturn])
 def list_files(
-  deleted: bool = False,
+  params: FileListParams = Depends(FileListParams),
   current_user: User = Depends(get_current_user),
   service: Service = Depends(get_file_service),
-) -> list[FileResponse]:
-  return service.list_files(current_user, deleted)
+) -> Union[list[FileResponse], FileByFolderReturn]:
+  return service.list_files(current_user, params)
 
 
 @router.put("/{file_id}", response_model=FileResponse)

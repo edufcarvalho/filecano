@@ -1,15 +1,15 @@
-from sqlmodel import SQLModel, Field, UniqueConstraint, DateTime, Relationship
-from uuid import UUID
-from uuid6 import uuid7
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
+from uuid import UUID
+
+from sqlmodel import DateTime, Field, Relationship, SQLModel, UniqueConstraint
+from uuid6 import uuid7
 
 from app.utils.time import current_datetime
 
-
 if TYPE_CHECKING:
-  from app.models.user import User
   from app.models.file import File
+  from app.models.user import User
 
 
 class Folder(SQLModel, table=True):
@@ -32,7 +32,10 @@ class Folder(SQLModel, table=True):
   deleted_at: Optional[datetime] = Field(default=None, sa_type=DateTime(timezone=True))
 
   user: User = Relationship(back_populates="folders")
-  files: Optional[list[File]] = Relationship(back_populates="folder")
+  files: Optional[list[File]] = Relationship(
+    back_populates="folder",
+    sa_relationship_kwargs={"lazy": "selectin"},
+  )
   parent: Optional[Folder] = Relationship(
     back_populates="children",
     sa_relationship_kwargs={"remote_side": "Folder.id"}

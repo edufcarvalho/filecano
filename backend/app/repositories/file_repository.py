@@ -118,6 +118,19 @@ class FileRepository:
 
     return self.session.exec(query).first()
 
+  def list_folder_orphans_by_user(self, user_id: UUID) -> list[File]:
+    query = (
+      select(File)
+      .where(
+        File.user_id == user_id,
+        File.folder_id.is_(None),
+        File.deleted_at.is_(None),
+      )
+      .order_by(File.created_at.desc())
+    )
+
+    return list(self.session.exec(query).all())
+
   def restore(self, file: File) -> File:
     file.deleted_at = None
 

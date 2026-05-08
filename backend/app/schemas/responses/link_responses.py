@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from app.schemas.file_responses import FileResponse
+from .file_responses import FileResponse
 
 
 class LinkResponse(BaseModel):

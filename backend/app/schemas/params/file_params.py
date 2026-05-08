@@ -16,3 +16,9 @@ class FileUpdateParams(BaseModel):
     return original_name
 
   model_config = ConfigDict(from_attributes=True)
+
+class FileListParams(BaseModel):
+  deleted: bool = False
+  by_folder: bool = False
+
+  model_config = ConfigDict(from_attributes=True)
