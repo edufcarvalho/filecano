@@ -200,12 +200,41 @@ export async function updateUser(
   return response.json()
 }
 
-export async function listFiles(accessToken: string): Promise<FileResponse[]> {
-  const response = await authFetch(`${API_URL}/v1/files`, accessToken)
+type ListFilesFilters = {
+  deleted?: boolean
+}
+
+type DeleteFileFilters = {
+  permanent?: boolean
+}
+
+function toQueryString(params: Record<string, string | boolean | undefined>) {
+  const searchParams = new URLSearchParams()
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined) searchParams.set(key, String(value))
+  }
+
+  const query = searchParams.toString()
+  return query ? `?${query}` : ""
+}
+
+export async function listFiles(
+  accessToken: string,
+  filters: ListFilesFilters = {}
+): Promise<FileResponse[]> {
+  const response = await authFetch(
+    `${API_URL}/v1/files${toQueryString(filters)}`,
+    accessToken
+  )
 
   if (!response.ok) await readError(response, "Unable to load files.")
 
   return response.json()
+}
+
+export function listDeletedFiles(accessToken: string): Promise<FileResponse[]> {
+  return listFiles(accessToken, { deleted: true })
 }
 
 export function getFilePreviewUrl(fileId: string) {
@@ -256,10 +285,11 @@ export async function updateFile(
 
 export async function deleteFile(
   accessToken: string,
-  fileId: string
+  fileId: string,
+  filters: DeleteFileFilters = {}
 ): Promise<void> {
   const response = await authFetch(
-    `${API_URL}/v1/files/${fileId}`,
+    `${API_URL}/v1/files/${fileId}${toQueryString(filters)}`,
     accessToken,
     {
       method: "DELETE",
@@ -267,6 +297,23 @@ export async function deleteFile(
   )
 
   if (!response.ok) await readError(response, "Unable to delete file.")
+}
+
+export async function restoreFile(
+  accessToken: string,
+  fileId: string
+): Promise<FileResponse> {
+  const response = await authFetch(
+    `${API_URL}/v1/files/${fileId}/restore`,
+    accessToken,
+    {
+      method: "POST",
+    }
+  )
+
+  if (!response.ok) await readError(response, "Unable to restore file.")
+
+  return response.json()
 }
 
 export async function downloadFile(

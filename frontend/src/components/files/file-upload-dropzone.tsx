@@ -103,7 +103,7 @@ export function UploadActivityPanel({
 
   return (
     <Card className="fixed right-4 bottom-4 z-40 w-[calc(100vw-2rem)] max-w-sm shadow-lg">
-      <CardHeader className="flex flex-row items-center justify-between gap-3 py-3">
+      <CardHeader className="flex flex-row items-center justify-between gap-3 pt-3 pb-1">
         <CardTitle className="flex min-w-0 items-center gap-2 text-sm">
           {activeCount > 0 ? (
             <LoaderCircleIcon className="animate-spin text-muted-foreground" />
@@ -138,7 +138,7 @@ export function UploadActivityPanel({
         </div>
       </CardHeader>
       {!isCollapsed ? (
-        <CardContent className="max-h-80 overflow-y-auto pt-0">
+        <CardContent className="max-h-80 overflow-y-auto pt-0 pb-3">
           <div className="flex flex-col gap-3">
             {uploadingFiles.map((file) => (
               <div key={file.id} className="text-left">

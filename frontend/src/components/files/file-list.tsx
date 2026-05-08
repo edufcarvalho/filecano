@@ -1,4 +1,5 @@
 import {
+  ArchiveRestoreIcon,
   CircleAlertIcon,
   DownloadIcon,
   FileArchiveIcon,
@@ -48,7 +49,7 @@ import {
 } from "@/lib/file-display"
 
 type FileListProps = {
-  variant?: "default" | "shared"
+  variant?: "default" | "shared" | "trash"
   title?: string
   files: FileResponse[]
   previewUrls?: Record<string, string>
@@ -67,6 +68,8 @@ type FileListProps = {
   onSearch?: (query: string) => void
   onBulkDelete?: () => void
   onBulkDownload?: () => void
+  onBulkPermanentDelete?: () => void
+  onBulkRestore?: () => void
   onBulkShare?: () => void
   onClearSelection?: () => void
   onDelete?: (file: FileResponse) => void
@@ -75,6 +78,8 @@ type FileListProps = {
   onEditingNameChange?: (name: string) => void
   onRefresh?: () => void
   onRename?: (file: FileResponse) => void
+  onPermanentDelete?: (file: FileResponse) => void
+  onRestore?: (file: FileResponse) => void
   onShare?: (file: FileResponse) => void
   onSelectAll?: () => void
   onClearNewlyAdded?: (fileId: string) => void
@@ -97,6 +102,8 @@ type FileListItemProps = Pick<
   | "onDownload"
   | "onEditingNameChange"
   | "onRename"
+  | "onPermanentDelete"
+  | "onRestore"
   | "onShare"
   | "onClearNewlyAdded"
   | "onStartEditing"
@@ -104,7 +111,7 @@ type FileListItemProps = Pick<
   | "onToggleSelection"
 > & {
   file: FileResponse
-  variant: "default" | "shared"
+  variant: "default" | "shared" | "trash"
 }
 
 const checkboxClassName = "size-4 shrink-0"
@@ -138,7 +145,11 @@ export function FileTypeIcon({ contentType }: { contentType: string | null }) {
 
 export function FileList({
   variant = "default",
-  title = variant === "shared" ? "Shared files" : "Files",
+  title = variant === "shared"
+    ? "Shared files"
+    : variant === "trash"
+      ? "Trash"
+      : "Files",
   files,
   previewUrls = {},
   selectedFileIds = new Set(),
@@ -151,17 +162,25 @@ export function FileList({
   isUploading = false,
   loadingLabel = variant === "shared"
     ? "Loading shared files"
-    : "Loading files",
+    : variant === "trash"
+      ? "Loading deleted files"
+      : "Loading files",
   emptyLabel = variant === "shared"
     ? "No shared files are available"
-    : "Uploaded files will appear here",
+    : variant === "trash"
+      ? "Trash is empty"
+      : "Uploaded files will appear here",
   noMatchesLabel = variant === "shared"
     ? "No shared files match your search"
-    : "No files match your search",
+    : variant === "trash"
+      ? "No deleted files match your search"
+      : "No files match your search",
   searchQuery = "",
   onSearch,
   onBulkDelete,
   onBulkDownload,
+  onBulkPermanentDelete,
+  onBulkRestore,
   onBulkShare,
   onClearSelection,
   onDelete,
@@ -170,6 +189,8 @@ export function FileList({
   onEditingNameChange,
   onRefresh,
   onRename,
+  onPermanentDelete,
+  onRestore,
   onShare,
   onSelectAll,
   onClearNewlyAdded,
@@ -179,7 +200,8 @@ export function FileList({
   stretch = true,
 }: FileListProps) {
   const selectedCount = selectedFileIds.size
-  const selectableFiles = files.filter((file) => !file.deleted_at)
+  const selectableFiles =
+    variant === "trash" ? files : files.filter((file) => !file.deleted_at)
   const hasSelectedFiles = selectedCount > 0
   const allFilesSelected =
     selectableFiles.length > 0 &&
@@ -209,6 +231,33 @@ export function FileList({
         >
           Download ({selectedCount})
         </LoadingButton>
+      ) : variant === "trash" ? (
+        <>
+          <LoadingButton
+            type="button"
+            variant="share"
+            size="sm"
+            onClick={onBulkRestore}
+            disabled={!hasSelectedFiles || pendingFileId !== null}
+            isLoading={pendingFileId === "bulk-restore"}
+            idleIcon={<ArchiveRestoreIcon data-icon="inline-start" />}
+            className="max-sm:flex-1 min-w-0 justify-center"
+          >
+            Restore ({selectedCount})
+          </LoadingButton>
+          <LoadingButton
+            type="button"
+            variant="destructive"
+            size="sm"
+            onClick={onBulkPermanentDelete}
+            disabled={!hasSelectedFiles || pendingFileId !== null}
+            isLoading={pendingFileId === "bulk-permanent-delete"}
+            idleIcon={<Trash2Icon data-icon="inline-start" />}
+            className="max-sm:flex-1 min-w-0 justify-center"
+          >
+            Erase ({selectedCount})
+          </LoadingButton>
+        </>
       ) : (
         <>
           <LoadingButton
@@ -256,7 +305,7 @@ export function FileList({
     <Card className={cn("flex min-h-0 flex-col", stretch && "flex-1")}>
       <CardHeader className="flex flex-col gap-3">
         <div className="flex w-full min-w-0 items-center gap-3">
-          <div className="flex min-w-0 flex-1 items-center gap-3 ps-2 sm:ps-6">
+          <div className="flex min-w-0 flex-1 items-center gap-3 ps-3 sm:ps-4">
             <input
               type="checkbox"
               aria-label="Select all files"
@@ -291,7 +340,7 @@ export function FileList({
           <div className="ml-auto hidden shrink-0 gap-2 sm:flex sm:flex-wrap sm:justify-end">
             {bulkActions}
           </div>
-          {variant === "default" ? (
+          {variant !== "shared" ? (
             <LoadingButton
               type="button"
               variant="outline"
@@ -315,15 +364,13 @@ export function FileList({
         </div>
         <div
           className={cn(
-            "gap-2 sm:hidden",
-            variant === "default"
-              ? "flex flex-nowrap justify-center"
-              : "flex flex-wrap"
+            "gap-2",
+            variant === "default" || variant === "trash"
+              ? "flex w-full flex-nowrap justify-center sm:hidden"
+              : "hidden flex-wrap sm:hidden"
           )}
         >
-          {variant === "default" ? (
-            <>{bulkActions}</>
-          ) : null}
+          {variant !== "shared" ? <>{bulkActions}</> : null}
         </div>
       </CardHeader>
       <CardContent
@@ -354,7 +401,7 @@ export function FileList({
           </div>
         ) : (
           <ScrollableList stretch={stretch}>
-            <div className="grid gap-3 ps-2 pe-0.5">
+            <div className="grid gap-3 pe-0.5">
               {filteredFiles.map((file) => (
                 <FileListItem
                   key={file.id}
@@ -370,6 +417,8 @@ export function FileList({
                   onDownload={onDownload}
                   onEditingNameChange={onEditingNameChange}
                   onRename={onRename}
+                  onPermanentDelete={onPermanentDelete}
+                  onRestore={onRestore}
                   onShare={onShare}
                   onClearNewlyAdded={onClearNewlyAdded}
                   onStartEditing={onStartEditing}
@@ -408,6 +457,9 @@ function FileInfoDetails({
       <div>Size: {formatFileSize(file.size_bytes)}</div>
       <div>Type: {file.content_type ?? "Unknown type"}</div>
       <div>Created: {formatCreatedAt(file.created_at)}</div>
+      {file.deleted_at ? (
+        <div>Deleted: {formatCreatedAt(file.deleted_at)}</div>
+      ) : null}
       {isDeleted ? (
         <div className="font-medium text-destructive">Deleted by owner</div>
       ) : null}
@@ -459,7 +511,10 @@ function FileInfoButton({
           type="button"
           size="icon-xs"
           variant="ghost"
-          className="sm:hidden"
+          className={cn(
+            "sm:hidden",
+            isDeleted && "text-destructive hover:text-destructive"
+          )}
           aria-label={`Show details for ${file.display_name}`}
           onClick={(event) => {
             event.stopPropagation()
@@ -482,7 +537,7 @@ function FileInfoButton({
         ref={contentRef}
         side="bottom"
         align="end"
-        className="max-w-64"
+        className="max-w-64 dark:border dark:border-border dark:bg-popover dark:text-popover-foreground dark:shadow-lg dark:[&_[data-slot=tooltip-arrow]]:bg-popover dark:[&_[data-slot=tooltip-arrow]]:fill-popover"
         onMouseEnter={() => setIsHoverOpen(true)}
         onMouseLeave={() => {
           if (!isPinnedOpen) setIsHoverOpen(false)
@@ -511,6 +566,8 @@ function FileListItem({
   onDownload,
   onEditingNameChange,
   onRename,
+  onPermanentDelete,
+  onRestore,
   onShare,
   onClearNewlyAdded,
   onStartEditing,
@@ -523,8 +580,12 @@ function FileListItem({
   const isSelected = selectedFileIds.has(file.id)
   const isDownloading = pendingFileId === `download-${file.id}`
   const isSharing = pendingFileId === `share-${file.id}`
+  const isPermanentlyDeleting = pendingFileId === `permanent-delete-${file.id}`
+  const isRestoring = pendingFileId === `restore-${file.id}`
   const isDeleted = file.deleted_at !== null
   const isNewlyAdded = newlyAddedFileIds.has(file.id)
+  const isSelectable = variant === "trash" || !isDeleted
+  const showDeletedState = isDeleted && variant !== "trash"
 
   return (
     <div
@@ -533,14 +594,14 @@ function FileListItem({
         "grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border p-3 sm:p-4",
         isSelected && "bg-muted/50",
         isNewlyAdded && "border-green-600/40 bg-green-500/10",
-        isDeleted && "border-destructive/40 bg-destructive/5"
+        showDeletedState && "border-destructive/40 bg-destructive/5"
       )}
     >
       <input
         type="checkbox"
         aria-label={`Select ${file.display_name}`}
         checked={isSelected}
-        disabled={isDeleted}
+        disabled={!isSelectable}
         onClick={() => onClearNewlyAdded?.(file.id)}
         onChange={() => onToggleSelection?.(file.id)}
         className={checkboxClassName}
@@ -575,15 +636,15 @@ function FileListItem({
           </FieldGroup>
         ) : (
           <div className="flex min-w-0 items-center gap-1.5">
-            <h2 className="min-w-0 max-w-fit overflow-x-auto overscroll-x-contain text-base font-medium whitespace-nowrap [scrollbar-width:thin]">
+            <h2 className="max-w-fit min-w-0 overflow-x-auto overscroll-x-contain text-base font-medium whitespace-nowrap [scrollbar-width:thin]">
               {file.display_name}
             </h2>
-            {isDeleted ? (
-              <CircleAlertIcon className="shrink-0 text-destructive" />
+            {showDeletedState ? (
+              <CircleAlertIcon className="hidden shrink-0 text-destructive sm:block" />
             ) : null}
             <FileInfoButton
               file={file}
-              isDeleted={isDeleted}
+              isDeleted={showDeletedState}
               isNewlyAdded={isNewlyAdded}
             />
             {variant === "default" ? (
@@ -602,7 +663,7 @@ function FileListItem({
           <span>{formatFileSize(file.size_bytes)}</span>
           <span>{file.content_type ?? "Unknown type"}</span>
           <span>{formatCreatedAt(file.created_at)}</span>
-          {isDeleted ? (
+          {showDeletedState ? (
             <span className="font-medium text-destructive">
               Deleted by owner
             </span>
@@ -615,7 +676,12 @@ function FileListItem({
         </div>
       </div>
 
-      <div className="flex shrink-0 justify-end gap-2">
+      <div
+        className={cn(
+          "flex shrink-0 justify-end gap-2",
+          variant === "trash" && "min-w-0"
+        )}
+      >
         {variant === "shared" ? (
           <LoadingButton
             type="button"
@@ -628,6 +694,73 @@ function FileListItem({
           >
             Download
           </LoadingButton>
+        ) : variant === "trash" ? (
+          <>
+            <div className="hidden shrink-0 justify-end gap-2 sm:flex">
+              <LoadingButton
+                type="button"
+                size="sm"
+                variant="share"
+                onClick={() => onRestore?.(file)}
+                disabled={pendingFileId !== null}
+                isLoading={isRestoring}
+                idleIcon={<ArchiveRestoreIcon data-icon="inline-start" />}
+              >
+                Restore
+              </LoadingButton>
+              <LoadingButton
+                type="button"
+                size="sm"
+                variant="destructive"
+                onClick={() => onPermanentDelete?.(file)}
+                disabled={pendingFileId !== null}
+                isLoading={isPermanentlyDeleting}
+                idleIcon={<Trash2Icon data-icon="inline-start" />}
+              >
+                Erase
+              </LoadingButton>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="outline"
+                  disabled={pendingFileId !== null}
+                  aria-label={`Open actions for ${file.display_name}`}
+                  className="sm:hidden"
+                >
+                  <MoreVerticalIcon />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-48">
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    variant="share"
+                    onSelect={() => onRestore?.(file)}
+                  >
+                    {isRestoring ? (
+                      <LoaderCircleIcon className="animate-spin" />
+                    ) : (
+                      <ArchiveRestoreIcon />
+                    )}
+                    Restore
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onSelect={() => onPermanentDelete?.(file)}
+                  >
+                    {isPermanentlyDeleting ? (
+                      <LoaderCircleIcon className="animate-spin" />
+                    ) : (
+                      <Trash2Icon />
+                    )}
+                    Erase
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
         ) : isEditing ? (
           <>
             <LoadingButton

@@ -148,6 +148,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   const [notice, setNotice] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const newlyAddedTimersRef = useRef<Record<string, number>>({})
+  const uploadErrorTimerRef = useRef<number>(0)
   const isUploading = uploadingFiles.some((file) => !file.done)
 
   const loadPreviews = useCallback(
@@ -267,6 +268,13 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     })
     window.clearTimeout(newlyAddedTimersRef.current[fileId])
     delete newlyAddedTimersRef.current[fileId]
+  }, [])
+
+  const dismissUploadError = useCallback(() => {
+    window.clearTimeout(uploadErrorTimerRef.current)
+    setError((current) =>
+      current === "Some files failed to upload." ? null : current
+    )
   }, [])
 
   function startEditing(file: FileResponse) {
@@ -420,11 +428,9 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
 
       if (results.some((result) => result.status === "rejected")) {
         setError("Some files failed to upload.")
+        window.clearTimeout(uploadErrorTimerRef.current)
+        uploadErrorTimerRef.current = window.setTimeout(dismissUploadError, 3000)
       }
-
-      setUploadingFiles((currentFiles) =>
-        currentFiles.filter((file) => file.error || !file.done)
-      )
     },
     [accessToken, loadPreviews, markFileAsNewlyAdded]
   )
@@ -607,7 +613,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   }
 
   return (
-    <main className="flex h-full min-h-0 w-full flex-col gap-4 overflow-hidden bg-muted/40 p-4">
+    <main className="flex h-full min-h-0 w-full flex-col gap-4 overflow-hidden bg-muted/40 p-4" onClick={dismissUploadError}>
       <FileUploadDropzone
         fileInputRef={fileInputRef}
         isDragOver={isDragOver}

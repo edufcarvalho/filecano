@@ -3,6 +3,7 @@ import {
   ChevronsUpDown,
   EditIcon,
   LogOutIcon,
+  TrashIcon,
 } from "lucide-react"
 import { Link } from "react-router-dom"
 
@@ -142,6 +143,12 @@ export function SiteHeader({
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
+                  <DropdownMenuItem asChild>
+                    <Link to="/trash" className="flex items-center gap-2">
+                      <TrashIcon className="size-4" />
+                      Trash
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <a
                       href="http://localhost:8000/docs"

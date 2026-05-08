@@ -1,6 +1,12 @@
 import type { ReactNode } from "react"
-import { useEffect, useState } from "react"
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import { useCallback, useEffect, useState } from "react"
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom"
 
 import { EditUserForm } from "@auth/edit-user-form"
 import { FilesScreen } from "@files/files-screen"
@@ -8,6 +14,7 @@ import { LoginForm } from "@auth/login-form"
 import { SharedFilesScreen } from "@files/shared-files-screen"
 import { SiteHeader } from "@layout/site-header"
 import { SignupForm } from "@auth/signup-form"
+import { TrashScreen } from "@files/trash-screen"
 import { UnauthorizedErrorScreen } from "@errors/unauthorized-error-screen"
 import {
   clearStoredToken,
@@ -25,6 +32,14 @@ import {
 } from "@/lib/api"
 import { LinksProvider } from "@/lib/links-context"
 
+function getUsableStoredToken(token: StoredToken | null) {
+  if (!token) return null
+  if (getDisplayUser(token)) return token
+
+  clearStoredToken()
+  return null
+}
+
 function SignedInScreen({
   token,
   displayUser,
@@ -36,12 +51,28 @@ function SignedInScreen({
   onSignOut: () => void
   onTokenUpdate: (token: StoredToken) => void
 }) {
+  const location = useLocation()
+  const pageTitle = location.pathname.startsWith("/trash")
+    ? "Trash"
+    : location.pathname.startsWith("/account")
+      ? "Account"
+      : "All files"
+
   return (
     <LinksProvider>
       <div className="fixed inset-0 flex min-h-0 flex-col overflow-hidden">
-        <SiteHeader user={displayUser} token={token} onSignOut={onSignOut} />
+        <SiteHeader
+          pageTitle={pageTitle}
+          user={displayUser}
+          token={token}
+          onSignOut={onSignOut}
+        />
         <div className="flex min-h-0 w-full flex-1">
           <Routes>
+            <Route
+              path="/trash"
+              element={<TrashScreen accessToken={token.access_token} />}
+            />
             <Route
               path="/account"
               element={
@@ -115,23 +146,22 @@ function SignedOutRoutes({
 }
 
 export function App() {
-  const [token, setToken] = useState<StoredToken | null>(getStoredToken)
+  const [token, setTokenState] = useState<StoredToken | null>(() =>
+    getUsableStoredToken(getStoredToken())
+  )
   const [isUnauthorized, setIsUnauthorized] = useState(false)
   const [redirectKey, setRedirectKey] = useState(0)
   const displayUser = token ? getDisplayUser(token) : null
+
+  const setToken = useCallback((nextToken: StoredToken | null) => {
+    setTokenState(getUsableStoredToken(nextToken))
+  }, [])
 
   useEffect(() => {
     if (token) {
       persistStoredToken(token)
     }
   }, [token])
-
-  useEffect(() => {
-    if (!token || displayUser) return
-
-    clearStoredToken()
-    setToken(null)
-  }, [token, displayUser])
 
   useEffect(() => {
     setUnauthorizedCallback(() => {
@@ -141,7 +171,7 @@ export function App() {
       setRedirectKey((k) => k + 1)
     })
     return () => setUnauthorizedCallback(null)
-  }, [])
+  }, [setToken])
 
   useEffect(() => {
     setTokenRefreshCallback(async (expiredToken) => {
@@ -159,7 +189,7 @@ export function App() {
     })
 
     return () => setTokenRefreshCallback(null)
-  }, [])
+  }, [setToken])
 
   const handleSignOut = () => {
     clearStoredToken()
