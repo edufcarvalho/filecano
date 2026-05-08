@@ -16,8 +16,16 @@ class LinkResponse(BaseModel):
 
   model_config = ConfigDict(from_attributes=True)
 
+
 class LinkUpdateResponse(BaseModel):
   id: UUID
   custom_name: str
+
+  model_config = ConfigDict(from_attributes=True)
+
+
+class LinkRestoreResponse(BaseModel):
+  id: UUID
+  expires_at: datetime
 
   model_config = ConfigDict(from_attributes=True)

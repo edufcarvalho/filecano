@@ -4,6 +4,7 @@ from uuid import UUID
 from sqlmodel import Session, or_, select
 
 from app.models import Link
+from app.utils.time import current_datetime
 
 
 class LinkRepository:
@@ -32,9 +33,13 @@ class LinkRepository:
     return self.session.exec(query).first()
 
   def list_by_user_id(self, user_id: UUID) -> List[Link]:
-    query = select(Link).where(
-      Link.user_id == user_id,
-      Link.deleted_at.is_(None)
+    query = (
+      select(Link)
+      .where(
+        Link.user_id == user_id,
+        Link.deleted_at.is_(None),
+      )
+      .order_by(Link.expires_at.desc())
     )
 
     return self.session.exec(query).all()

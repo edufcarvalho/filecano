@@ -115,6 +115,19 @@ class LinkService(BaseService):
     link.custom_name = custom_name
     return self.repository.update(link)
 
+  def restore_link(self, user: User, token: str) -> Link:
+    link = self.repository.get_by_token(token)
+    if not link:
+      raise NotFoundError("Link not found")
+
+    self._ensure_user_has_rights(user.id, link.user_id)
+
+    link.expires_at = current_datetime() + timedelta(
+      seconds=link.expiration_term
+    )
+
+    return self.repository.update(link)
+
   def delete_link(self, user: User, token: str) -> None:
     link = self.repository.get_by_token(token)
     if not link:

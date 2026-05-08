@@ -418,6 +418,23 @@ export async function deleteLink(
   if (!response.ok) await readError(response, "Unable to delete link.")
 }
 
+export async function restoreLink(
+  accessToken: string,
+  token: string
+): Promise<{ id: string; expires_at: string }> {
+  const response = await authFetch(
+    `${API_URL}/v1/share/${encodeURIComponent(token)}/restore`,
+    accessToken,
+    {
+      method: "POST",
+    }
+  )
+
+  if (!response.ok) await readError(response, "Unable to restore link.")
+
+  return response.json()
+}
+
 export function getShareUrl(token: string, customName: string | null): string {
   const baseUrl = window.location.origin
   if (customName) {

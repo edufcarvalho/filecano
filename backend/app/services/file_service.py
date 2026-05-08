@@ -51,7 +51,7 @@ class FileService(BaseService):
     self.session = session
     self.settings = settings
 
-  def create_file(self, user: User, upload: UploadFile) -> File:
+  def create_file(self, user: User, upload: UploadFile, folder_id: Optional[UUID] = None) -> File:
     checksum, size_bytes = self._checksum_and_size(upload.file)
     original_name = upload.filename or "unnamed"
     display_name = self._get_unique_filename(user.id, original_name)
@@ -73,6 +73,7 @@ class FileService(BaseService):
       original_name=original_name,
       display_name=display_name,
       content_type=upload.content_type,
+      folder_id=folder_id,
     )
 
     file.object_key = f"users/{user.id}/files/{file.id}"

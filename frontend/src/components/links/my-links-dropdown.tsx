@@ -8,6 +8,8 @@ import {
   Trash2Icon,
   UnlinkIcon,
   XIcon,
+  ClockAlertIcon,
+  ArchiveRestoreIcon,
 } from "lucide-react"
 
 import {
@@ -24,6 +26,7 @@ import {
   ApiError,
   listUserLinks,
   deleteLink,
+  restoreLink,
   updateLinkName,
   getShareUrl,
   type LinkResponse,
@@ -41,6 +44,10 @@ type MyLinksDropdownProps = {
 
 function getLinkUrl(token: string, customName: string | null) {
   return `${window.location.origin}/share/${customName || token}`
+}
+
+function isLinkExpired(expiresAt: string): boolean {
+  return new Date(expiresAt) <= new Date()
 }
 
 export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
@@ -240,6 +247,23 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
     }
   }
 
+  const handleRestore = async (token: string) => {
+    if (!accessToken) return
+
+    try {
+      const result = await restoreLink(accessToken, token)
+      setLinks((prev: LinkResponse[]) =>
+        prev.map((link) =>
+          link.token === token
+            ? { ...link, expires_at: result.expires_at }
+            : link
+        )
+      )
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to restore link."))
+    }
+  }
+
   const handleLinkClick = (token: string, customName: string | null) => {
     window.open(`/share/${customName || token}`, "_blank")
   }
@@ -344,8 +368,12 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
                 </div>
               ) : (
                 <DropdownMenuItem
-                  className="col-span-3 grid min-w-0 grid-cols-subgrid items-center gap-[2px] bg-muted/30 text-muted-foreground focus:bg-muted/60"
-                  onClick={() => handleLinkClick(link.token, link.custom_name)}
+                  className={`col-span-3 grid min-w-0 grid-cols-subgrid items-center gap-[2px] bg-muted/30 text-muted-foreground focus:bg-muted/60${isLinkExpired(link.expires_at) ? " opacity-50" : ""}`}
+                  onClick={() => {
+                    if (!isLinkExpired(link.expires_at)) {
+                      handleLinkClick(link.token, link.custom_name)
+                    }
+                  }}
                 >
                   <Link2Icon className="size-4 shrink-0 text-muted-foreground" />
                   <span className="relative min-w-0 text-sm text-muted-foreground">
@@ -368,30 +396,58 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
                     )}
                   </span>
                   <div className="flex shrink-0 items-center gap-1">
-                    <Button
-                      variant="dropdown-menu-action"
-                      size="dropdown-menu-action"
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleCopy(link.token, link.custom_name)
-                      }}
-                      title="Copy link"
-                    >
-                      <CopyIcon />
-                    </Button>
-                    <Button
-                      variant="dropdown-menu-action"
-                      size="dropdown-menu-action"
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleEdit(link.token, link.custom_name)
-                      }}
-                      title="Edit link"
-                    >
-                      <PencilIcon />
-                    </Button>
+                    {isLinkExpired(link.expires_at) ? (
+                      <>
+                        <Button
+                          variant="dropdown-menu-action"
+                          size="dropdown-menu-action"
+                          type="button"
+                          disabled
+                          title="Link expired"
+                        >
+                          <ClockAlertIcon />
+                        </Button>
+                        <Button
+                          variant="dropdown-menu-action"
+                          size="dropdown-menu-action"
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleRestore(link.token)
+                          }}
+                          title="Restore link"
+                        >
+                          <ArchiveRestoreIcon />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          variant="dropdown-menu-action"
+                          size="dropdown-menu-action"
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleCopy(link.token, link.custom_name)
+                          }}
+                          title="Copy link"
+                        >
+                          <CopyIcon />
+                        </Button>
+                        <Button
+                          variant="dropdown-menu-action"
+                          size="dropdown-menu-action"
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleEdit(link.token, link.custom_name)
+                          }}
+                          title="Edit link"
+                        >
+                          <PencilIcon />
+                        </Button>
+                      </>
+                    )}
                     <Button
                       variant="dropdown-menu-action"
                       size="dropdown-menu-action"

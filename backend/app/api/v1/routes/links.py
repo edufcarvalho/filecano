@@ -8,6 +8,7 @@ from app.api.dependencies import get_current_user, get_link_service
 from app.models import User
 from app.schemas import (
   LinkResponse,
+  LinkRestoreResponse,
   LinkUpdateParams,
   LinkUpdateResponse,
   TokenResponse,
@@ -15,17 +16,6 @@ from app.schemas import (
 from app.services import LinkService
 
 router = APIRouter(prefix="/share", tags=["links"])
-
-
-@router.post("", response_model=TokenResponse)
-def create_share_link(
-  files: Annotated[list[UUID] | UUID, Body()],
-  current_user: User = Depends(get_current_user),
-  service: LinkService = Depends(get_link_service),
-) -> TokenResponse:
-  file_ids = files if isinstance(files, list) else [files]
-
-  return service.create_link(current_user, file_ids)
 
 
 @router.get("/user/{user_id}", response_model=list[LinkResponse])
@@ -49,6 +39,15 @@ def update_link(
   return link
 
 
+@router.post("/{token}/restore", response_model=LinkRestoreResponse)
+def restore_link(
+  token: str,
+  current_user: User = Depends(get_current_user),
+  service: LinkService = Depends(get_link_service),
+) -> LinkRestoreResponse:
+  return service.restore_link(current_user, token)
+
+
 @router.post("", response_model=TokenResponse)
 def create_share_link(
   files: Annotated[list[UUID] | UUID, Body()],
@@ -60,17 +59,10 @@ def create_share_link(
   return service.create_link(current_user, file_ids)
 
 
-@router.get("/user/{user_id}", response_model=list[LinkResponse])
-def list_user_links(
-  user_id: UUID,
-  current_user: User = Depends(get_current_user),
-  service: LinkService = Depends(get_link_service),
-) -> list[LinkResponse]:
-  return service.list_user_links(user_id)
-
-
 @router.get("/{token}", response_model=LinkResponse)
-def get_files(token: str, service: LinkService = Depends(get_link_service)) -> LinkResponse:
+def get_files(
+  token: str, service: LinkService = Depends(get_link_service)
+) -> LinkResponse:
   return service.authenticate_token(token)
 
 
