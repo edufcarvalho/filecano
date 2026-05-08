@@ -2,6 +2,7 @@ import {
   ArchiveRestoreIcon,
   CircleAlertIcon,
   DownloadIcon,
+  EraserIcon,
   FileArchiveIcon,
   FileAudioIcon,
   FileCodeIcon,
@@ -252,7 +253,7 @@ export function FileList({
             onClick={onBulkPermanentDelete}
             disabled={!hasSelectedFiles || pendingFileId !== null}
             isLoading={pendingFileId === "bulk-permanent-delete"}
-            idleIcon={<Trash2Icon data-icon="inline-start" />}
+            idleIcon={<EraserIcon data-icon="inline-start" />}
             className="max-sm:flex-1 min-w-0 justify-center"
           >
             Erase ({selectedCount})
@@ -715,7 +716,7 @@ function FileListItem({
                 onClick={() => onPermanentDelete?.(file)}
                 disabled={pendingFileId !== null}
                 isLoading={isPermanentlyDeleting}
-                idleIcon={<Trash2Icon data-icon="inline-start" />}
+                idleIcon={<EraserIcon data-icon="inline-start" />}
               >
                 Erase
               </LoadingButton>
@@ -753,7 +754,7 @@ function FileListItem({
                     {isPermanentlyDeleting ? (
                       <LoaderCircleIcon className="animate-spin" />
                     ) : (
-                      <Trash2Icon />
+                      <EraserIcon />
                     )}
                     Erase
                   </DropdownMenuItem>
