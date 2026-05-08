@@ -230,7 +230,7 @@ export function FileList({
           idleIcon={<DownloadIcon data-icon="inline-start" />}
           className="min-w-0 justify-center px-1.5 min-[430px]:px-2.5"
         >
-          Download ({selectedCount})
+          Download
         </LoadingButton>
       ) : variant === "trash" ? (
         <>
@@ -244,7 +244,7 @@ export function FileList({
             idleIcon={<ArchiveRestoreIcon data-icon="inline-start" />}
             className="max-sm:flex-1 min-w-0 justify-center"
           >
-            Restore ({selectedCount})
+            Restore
           </LoadingButton>
           <LoadingButton
             type="button"
@@ -256,7 +256,7 @@ export function FileList({
             idleIcon={<EraserIcon data-icon="inline-start" />}
             className="max-sm:flex-1 min-w-0 justify-center"
           >
-            Erase ({selectedCount})
+            Erase
           </LoadingButton>
         </>
       ) : (
@@ -269,9 +269,9 @@ export function FileList({
             disabled={!hasSelectedFiles || pendingFileId !== null}
             isLoading={pendingFileId === "bulk-download"}
             idleIcon={<DownloadIcon data-icon="inline-start" />}
-            className="min-w-0 justify-center px-1.5 min-[430px]:px-2.5"
+            className="max-sm:flex-1 min-w-0 justify-center"
           >
-            Download ({selectedCount})
+            Download
           </LoadingButton>
           <LoadingButton
             type="button"
@@ -281,9 +281,9 @@ export function FileList({
             disabled={!hasSelectedFiles || pendingFileId !== null}
             isLoading={pendingFileId === "bulk-share"}
             idleIcon={<Share2Icon data-icon="inline-start" />}
-            className="min-w-0 justify-center px-1.5 min-[430px]:px-2.5"
+            className="max-sm:flex-1 min-w-0 justify-center"
           >
-            Share ({selectedCount})
+            Share
           </LoadingButton>
           <LoadingButton
             type="button"
@@ -293,9 +293,9 @@ export function FileList({
             disabled={!hasSelectedFiles || pendingFileId !== null}
             isLoading={pendingFileId === "bulk-delete"}
             idleIcon={<Trash2Icon data-icon="inline-start" />}
-            className="min-w-0 justify-center px-1.5 min-[430px]:px-2.5"
+            className="max-sm:flex-1 min-w-0 justify-center"
           >
-            Delete ({selectedCount})
+            Delete
           </LoadingButton>
         </>
       )}
@@ -303,9 +303,9 @@ export function FileList({
   )
 
   return (
-    <Card className={cn("flex min-h-0 flex-col", stretch && "flex-1")}>
+    <Card className={cn("flex min-h-0 flex-col pb-3 gap-3", stretch && "flex-1")}>
       <CardHeader className="flex flex-col gap-3">
-        <div className="flex w-full min-w-0 items-center gap-3">
+        <div className="flex w-full min-w-0 items-center gap-1">
           <div className="flex min-w-0 flex-1 items-center gap-3 ps-3 sm:ps-4">
             <input
               type="checkbox"
@@ -334,11 +334,11 @@ export function FileList({
                 idleIcon={<DownloadIcon data-icon="inline-start" />}
                 className="ml-auto sm:hidden"
               >
-                Download ({selectedCount})
+                Download
               </LoadingButton>
             )}
           </div>
-          <div className="ml-auto hidden shrink-0 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+          <div className="ml-auto hidden shrink-0 gap-1 sm:flex sm:flex-wrap sm:justify-end">
             {bulkActions}
           </div>
           {variant !== "shared" ? (
@@ -365,7 +365,7 @@ export function FileList({
         </div>
         <div
           className={cn(
-            "gap-2",
+            "gap-1",
             variant === "default" || variant === "trash"
               ? "flex w-full flex-nowrap justify-center sm:hidden"
               : "hidden flex-wrap sm:hidden"
@@ -679,7 +679,7 @@ function FileListItem({
 
       <div
         className={cn(
-          "flex shrink-0 justify-end gap-2",
+          "flex shrink-0 justify-end gap-1",
           variant === "trash" && "min-w-0"
         )}
       >
@@ -697,7 +697,7 @@ function FileListItem({
           </LoadingButton>
         ) : variant === "trash" ? (
           <>
-            <div className="hidden shrink-0 justify-end gap-2 sm:flex">
+            <div className="hidden shrink-0 justify-end gap-1 sm:flex">
               <LoadingButton
                 type="button"
                 size="sm"
