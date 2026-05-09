@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@ui/dialog"
@@ -25,6 +26,9 @@ export function LanguageDialog({ open, onOpenChange }: LanguageDialogProps) {
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>{t("app.selectLanguage")}</DialogTitle>
+          <DialogDescription className="sr-only">
+            {t("app.selectLanguage")}
+          </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-1">
           {languages.map((lang) => (

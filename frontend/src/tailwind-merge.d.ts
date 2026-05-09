@@ -3,7 +3,3 @@ declare module "tailwind-merge" {
     ...classes: (string | undefined | null | false)[]
   ): string
 }
-
-declare module "flag-icons" {
-  import "flag-icons/css/flag-icons.min.css"
-}

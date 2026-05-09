@@ -571,3 +571,25 @@
     @apply flex flex-col gap-4;
   }
 }
+
+.fi {
+  background-size: contain;
+  background-position: 50%;
+  background-repeat: no-repeat;
+  display: inline-block;
+  width: 1.333333em;
+  height: 1em;
+  vertical-align: -0.125em;
+}
+
+.fi:before {
+  content: "\00a0";
+}
+
+.fi-us {
+  background-image: url("flag-icons/flags/4x3/us.svg");
+}
+
+.fi-br {
+  background-image: url("flag-icons/flags/4x3/br.svg");
+}

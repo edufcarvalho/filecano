@@ -2,14 +2,16 @@ import {
   BookOpenIcon,
   ChevronsUpDown,
   EditIcon,
-  Globe,
+  GlobeIcon,
   LogOutIcon,
   TrashIcon,
 } from "lucide-react"
+import { lazy, Suspense } from "react"
 import { Link } from "react-router-dom"
 import { useEffect, useState } from "react"
 
 import { useTranslation } from "@/i18n"
+// import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback } from "@ui/avatar"
 import {
   Breadcrumb,
@@ -33,7 +35,12 @@ import { ThemeToggle } from "@ui/theme-toggle"
 import { Icon } from "@misc/icon"
 import { LanguageDialog } from "@misc/language-dialog"
 import { LanguageSwitcher } from "@misc/language-switcher"
-import { MyLinksDropdown } from "@/components/links/my-links-dropdown"
+
+const MyLinksDropdown = lazy(() =>
+  import("@/components/links/my-links-dropdown").then((m) => ({
+    default: m.MyLinksDropdown,
+  }))
+)
 
 import type { StoredToken } from "@/lib/session"
 
@@ -97,10 +104,12 @@ export function SiteHeader({
         </Breadcrumb>
         <div className="min-w-2 flex-1" />
         {user ? (
-          <MyLinksDropdown
-            accessToken={token?.access_token}
-            userId={token?.user?.id}
-          />
+          <Suspense>
+            <MyLinksDropdown
+              accessToken={token?.access_token}
+              userId={token?.user?.id}
+            />
+          </Suspense>
         ) : undefined}
         {!user ? <LanguageSwitcher className="shrink-0" /> : null}
         <ThemeToggle className="shrink-0" />
@@ -173,10 +182,12 @@ export function SiteHeader({
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => setLanguageDialogOpen(true)}>
-                  <Globe className="button-icon-xs-base" />
-                  {t("app.selectLanguage")}
-                </DropdownMenuItem>
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onSelect={() => setLanguageDialogOpen(true)}>
+                    <GlobeIcon className="button-icon-xs-base pr-0 mr-0" />
+                    {t("app.selectLanguage")}
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem variant="destructive" onSelect={onSignOut}>
                   <LogOutIcon className="button-icon-xs-base" />

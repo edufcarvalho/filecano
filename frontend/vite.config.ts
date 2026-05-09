@@ -17,4 +17,21 @@ export default defineConfig({
       "@ui": path.resolve(__dirname, "./src/components/ui"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/react-router-dom")) return "vendor-router"
+          if (id.includes("node_modules/i18next") || id.includes("node_modules/react-i18next"))
+            return "vendor-i18n"
+          if (id.includes("node_modules/@radix-ui")) return "vendor-ui"
+          if (
+            id.includes("node_modules/react-day-picker") ||
+            id.includes("node_modules/date-fns")
+          )
+            return "vendor-calendar"
+        },
+      },
+    },
+  },
 })

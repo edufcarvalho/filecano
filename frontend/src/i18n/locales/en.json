@@ -58,7 +58,7 @@
       "nameLabel": "Name",
       "emailLabel": "Email",
       "newPasswordLabel": "New password",
-      "newPasswordPlaceholder": "Enter new password",
+      "newPasswordPlaceholder": "Enter new password", 
       "confirmNewPasswordLabel": "Confirm new password",
       "confirmNewPasswordPlaceholder": "Retype your new password here",
       "currentPasswordLabel": "Current password",
@@ -74,7 +74,8 @@
       "noLanguages": "No languages found",
       "changePassword": "Change password?",
       "hidePasswordFields": "Cancel password change",
-      "fallbackError": "Unable to update user"
+      "fallbackError": "Unable to update user",
+      "confirmPasswordLabel": "Confirm password"
     },
     "password": {
       "show": "Show password",

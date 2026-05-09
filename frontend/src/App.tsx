@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { useCallback, useEffect, useState } from "react"
+import { lazy, Suspense, useCallback, useEffect, useState } from "react"
 import {
   BrowserRouter,
   Routes,
@@ -8,14 +8,7 @@ import {
   useLocation,
 } from "react-router-dom"
 
-import { EditUserForm } from "@auth/edit-user-form"
-import { FilesScreen } from "@files/files-screen"
-import { LoginForm } from "@auth/login-form"
-import { SharedFilesScreen } from "@files/shared-files-screen"
-import { SiteHeader } from "@layout/site-header"
-import { SignupForm } from "@auth/signup-form"
-import { TrashScreen } from "@files/trash-screen"
-import { UnauthorizedErrorScreen } from "@errors/unauthorized-error-screen"
+import { LoadingFallback } from "@misc/loading-fallback"
 import {
   clearStoredToken,
   createStoredToken,
@@ -31,7 +24,32 @@ import {
   setUnauthorizedCallback,
 } from "@/lib/api"
 import { LinksProvider } from "@/lib/links-context"
+import { SiteHeader } from "@layout/site-header"
 import { useTranslation } from "@/i18n"
+
+const EditUserForm = lazy(() =>
+  import("@auth/edit-user-form").then((m) => ({ default: m.EditUserForm }))
+)
+const FilesScreen = lazy(() =>
+  import("@files/files-screen").then((m) => ({ default: m.FilesScreen }))
+)
+const LoginForm = lazy(() =>
+  import("@auth/login-form").then((m) => ({ default: m.LoginForm }))
+)
+const SharedFilesScreen = lazy(() =>
+  import("@files/shared-files-screen").then((m) => ({ default: m.SharedFilesScreen }))
+)
+const SignupForm = lazy(() =>
+  import("@auth/signup-form").then((m) => ({ default: m.SignupForm }))
+)
+const TrashScreen = lazy(() =>
+  import("@files/trash-screen").then((m) => ({ default: m.TrashScreen }))
+)
+const UnauthorizedErrorScreen = lazy(() =>
+  import("@errors/unauthorized-error-screen").then((m) => ({
+    default: m.UnauthorizedErrorScreen,
+  }))
+)
 
 function getUsableStoredToken(token: StoredToken | null) {
   if (!token) return null
@@ -70,35 +88,37 @@ function SignedInScreen({
           onSignOut={onSignOut}
         />
         <div className="flex min-h-0 w-full flex-1">
-          <Routes>
-            <Route
-              path="/trash"
-              element={<TrashScreen accessToken={token.access_token} />}
-            />
-            <Route
-              path="/account"
-              element={
-                <EditUserForm
-                  accessToken={token.access_token}
-                  user={displayUser}
-                  onUserUpdate={(user) => {
-                    onTokenUpdate({
-                      ...token,
-                      user: {
-                        ...displayUser,
-                        name: user.name,
-                        email: user.email,
-                      },
-                    })
-                  }}
-                />
-              }
-            />
-            <Route
-              path="*"
-              element={<FilesScreen accessToken={token.access_token} />}
-            />
-          </Routes>
+          <Suspense fallback={<LoadingFallback className="h-full" />}>
+            <Routes>
+              <Route
+                path="/trash"
+                element={<TrashScreen accessToken={token.access_token} />}
+              />
+              <Route
+                path="/account"
+                element={
+                  <EditUserForm
+                    accessToken={token.access_token}
+                    user={displayUser}
+                    onUserUpdate={(user) => {
+                      onTokenUpdate({
+                        ...token,
+                        user: {
+                          ...displayUser,
+                          name: user.name,
+                          email: user.email,
+                        },
+                      })
+                    }}
+                  />
+                }
+              />
+              <Route
+                path="*"
+                element={<FilesScreen accessToken={token.access_token} />}
+              />
+            </Routes>
+          </Suspense>
         </div>
       </div>
     </LinksProvider>
@@ -119,31 +139,33 @@ function SignedOutRoutes({
   onLogin: (token: StoredToken) => void
 }) {
   return (
-    <Routes>
-      <Route
-        path="/login"
-        element={
-          <AuthPage>
-            <LoginForm
-              className="w-full max-w-4xl"
-              onLogin={(token) => onLogin(createStoredToken(token))}
-            />
-          </AuthPage>
-        }
-      />
-      <Route
-        path="/register"
-        element={
-          <AuthPage>
-            <SignupForm
-              className="w-full max-w-4xl"
-              onLogin={(token) => onLogin(createStoredToken(token))}
-            />
-          </AuthPage>
-        }
-      />
-      <Route path="*" element={<Navigate to="/login" replace />} />
-    </Routes>
+    <Suspense fallback={<LoadingFallback />}>
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            <AuthPage>
+              <LoginForm
+                className="w-full max-w-4xl"
+                onLogin={(token) => onLogin(createStoredToken(token))}
+              />
+            </AuthPage>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <AuthPage>
+              <SignupForm
+                className="w-full max-w-4xl"
+                onLogin={(token) => onLogin(createStoredToken(token))}
+              />
+            </AuthPage>
+          }
+        />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </Suspense>
   )
 }
 
@@ -206,42 +228,44 @@ export function App() {
 
   return (
     <BrowserRouter key={redirectKey}>
-      <Routes>
-        <Route
-          path="/share/:shareToken"
-          element={
-            <LinksProvider>
-              <SharedFilesScreen
-                accessToken={token?.access_token}
-                user={displayUser ?? undefined}
-                token={token ?? undefined}
-                onSignOut={handleSignOut}
-              />
-            </LinksProvider>
-          }
-        />
-        <Route
-          path="/*"
-          element={
-            token && displayUser ? (
-              <SignedInScreen
-                token={token}
-                displayUser={displayUser}
-                onSignOut={handleSignOut}
-                onTokenUpdate={setToken}
-              />
-            ) : token ? (
-              <Navigate to="/login" replace />
-            ) : isUnauthorized ? (
-              <UnauthorizedErrorScreen
-                onSignIn={() => setIsUnauthorized(false)}
-              />
-            ) : (
-              <SignedOutRoutes onLogin={handleLogin} />
-            )
-          }
-        />
-      </Routes>
+      <Suspense fallback={<LoadingFallback />}>
+        <Routes>
+          <Route
+            path="/share/:shareToken"
+            element={
+              <LinksProvider>
+                <SharedFilesScreen
+                  accessToken={token?.access_token}
+                  user={displayUser ?? undefined}
+                  token={token ?? undefined}
+                  onSignOut={handleSignOut}
+                />
+              </LinksProvider>
+            }
+          />
+          <Route
+            path="/*"
+            element={
+              token && displayUser ? (
+                <SignedInScreen
+                  token={token}
+                  displayUser={displayUser}
+                  onSignOut={handleSignOut}
+                  onTokenUpdate={setToken}
+                />
+              ) : token ? (
+                <Navigate to="/login" replace />
+              ) : isUnauthorized ? (
+                <UnauthorizedErrorScreen
+                  onSignIn={() => setIsUnauthorized(false)}
+                />
+              ) : (
+                <SignedOutRoutes onLogin={handleLogin} />
+              )
+            }
+          />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   )
 }
