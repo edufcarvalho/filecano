@@ -25,12 +25,14 @@
       "emailLabel": "E-mail",
       "emailPlaceholder": "voce@exemplo.com",
       "passwordLabel": "Senha",
-      "passwordPlaceholder": "sua senha",
+      "passwordPlaceholder": "Sua senha vem aqui",
       "submitButton": "Entrar",
       "helpText": "Use as credenciais da sua conta Filecano",
       "noAccountPrompt": "Não tem uma conta?",
       "signUpLink": "Cadastre-se",
-      "fallbackError": "Não foi possível fazer login"
+      "fallbackError": "Não foi possível fazer login",
+      "hasAccountPrompt": "Não tem uma conta?",
+      "invalidCredentials": "E-mail ou senha inválidos"
     },
     "signup": {
       "title": "Crie sua conta",
@@ -41,7 +43,9 @@
       "emailLabel": "E-mail",
       "emailPlaceholder": "seu@email.com",
       "passwordLabel": "Senha",
-      "passwordPlaceholder": "sua senha",
+      "passwordPlaceholder": "Sua senha vem aqui",
+      "confirmPasswordLabel": "Confirmar senha",
+      "confirmPasswordPlaceholder": "Repita sua senha aqui",
       "submitButton": "Criar Conta",
       "hasAccountPrompt": "Já tem uma conta?",
       "signInLink": "Entrar",
@@ -53,7 +57,11 @@
       "nameLabel": "Nome",
       "emailLabel": "Email",
       "newPasswordLabel": "Nova senha",
-      "passwordPlaceholder": "Deixe em branco para manter a atual",
+      "newPasswordPlaceholder": "Digite a nova senha",
+      "confirmNewPasswordLabel": "Confirmar nova senha",
+      "confirmNewPasswordPlaceholder": "Repita sua nova senha aqui",
+      "currentPasswordLabel": "Senha atual",
+      "currentPasswordPlaceholder": "Digite a senha atual",
       "submitButton": "Salvar alterações",
       "cancelButton": "Cancelar",
       "successMessage": "Dados atualizados",
@@ -63,7 +71,10 @@
       "languageLabel": "Idioma",
       "searchLanguage": "Buscar idioma...",
       "noLanguages": "Nenhum idioma encontrado",
-      "fallbackError": "Não foi possível atualizar o usuário"
+      "changePassword": "Alterar senha?",
+      "hidePasswordFields": "Cancelar alteração de senha",
+      "fallbackError": "Não foi possível atualizar o usuário",
+      "confirmPasswordLabel": "Confirmar senha"
     },
     "password": {
       "show": "Mostrar senha",

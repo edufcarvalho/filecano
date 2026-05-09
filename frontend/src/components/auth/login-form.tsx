@@ -12,6 +12,7 @@ import { ErrorField } from "@misc/status-field"
 import { LoadingButton } from "@misc/loading-button"
 import { loginUser, type TokenResponse } from "@/lib/api"
 import type { FormSubmitHandler } from "@/lib/form-types"
+import { useAuthForm } from "@/hooks/use-auth-form"
 
 type LoginFormProps = Omit<ComponentProps<"div">, "onSubmit"> & {
   onLogin?: (token: TokenResponse) => void
@@ -19,16 +20,22 @@ type LoginFormProps = Omit<ComponentProps<"div">, "onSubmit"> & {
 
 export function LoginForm({ className, onLogin, ...props }: LoginFormProps) {
   const { t } = useTranslation()
-  const [error, setError] = useState<string | null>(null)
-  const [isPending, setIsPending] = useState(false)
+  const { error, setError, isPending, setIsPending, clearErrors, getPasswordState } = useAuthForm()
   const [showPassword, setShowPassword] = useState(false)
+  const [password, setPassword] = useState("")
+
+  const passwordState = getPasswordState(password)
 
   const handleSubmit: FormSubmitHandler = async (event) => {
     event.preventDefault()
 
     const formData = new FormData(event.currentTarget)
     const email = String(formData.get("email") ?? "")
-    const password = String(formData.get("password") ?? "")
+
+    if (passwordState.errors.length > 0) {
+      setError(t("auth.login.invalidCredentials"))
+      return
+    }
 
     setError(null)
     setIsPending(true)
@@ -37,7 +44,7 @@ export function LoginForm({ className, onLogin, ...props }: LoginFormProps) {
       const token = await loginUser({ email, password })
       onLogin?.(token)
     } catch (error) {
-      setError(error instanceof Error ? error.message : t("auth.login.fallbackError"))
+      setError(error instanceof Error ? error.message : t("auth.login.invalidCredentials"))
     } finally {
       setIsPending(false)
     }
@@ -63,6 +70,7 @@ export function LoginForm({ className, onLogin, ...props }: LoginFormProps) {
         required
         invalid={!!error}
         disabled={isPending}
+        onChange={clearErrors}
       />
       <AuthPasswordField
         id="password"
@@ -73,6 +81,11 @@ export function LoginForm({ className, onLogin, ...props }: LoginFormProps) {
         required
         invalid={!!error}
         disabled={isPending}
+        value={password}
+        onChange={(e) => {
+          setPassword(e.target.value)
+          clearErrors()
+        }}
         isVisible={showPassword}
         onVisibilityChange={setShowPassword}
       />

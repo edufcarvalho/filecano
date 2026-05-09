@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react"
 import { Link } from "react-router-dom"
-import { ChevronDown } from "lucide-react"
+import { ChevronDown, XIcon } from "lucide-react"
 
 import { useTranslation } from "@/i18n"
 
@@ -23,8 +23,8 @@ import { DescriptionField, ErrorField } from "@misc/status-field"
 import { LoadingButton } from "@misc/loading-button"
 import { updateUser, type UserResponse } from "@/lib/api"
 import type { FormSubmitHandler } from "@/lib/form-types"
-import { validatePassword } from "@/lib/password"
 import { CenteredPageWrapper } from "@misc/page-wrapper"
+import { useAuthForm } from "@/hooks/use-auth-form"
 
 const languages = [
   { code: "en", name: "American English", flag: "fi fi-us" },
@@ -46,16 +46,30 @@ export function EditUserForm({
   onUserUpdate,
 }: EditUserFormProps) {
   const { t, i18n } = useTranslation()
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
-  const [isPending, setIsPending] = useState(false)
-  const [password, setPassword] = useState("")
-  const [passwordTouched, setPasswordTouched] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
+  const {
+    error,
+    setError,
+    success,
+    setSuccess,
+    isPending,
+    setIsPending,
+    clearErrors,
+    getPasswordState,
+  } = useAuthForm()
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmNewPassword, setConfirmNewPassword] = useState("")
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
   const [languageSearch, setLanguageSearch] = useState("")
   const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false)
+  const [showPasswordFields, setShowPasswordFields] = useState(false)
 
-  const passwordErrors = password ? validatePassword(password) : []
+  const newPasswordState = getPasswordState(newPassword)
+  const newPasswordsMatch = newPassword === confirmNewPassword || confirmNewPassword.length === 0
+  const currentPasswordInvalid = error === t("auth.editUser.currentPasswordError")
+  const newPasswordInvalid = newPassword.length > 0 && newPasswordState.invalid
+  const confirmNewPasswordInvalid = confirmNewPassword.length > 0 && !newPasswordsMatch
 
   const filteredLanguages = useMemo(
     () =>
@@ -73,7 +87,6 @@ export function EditUserForm({
     const formData = new FormData(event.currentTarget)
     const name = String(formData.get("name") ?? "").trim()
     const email = String(formData.get("email") ?? "").trim()
-    const currentPassword = String(formData.get("current_password") ?? "")
     const payload: {
       current_password: string
       name?: string
@@ -85,34 +98,38 @@ export function EditUserForm({
 
     if (!currentPassword) {
       setError(t("auth.editUser.currentPasswordError"))
-      setSuccess(null)
+      return
+    }
+
+    if (newPasswordState.errors.length > 0) {
+      setError(t("auth.editUser.passwordError"))
+      return
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setError(t("auth.signup.passwordsDoNotMatch"))
       return
     }
 
     if (name && name !== user.name) payload.name = name
     if (email && email !== user.email) payload.email = email
-    if (password) payload.password = password
-
-    if (password && passwordErrors.length > 0) {
-      setError(t("auth.editUser.passwordError"))
-      setSuccess(null)
-      return
-    }
+    if (newPassword) payload.password = newPassword
 
     if (Object.keys(payload).length === 1) {
       setError(t("auth.editUser.noChangesError"))
-      setSuccess(null)
       return
     }
 
-    setError(null)
-    setSuccess(null)
     setIsPending(true)
 
     try {
       const updatedUser = await updateUser(accessToken, payload)
       onUserUpdate(updatedUser)
       setSuccess(t("auth.editUser.successMessage"))
+      setCurrentPassword("")
+      setNewPassword("")
+      setConfirmNewPassword("")
+      setShowPasswordFields(false)
     } catch (error) {
       setError(
         error instanceof Error ? error.message : t("auth.editUser.fallbackError")
@@ -141,7 +158,7 @@ export function EditUserForm({
                 autoComplete="name"
                 defaultValue={user.name}
                 disabled={isPending}
-                invalid={!!error}
+                onChange={clearErrors}
               />
               <AuthTextField
                 id="email"
@@ -151,7 +168,7 @@ export function EditUserForm({
                 autoComplete="email"
                 defaultValue={user.email}
                 disabled={isPending}
-                invalid={!!error}
+                onChange={clearErrors}
               />
               <Field
                 data-disabled={isPending || undefined}
@@ -215,36 +232,94 @@ export function EditUserForm({
                 </DropdownMenu>
               </Field>
               <AuthPasswordField
-                id="password"
-                label={t("auth.editUser.newPasswordLabel")}
-                name="password"
-                autoComplete="new-password"
-                placeholder={t("auth.editUser.passwordPlaceholder")}
+                id="current_password"
+                label={t("auth.editUser.confirmPasswordLabel")}
+                name="current_password"
+                autoComplete="current-password"
+                placeholder={t("auth.editUser.currentPasswordPlaceholder")}
+                required
                 disabled={isPending}
-                invalid={!!error}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                onBlur={() => setPasswordTouched(true)}
-                isVisible={showPassword}
-                onVisibilityChange={setShowPassword}
-              >
-                {passwordTouched || password.length > 0 ? (
-                  <PasswordRequirementsList password={password} />
-                ) : null}
-              </AuthPasswordField>
-              <Field className="flex-column justify-between">
+                invalid={currentPasswordInvalid}
+                value={currentPassword}
+                onChange={(event) => {
+                  setCurrentPassword(event.target.value)
+                  clearErrors()
+                }}
+                isVisible={showCurrentPassword}
+                onVisibilityChange={setShowCurrentPassword}
+              />
+              <Field>
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordFields(!showPasswordFields)}
+                  className="text-sm text-primary underline underline-offset-4 hover:text-primary/90"
+                >
+                  {showPasswordFields
+                    ? t("auth.editUser.hidePasswordFields")
+                    : t("auth.editUser.changePassword")}
+                </button>
+              </Field>
+              {showPasswordFields && (
+                <>
+                  <AuthPasswordField
+                    id="new_password"
+                    label={t("auth.editUser.newPasswordLabel")}
+                    name="new_password"
+                    autoComplete="new-password"
+                    placeholder={t("auth.editUser.newPasswordPlaceholder")}
+                    disabled={isPending}
+                    invalid={newPasswordInvalid}
+                    value={newPassword}
+                    onChange={(event) => {
+                      setNewPassword(event.target.value)
+                      clearErrors()
+                    }}
+                    isVisible={showNewPassword}
+                    onVisibilityChange={setShowNewPassword}
+                  >
+                    {newPassword.length > 0 ? (
+                      <PasswordRequirementsList password={newPassword} className="mt-1" />
+                    ) : null}
+                  </AuthPasswordField>
+                  <AuthPasswordField
+                    id="confirm_new_password"
+                    label={t("auth.editUser.confirmNewPasswordLabel")}
+                    name="confirm_new_password"
+                    autoComplete="new-password"
+                    placeholder={t("auth.editUser.confirmNewPasswordPlaceholder")}
+                    disabled={isPending}
+                    invalid={confirmNewPasswordInvalid}
+                    value={confirmNewPassword}
+                    onChange={(event) => {
+                      setConfirmNewPassword(event.target.value)
+                      clearErrors()
+                    }}
+                  >
+                    {confirmNewPassword.length > 0 && !newPasswordsMatch ? (
+                      <div className="ps-4 mt-0.5">
+                        <div className="flex items-center gap-2 text-sm text-destructive">
+                          <XIcon className="size-3.5" />
+                          {t("auth.signup.passwordsDoNotMatch")}
+                        </div>
+                      </div>
+                    ) : null}
+                  </AuthPasswordField>
+                </>
+              )}
+              <Field className="flex flex-col gap-2 sm:flex-row sm:justify-between">
                 <LoadingButton
                   type="submit"
                   isLoading={isPending}
-                  disabled={
-                    isPending || (passwordTouched && passwordErrors.length > 0)
-                  }
+                  disabled={isPending}
+                  className="w-full sm:w-auto"
                 >
                   {t("auth.editUser.submitButton")}
                 </LoadingButton>
-                  <Button variant="outline" asChild>
-                    <Link to="/" target="_blank" rel="noopener noreferrer">{t("auth.editUser.cancelButton")}</Link>
-                  </Button>
+                <Button variant="outline" asChild className="w-full sm:w-auto">
+                  <Link to="/" target="_blank" rel="noopener noreferrer">
+                    {t("auth.editUser.cancelButton")}
+                  </Link>
+                </Button>
               </Field>
             </FieldGroup>
           </form>

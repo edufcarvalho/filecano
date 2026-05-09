@@ -1,6 +1,8 @@
 import type { ComponentProps } from "react"
 import { useState } from "react"
 
+import { XIcon } from "lucide-react"
+
 import { useTranslation } from "@/i18n"
 import { Link } from "react-router-dom"
 
@@ -13,7 +15,7 @@ import { ErrorField } from "@misc/status-field"
 import { LoadingButton } from "@misc/loading-button"
 import { signupUser, type TokenResponse } from "@/lib/api"
 import type { FormSubmitHandler } from "@/lib/form-types"
-import { validatePassword } from "@/lib/password"
+import { useAuthForm } from "@/hooks/use-auth-form"
 
 type SignupFormProps = Omit<ComponentProps<"div">, "onSubmit"> & {
   onLogin?: (token: TokenResponse) => void
@@ -21,13 +23,14 @@ type SignupFormProps = Omit<ComponentProps<"div">, "onSubmit"> & {
 
 export function SignupForm({ className, onLogin, ...props }: SignupFormProps) {
   const { t } = useTranslation()
-  const [error, setError] = useState<string | null>(null)
-  const [isPending, setIsPending] = useState(false)
+  const { error, setError, isPending, setIsPending, clearErrors, getPasswordState } = useAuthForm()
   const [showPassword, setShowPassword] = useState(false)
   const [password, setPassword] = useState("")
-  const [passwordTouched, setPasswordTouched] = useState(false)
+  const [confirmPassword, setConfirmPassword] = useState("")
 
-  const passwordErrors = validatePassword(password)
+  const passwordState = getPasswordState(password)
+  const passwordsMatch = password === confirmPassword || confirmPassword.length === 0
+  const confirmPasswordInvalid = confirmPassword.length > 0 && !passwordsMatch
 
   const handleSubmit: FormSubmitHandler = async (event) => {
     event.preventDefault()
@@ -36,8 +39,12 @@ export function SignupForm({ className, onLogin, ...props }: SignupFormProps) {
     const name = String(formData.get("name") ?? "")
     const email = String(formData.get("email") ?? "")
 
-    const validationErrors = validatePassword(password)
-    if (validationErrors.length > 0) {
+    if (password !== confirmPassword) {
+      setError(t("auth.signup.passwordsDoNotMatch"))
+      return
+    }
+
+    if (passwordState.errors.length > 0) {
       setError(t("auth.signup.passwordValidationError"))
       return
     }
@@ -73,8 +80,8 @@ export function SignupForm({ className, onLogin, ...props }: SignupFormProps) {
         autoComplete="name"
         placeholder={t("auth.signup.namePlaceholder")}
         required
-        invalid={!!error}
         disabled={isPending}
+        onChange={clearErrors}
       />
       <AuthTextField
         id="email"
@@ -84,8 +91,8 @@ export function SignupForm({ className, onLogin, ...props }: SignupFormProps) {
         autoComplete="email"
         placeholder={t("auth.signup.emailPlaceholder")}
         required
-        invalid={!!error}
         disabled={isPending}
+        onChange={clearErrors}
       />
       <AuthPasswordField
         id="password"
@@ -94,23 +101,49 @@ export function SignupForm({ className, onLogin, ...props }: SignupFormProps) {
         autoComplete="new-password"
         placeholder={t("auth.signup.passwordPlaceholder")}
         required
-        invalid={!!error}
+        invalid={passwordState.invalid}
         disabled={isPending}
         value={password}
-        onChange={(event) => setPassword(event.target.value)}
-        onBlur={() => setPasswordTouched(true)}
+        onChange={(event) => {
+          setPassword(event.target.value)
+          clearErrors()
+        }}
         isVisible={showPassword}
         onVisibilityChange={setShowPassword}
       >
-        {passwordTouched || password.length > 0 ? (
+        {password.length > 0 ? (
           <PasswordRequirementsList password={password} className="mt-1" />
+        ) : null}
+      </AuthPasswordField>
+      <AuthPasswordField
+        id="confirm_password"
+        label={t("auth.signup.confirmPasswordLabel")}
+        name="confirm_password"
+        autoComplete="new-password"
+        placeholder={t("auth.signup.confirmPasswordPlaceholder")}
+        required
+        invalid={confirmPasswordInvalid}
+        disabled={isPending}
+        value={confirmPassword}
+        onChange={(event) => {
+          setConfirmPassword(event.target.value)
+          clearErrors()
+        }}
+      >
+        {confirmPassword.length > 0 && !passwordsMatch ? (
+          <div className="ps-4 mt-0.5">
+            <div className="flex items-center gap-2 text-sm text-destructive">
+              <XIcon className="size-3.5" />
+              {t("auth.signup.passwordsDoNotMatch")}
+            </div>
+          </div>
         ) : null}
       </AuthPasswordField>
       <Field>
         <LoadingButton
           type="submit"
           isLoading={isPending}
-          disabled={isPending || (passwordTouched && passwordErrors.length > 0)}
+          disabled={isPending || passwordState.errors.length > 0}
         >
           {t("auth.signup.submitButton")}
         </LoadingButton>

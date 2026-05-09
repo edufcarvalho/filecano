@@ -25,12 +25,14 @@
       "emailLabel": "Email",
       "emailPlaceholder": "you@example.com",
       "passwordLabel": "Password",
-      "passwordPlaceholder": "your password",
+      "passwordPlaceholder": "Your password goes here",
       "submitButton": "Sign in",
       "helpText": "Use your Filecano account credentials",
       "noAccountPrompt": "Don't have an account?",
       "signUpLink": "Sign up",
-      "fallbackError": "Unable to sign in"
+      "fallbackError": "Unable to sign in",
+      "hasAccountPrompt": "Don't have an account?",
+      "invalidCredentials": "Invalid email or password"
     },
     "signup": {
       "title": "Create your account",
@@ -41,10 +43,13 @@
       "emailLabel": "Email",
       "emailPlaceholder": "your@email.com",
       "passwordLabel": "Password",
-      "passwordPlaceholder": "your password",
+      "passwordPlaceholder": "Your password goes here",
+      "confirmPasswordLabel": "Confirm password",
+      "confirmPasswordPlaceholder": "Retype your password here",
       "submitButton": "Create Account",
       "hasAccountPrompt": "Already have an account?",
       "signInLink": "Sign in",
+      "passwordsDoNotMatch": "Passwords do not match",
       "passwordValidationError": "Password does not meet the requirements",
       "fallbackError": "Unable to sign up"
     },
@@ -53,7 +58,11 @@
       "nameLabel": "Name",
       "emailLabel": "Email",
       "newPasswordLabel": "New password",
-      "passwordPlaceholder": "Leave blank to keep current password",
+      "newPasswordPlaceholder": "Enter new password",
+      "confirmNewPasswordLabel": "Confirm new password",
+      "confirmNewPasswordPlaceholder": "Retype your new password here",
+      "currentPasswordLabel": "Current password",
+      "currentPasswordPlaceholder": "Enter current password",
       "submitButton": "Save changes",
       "cancelButton": "Cancel",
       "successMessage": "User data updated",
@@ -63,6 +72,8 @@
       "languageLabel": "Language",
       "searchLanguage": "Search language...",
       "noLanguages": "No languages found",
+      "changePassword": "Change password?",
+      "hidePasswordFields": "Cancel password change",
       "fallbackError": "Unable to update user"
     },
     "password": {
