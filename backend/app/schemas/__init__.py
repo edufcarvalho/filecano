@@ -1,5 +1,9 @@
 from app.schemas.params.file_params import FileListParams, FileUpdateParams
-from app.schemas.params.link_params import LinkUpdateParams, LinkCreateParams, LinkRestoreParams
+from app.schemas.params.link_params import (
+  LinkCreateParams,
+  LinkRestoreParams,
+  LinkUpdateParams,
+)
 from app.schemas.params.user_params import (
   UserCreationParams,
   UserLoginParams,

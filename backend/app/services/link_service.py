@@ -1,5 +1,5 @@
 import hashlib
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
 from typing import Optional
 from uuid import UUID
 
@@ -7,16 +7,17 @@ from urllib3.response import BaseHTTPResponse
 
 from app.core import (
   BadRequestError,
+  ConflictError,
   GoneError,
   NotFoundError,
   Settings,
-  ConflictError,
 )
 from app.models import File, Link, User
 from app.repositories import FileRepository, LinkRepository
 from app.schemas import LinkCreateParams, LinkRestoreParams
 from app.services.base_service import BaseService
 from app.services.file_storage_service import FileStorageService
+from app.services.file_service import FileService
 from app.utils.time import current_datetime
 
 
@@ -25,11 +26,13 @@ class LinkService(BaseService):
     self,
     repository: LinkRepository,
     file_repository: FileRepository,
+    file_service: FileService,
     storage_service: FileStorageService,
     settings: Settings,
   ):
     self.repository = repository
     self.file_repository = file_repository
+    self.file_service = file_service
     self.storage = storage_service
     self.settings = settings
 
@@ -108,11 +111,6 @@ class LinkService(BaseService):
   def stream_response(self, response: BaseHTTPResponse):
     return self.storage.iter_response(response)
 
-  def _generate_token(self, link: Link) -> str:
-    return hashlib.shake_256(str(link.id).encode()).hexdigest(
-      self.settings.share_token_length
-    )
-
   def list_user_links(self, user: User, user_id: UUID) -> list[Link]:
     self._ensure_user_has_rights(user.id, user_id)
 
@@ -157,6 +155,25 @@ class LinkService(BaseService):
     self._ensure_user_has_rights(user.id, link.user_id)
 
     self.repository.delete(link)
+
+  def clone_files(self, user: User, link_id: UUID) -> list[File]:
+    link = self.repository.get_by_id(link_id)
+
+    if not link:
+      raise NotFoundError("Link not found")
+
+    if link.deleted_at is not None:
+      raise NotFoundError("Link deleted by creator")
+
+    if link.expires_at <= current_datetime():
+      raise GoneError("Share link expired")
+
+    return self.file_service.clone_files(user, link.files)
+
+  def _generate_token(self, link: Link) -> str:
+    return hashlib.shake_256(str(link.id).encode()).hexdigest(
+      self.settings.share_token_length
+    )
 
   def _resolve_expires_at(
     self,

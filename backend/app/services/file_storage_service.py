@@ -2,6 +2,7 @@ from collections.abc import Iterator
 from typing import BinaryIO, Optional
 
 from minio import Minio
+from minio.commonconfig import CopySource
 from minio.deleteobjects import DeleteObject
 from minio.error import S3Error
 from minio.versioningconfig import ENABLED, VersioningConfig
@@ -117,6 +118,17 @@ class FileStorageService:
       raise StorageError(
         f"Could not permanently delete file: {error.code}: {str(error)}"
       )
+
+  def copy_object(self, source_key: str, dest_key: str) -> None:
+    self._ensure_bucket()
+    try:
+      self.client.copy_object(
+        self.bucket,
+        dest_key,
+        CopySource(self.bucket, source_key),
+      )
+    except S3Error as error:
+      raise StorageError(f"Could not copy file: {str(error)}") from error
 
   def iter_response(self, response: BaseHTTPResponse) -> Iterator[bytes]:
     try:

@@ -207,7 +207,19 @@ export function App() {
   return (
     <BrowserRouter key={redirectKey}>
       <Routes>
-        <Route path="/share/:shareToken" element={<SharedFilesScreen />} />
+        <Route
+          path="/share/:shareToken"
+          element={
+            <LinksProvider>
+              <SharedFilesScreen
+                accessToken={token?.access_token}
+                user={displayUser ?? undefined}
+                token={token ?? undefined}
+                onSignOut={handleSignOut}
+              />
+            </LinksProvider>
+          }
+        />
         <Route
           path="/*"
           element={

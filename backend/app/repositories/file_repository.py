@@ -16,6 +16,11 @@ class FileRepository:
 
     return file
 
+  def add_all(self, files: list[File]) -> list[File]:
+    self.session.add_all(files)
+
+    return files
+
   def get_by_id(self, file_id: UUID) -> Optional[File]:
     return self.session.get(File, file_id)
 

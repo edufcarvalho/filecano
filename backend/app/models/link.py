@@ -5,7 +5,6 @@ from uuid import UUID
 from sqlmodel import DateTime, Field, Relationship, SQLModel
 from uuid6 import uuid7
 
-from app.core import get_settings
 from app.models.file_link_relation import FileLinkRelation
 
 if TYPE_CHECKING:

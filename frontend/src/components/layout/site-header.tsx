@@ -6,6 +6,7 @@ import {
   TrashIcon,
 } from "lucide-react"
 import { Link } from "react-router-dom"
+import { useEffect } from "react"
 
 import { useTranslation } from "@/i18n"
 import { Avatar, AvatarFallback } from "@ui/avatar"
@@ -68,13 +69,17 @@ export function SiteHeader({
   const initials = user ? getInitials(user.name) : "FC"
   const title = pageTitle ?? t("app.allFiles")
 
+  useEffect(() => {
+    document.title = `${title} | ${t("app.filecano")}`
+  }, [title, t])
+
   return (
     <header className="sticky top-0 z-50 flex w-full shrink-0 items-center border-b bg-background">
       <div className="flex h-14 w-full min-w-0 items-center gap-2 px-3 font-sans sm:gap-3 sm:px-5 lg:px-8">
         <Link to="/" className="shrink-0" aria-label={t("app.filecanoHome")}>
           <Icon className="size-7 sm:size-8" markClassName="size-7 sm:size-8" />
         </Link>
-        <Breadcrumb className="shrink-0">
+        <Breadcrumb className="hidden shrink-0 md:flex">
           <BreadcrumbList className="flex flex-row items-center gap-1.5 whitespace-nowrap">
             <BreadcrumbItem>
               <BreadcrumbLink asChild className="text-sm">

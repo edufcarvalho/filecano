@@ -7,13 +7,14 @@ from fastapi.responses import StreamingResponse
 from app.api.dependencies import get_current_user, get_link_service
 from app.models import User
 from app.schemas import (
+  FileResponse,
+  LinkCreateParams,
   LinkResponse,
+  LinkRestoreParams,
   LinkRestoreResponse,
   LinkUpdateParams,
   LinkUpdateResponse,
   TokenResponse,
-  LinkCreateParams,
-  LinkRestoreParams,
 )
 from app.services import LinkService
 
@@ -117,3 +118,12 @@ def download_shared_file(
     media_type=file.content_type or "application/octet-stream",
     headers=headers,
   )
+
+
+@router.post("/{link_id}/files/clone", status_code=status.HTTP_201_CREATED)
+def clone_files(
+  link_id: UUID,
+  current_user: User = Depends(get_current_user),
+  service: LinkService = Depends(get_link_service),
+) -> list[FileResponse]:
+  return service.clone_files(current_user, link_id)

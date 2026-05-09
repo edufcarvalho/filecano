@@ -127,6 +127,7 @@
     "restore": "Restore",
     "erase": "Erase",
     "share": "Share",
+    "clone": "Clone",
     "delete": "Delete",
     "refresh": "Refresh",
     "save": "Save",
@@ -168,9 +169,11 @@
       "downloadFiles": "Unable to download files",
       "downloadFile": "Unable to download file",
       "shareFiles": "Unable to share files",
+      "cloneFiles": "Unable to clone files",
       "fileDeletedByOwner": "This file was deleted by the owner",
       "someDownloadFailed": "Some files failed to download"
-    }
+    },
+    "cloneSuccess": "Successfully cloned"
   },
   "links": {
     "myLinks": "My Links",

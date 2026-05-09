@@ -504,6 +504,21 @@ export async function downloadSharedFile(
   window.URL.revokeObjectURL(url)
 }
 
+export async function cloneSharedFiles(
+  accessToken: string,
+  linkId: string
+): Promise<FileResponse[]> {
+  const response = await authFetch(
+    `${API_URL}/v1/share/${linkId}/files/clone`,
+    accessToken,
+    { method: "POST" }
+  )
+
+  if (!response.ok) throw await readError(response, translate("files.error.cloneFiles"))
+
+  return response.json()
+}
+
 export async function uploadFile(
   accessToken: string,
   file: File,

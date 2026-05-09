@@ -127,6 +127,7 @@
     "restore": "Restaurar",
     "erase": "Apagar",
     "share": "Compartilhar",
+    "clone": "Clonar",
     "delete": "Excluir",
     "refresh": "Atualizar",
     "save": "Salvar",
@@ -168,9 +169,11 @@
       "downloadFiles": "Não foi possível baixar os arquivos",
       "downloadFile": "Não foi possível baixar o arquivo",
       "shareFiles": "Não foi possível compartilhar os arquivos",
+      "cloneFiles": "Não foi possível clonar os arquivos",
       "fileDeletedByOwner": "Este arquivo foi excluído pelo proprietário",
       "someDownloadFailed": "Alguns arquivos falharam no download"
-    }
+    },
+    "cloneSuccess": "Clonado(s) com sucesso"
   },
   "links": {
     "myLinks": "Meus Links",

@@ -11,6 +11,7 @@ from PIL import UnidentifiedImageError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 from urllib3.response import BaseHTTPResponse
+from uuid6 import uuid7
 
 from app.core import (
   FileTooLargeError,
@@ -119,6 +120,27 @@ class FileService(BaseService):
       raise
 
     return file
+
+  def clone_files(self, user: User, files: list[File]) -> list[File]:
+    clones = []
+    for file in files:
+      clone = self._duplicate_file_params(file, user.id)
+      clone.object_key = f"users/{user.id}/files/{clone.id}"
+      self.storage.copy_object(file.object_key, clone.object_key)
+
+      if file.preview_object_key:
+        clone.preview_object_key = f"users/{user.id}/previews/{clone.id}"
+        self.storage.copy_object(file.preview_object_key, clone.preview_object_key)
+
+      clones.append(clone)
+
+    self.repository.add_all(clones)
+    self.session.commit()
+
+    for clone in clones:
+      self.session.refresh(clone)
+
+    return clones
 
   def get_download(self, user: User, file_id: UUID) -> tuple[File, BaseHTTPResponse]:
     file = self._get_user_file(user, file_id)
@@ -289,3 +311,21 @@ class FileService(BaseService):
     data.seek(0)
 
     return preview_data, preview_size, preview_content_type
+
+  def _duplicate_file_params(self, file: File, user_id: UUID) -> File:
+    if file.deleted_at is not None:
+      raise GoneError("One or more files you're trying to clone have been deleted")
+
+    display_name = self._get_unique_filename(user_id, file.original_name)
+
+    return file.model_copy(
+      update={
+        "id": uuid7(),
+        "user_id": user_id,
+        "display_name": display_name,
+        "folder_id": None,
+        "created_at": None,
+        "object_key": None,
+        "preview_object_key": None,
+      }
+    )

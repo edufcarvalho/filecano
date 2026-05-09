@@ -7,9 +7,10 @@ import {
   type ShareLinkErrorKind,
 } from "@errors/share-link-error-screen"
 import { SiteHeader } from "@/components/layout/site-header"
-import { ErrorField } from "@misc/status-field"
+import { ErrorField, DescriptionField } from "@misc/status-field"
 import {
   ApiError,
+  cloneSharedFiles,
   downloadSharedFile,
   fetchSharedFilePreviewAsDataUrl,
   getSharedFiles,
@@ -17,6 +18,7 @@ import {
 } from "@/lib/api"
 import { isPreviewSupportedFile } from "@/lib/file-display"
 import { useTranslation } from "@/i18n"
+import type { StoredToken } from "@/lib/session"
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
@@ -26,11 +28,25 @@ function isAvailableFile(file: FileResponse) {
   return file.deleted_at === null
 }
 
-export function SharedFilesScreen() {
+type SharedFilesScreenUser = {
+  name: string
+  email: string
+}
+
+type SharedFilesScreenProps = {
+  accessToken?: string
+  user?: SharedFilesScreenUser
+  token?: StoredToken
+  onSignOut?: () => void
+}
+
+export function SharedFilesScreen({ accessToken, user, token, onSignOut }: SharedFilesScreenProps) {
   const { t } = useTranslation()
   const { shareToken } = useParams()
   const [files, setFiles] = useState<FileResponse[]>([])
+  const [linkId, setLinkId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [linkError, setLinkError] = useState<ShareLinkErrorKind | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [pendingFileId, setPendingFileId] = useState<string | null>(null)
@@ -79,6 +95,7 @@ export function SharedFilesScreen() {
     getSharedFiles(shareToken)
       .then((sharedLink) => {
         if (!isCurrentRef.current) return
+        setLinkId(sharedLink.id)
         setFiles(sharedLink.files)
         setSelectedFileIds(
           (currentSelection) =>
@@ -158,6 +175,49 @@ export function SharedFilesScreen() {
     }
   }
 
+  async function handleClone(file: FileResponse) {
+    if (!accessToken || !linkId) return
+
+    if (!isAvailableFile(file)) {
+      setError(t("files.error.fileDeletedByOwner"))
+      return
+    }
+
+    setError(null)
+    setSuccess(null)
+    setPendingFileId(`clone-${file.id}`)
+
+    try {
+      const cloned = await cloneSharedFiles(accessToken, linkId)
+      setSuccess(
+        `${t("files.cloneSuccess")}: ${cloned.map((f) => f.display_name).join(", ")}`
+      )
+    } catch (error) {
+      setError(getErrorMessage(error, t("files.error.cloneFiles")))
+    } finally {
+      setPendingFileId(null)
+    }
+  }
+
+  async function handleCloneAll() {
+    if (!accessToken || !linkId || selectedFileIds.size === 0) return
+
+    setError(null)
+    setSuccess(null)
+    setPendingFileId("bulk-clone")
+
+    try {
+      const cloned = await cloneSharedFiles(accessToken, linkId)
+      setSuccess(
+        `${t("files.cloneSuccess")}: ${cloned.map((f) => f.display_name).join(", ")}`
+      )
+    } catch (error) {
+      setError(getErrorMessage(error, t("files.error.cloneFiles")))
+    } finally {
+      setPendingFileId(null)
+    }
+  }
+
   function toggleFileSelection(fileId: string) {
     setSelectedFileIds((currentSelection) => {
       const nextSelection = new Set(currentSelection)
@@ -184,9 +244,10 @@ export function SharedFilesScreen() {
 
   return (
     <div className="fixed inset-0 flex min-h-0 flex-col overflow-hidden">
-      <SiteHeader pageTitle={t("app.sharedFiles")} />
+      <SiteHeader pageTitle={t("app.sharedFiles")} user={user} token={token} onSignOut={onSignOut} />
       <main className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden bg-muted/40 p-4">
         <ErrorField message={error} />
+        <DescriptionField>{success}</DescriptionField>
 
         <FileList
           variant="shared"
@@ -199,6 +260,8 @@ export function SharedFilesScreen() {
           onSearch={setSearchQuery}
           onDownload={handleDownload}
           onDownloadAll={handleDownloadSelected}
+          onClone={accessToken ? handleClone : undefined}
+          onCloneAll={accessToken ? handleCloneAll : undefined}
           onClearSelection={clearFileSelection}
           onSelectAll={selectAllFiles}
           onToggleSelection={toggleFileSelection}
