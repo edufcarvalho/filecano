@@ -122,7 +122,7 @@ class FileService(BaseService):
     return file
 
   def clone_files(self, user: User, files: list[File]) -> list[File]:
-    clones = map(lambda f, u=user.id: self._duplicate_file_params(f, u), files)
+    clones = [self._duplicate_file(f, user.id) for f in files]
 
     self.repository.add_all(clones)
     self.session.commit()
@@ -302,11 +302,11 @@ class FileService(BaseService):
 
     return preview_data, preview_size, preview_content_type
 
-  def _duplicate_file_params(self, file: File, user_id: UUID) -> File:
+  def _duplicate_file(self, file: File, user_id: UUID) -> File:
     if file.deleted_at is not None:
       raise GoneError("One or more files you're trying to clone have been deleted")
 
-    display_name = self._get_unique_filename(user_id, file.original_name)
+    display_name = self._get_unique_filename(user_id, file.display_name)
     clone_id = uuid7()
     object_key = f"users/{user_id}/files/{clone_id}"
     preview_object_key = None
@@ -316,10 +316,12 @@ class FileService(BaseService):
       preview_object_key = f"users/{user_id}/previews/{clone_id}"
       self.storage.copy_object(file.preview_object_key, preview_object_key)
 
-    return file.model_copy(
-      update={
+    return File.model_validate(
+      file.model_dump()
+      | {
         "id": clone_id,
         "user_id": user_id,
+        "original_name": file.display_name,
         "display_name": display_name,
         "folder_id": None,
         "created_at": current_datetime(),
