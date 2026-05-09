@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlmodel import DateTime, Field, Relationship, SQLModel
 from uuid6 import uuid7
 
+from app.utils.time import current_datetime
 from app.models.file_link_relation import FileLinkRelation
 
 if TYPE_CHECKING:
@@ -20,7 +21,7 @@ class Link(SQLModel, table=True):
   custom_name: Optional[str] = Field(default=None, unique=True)
   user_id: UUID = Field(nullable=False, foreign_key="users.id", ondelete="CASCADE")
   expires_at: datetime = Field(nullable=False, sa_type=DateTime(timezone=True))
-  created_at: datetime = Field(nullable=False, sa_type=DateTime(timezone=True))
+  created_at: datetime = Field(nullable=False, default_factory=current_datetime, sa_type=DateTime(timezone=True))
   deleted_at: Optional[datetime] = Field(default=None, sa_type=DateTime(timezone=True))
 
   files: list["File"] = Relationship(
