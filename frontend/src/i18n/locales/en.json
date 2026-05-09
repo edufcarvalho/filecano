@@ -10,6 +10,7 @@
     "docs": "Docs",
     "logOut": "Log out",
     "signIn": "Sign in",
+    "selectLanguage": "Select language",
     "iconAlt": "Filecano logo"
   },
   "marketing": {
@@ -59,6 +60,7 @@
       "currentPasswordError": "Confirm your current password before saving",
       "passwordError": "New password does not meet the requirements",
       "noChangesError": "Change at least one field before saving",
+      "languageLabel": "Language",
       "fallbackError": "Unable to update user"
     },
     "password": {

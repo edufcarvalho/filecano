@@ -1,11 +1,20 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
+import { ChevronDown } from "lucide-react"
 
 import { useTranslation } from "@/i18n"
 
 import { Button } from "@ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@ui/card"
-import { Field, FieldGroup } from "@ui/field"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@ui/dropdown-menu"
+import { Field, FieldGroup, FieldLabel } from "@ui/field"
+import { cn } from "@/lib/utils"
 
 import { AuthPasswordField, AuthTextField } from "@auth/auth-form-fields"
 import { PasswordRequirementsList } from "@auth/password-requirements-list"
@@ -14,6 +23,11 @@ import { LoadingButton } from "@misc/loading-button"
 import { updateUser, type UserResponse } from "@/lib/api"
 import type { FormSubmitHandler } from "@/lib/form-types"
 import { validatePassword } from "@/lib/password"
+
+const languages = [
+  { code: "en", name: "American English", flag: "fi fi-us" },
+  { code: "pt", name: "Português Brasileiro", flag: "fi fi-br" },
+] as const
 
 type EditUserFormProps = {
   accessToken: string
@@ -29,7 +43,7 @@ export function EditUserForm({
   user,
   onUserUpdate,
 }: EditUserFormProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [isPending, setIsPending] = useState(false)
@@ -125,6 +139,48 @@ export function EditUserForm({
                 disabled={isPending}
                 invalid={!!error}
               />
+              <Field
+                data-disabled={isPending || undefined}
+              >
+                <FieldLabel htmlFor="language">
+                  {t("auth.editUser.languageLabel")}
+                </FieldLabel>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      id="language"
+                      type="button"
+                      disabled={isPending}
+                      className="flex h-8 w-full min-w-0 items-center gap-2 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80"
+                    >
+                      <span
+                        className={cn(
+                          languages.find((l) => l.code === i18n.language)?.flag,
+                          "shrink-0 rounded-sm"
+                        )}
+                      />
+                      <span className="flex-1 text-start">
+                        {languages.find((l) => l.code === i18n.language)?.name}
+                      </span>
+                      <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-[--radix-dropdown-menu-trigger-width]">
+                    <DropdownMenuGroup>
+                      {languages.map((lang) => (
+                        <DropdownMenuItem
+                          key={lang.code}
+                          onSelect={() => i18n.changeLanguage(lang.code)}
+                          className={cn(i18n.language === lang.code && "font-medium")}
+                        >
+                          <span className={cn(lang.flag, "shrink-0 rounded-sm")} />
+                          {lang.name}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </Field>
               <AuthPasswordField
                 id="password"
                 label={t("auth.editUser.newPasswordLabel")}

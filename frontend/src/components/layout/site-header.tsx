@@ -2,11 +2,12 @@ import {
   BookOpenIcon,
   ChevronsUpDown,
   EditIcon,
+  Globe,
   LogOutIcon,
   TrashIcon,
 } from "lucide-react"
 import { Link } from "react-router-dom"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 
 import { useTranslation } from "@/i18n"
 import { Avatar, AvatarFallback } from "@ui/avatar"
@@ -30,6 +31,7 @@ import {
 import { ThemeToggle } from "@ui/theme-toggle"
 
 import { Icon } from "@misc/icon"
+import { LanguageDialog } from "@misc/language-dialog"
 import { LanguageSwitcher } from "@misc/language-switcher"
 import { MyLinksDropdown } from "@/components/links/my-links-dropdown"
 
@@ -66,6 +68,7 @@ export function SiteHeader({
   onSignOut,
 }: SiteHeaderProps) {
   const { t } = useTranslation()
+  const [languageDialogOpen, setLanguageDialogOpen] = useState(false)
   const initials = user ? getInitials(user.name) : "FC"
   const title = pageTitle ?? t("app.allFiles")
 
@@ -99,7 +102,7 @@ export function SiteHeader({
             userId={token?.user?.id}
           />
         ) : undefined}
-        <LanguageSwitcher className="shrink-0" />
+        {!user ? <LanguageSwitcher className="shrink-0" /> : null}
         <ThemeToggle className="shrink-0" />
         <div className="flex shrink-0 items-stretch">
           {!user ? (
@@ -170,6 +173,11 @@ export function SiteHeader({
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => setLanguageDialogOpen(true)}>
+                  <Globe className="size-4" />
+                  {t("app.selectLanguage")}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem variant="destructive" onSelect={onSignOut}>
                   <LogOutIcon className="size-4" />
                   {t("app.logOut")}
@@ -179,6 +187,10 @@ export function SiteHeader({
           )}
         </div>
       </div>
+      <LanguageDialog
+        open={languageDialogOpen}
+        onOpenChange={setLanguageDialogOpen}
+      />
     </header>
   )
 }

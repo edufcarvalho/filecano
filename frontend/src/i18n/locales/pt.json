@@ -10,6 +10,7 @@
     "docs": "Documentação",
     "logOut": "Sair",
     "signIn": "Entrar",
+    "selectLanguage": "Selecionar idioma",
     "iconAlt": "Logotipo do Filecano"
   },
   "marketing": {
@@ -59,6 +60,7 @@
       "currentPasswordError": "Confirme sua senha atual antes de salvar",
       "passwordError": "A nova senha não atende aos requisitos",
       "noChangesError": "Altere pelo menos um campo antes de salvar",
+      "languageLabel": "Idioma",
       "fallbackError": "Não foi possível atualizar o usuário"
     },
     "password": {
