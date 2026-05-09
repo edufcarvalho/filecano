@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 
 import { FileList } from "@files/file-list"
 import { ErrorField } from "@misc/status-field"
+import { PageWrapper } from "@misc/page-wrapper"
 import {
   deleteFile,
   fetchFilePreviewAsDataUrl,
@@ -218,7 +219,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
   }
 
   return (
-    <main className="flex h-full min-h-0 w-full flex-col gap-4 overflow-hidden bg-muted/40 p-4">
+    <PageWrapper>
       <ErrorField message={error} />
       <FileList
         variant="trash"
@@ -239,6 +240,6 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
         onSelectAll={selectAllFiles}
         onToggleSelection={toggleFileSelection}
       />
-    </main>
+    </PageWrapper>
   )
 }

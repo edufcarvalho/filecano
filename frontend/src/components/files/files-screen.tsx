@@ -11,6 +11,7 @@ import {
   type UploadingFile,
 } from "@files/file-upload-dropzone"
 import { ErrorField } from "@misc/status-field"
+import { PageWrapper } from "@misc/page-wrapper"
 import {
   deleteFile,
   downloadFile,
@@ -635,7 +636,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   }
 
   return (
-    <main className="flex h-full min-h-0 w-full flex-col gap-4 overflow-hidden bg-muted/40 p-4" onClick={dismissUploadError}>
+    <PageWrapper onClick={dismissUploadError}>
       <FileUploadDropzone
         fileInputRef={fileInputRef}
         isDragOver={isDragOver}
@@ -654,10 +655,10 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
 
       {isLoading ? (
         <Card>
-          <CardContent className="flex items-center gap-3 py-6 text-sm text-muted-foreground">
-            <LoaderCircleIcon className="animate-spin" />
-            {t("files.loadingFiles")}
-          </CardContent>
+        <CardContent className="card-content-base">
+          <LoaderCircleIcon className="icon-spin" />
+          {t("files.loadingFiles")}
+        </CardContent>
         </Card>
       ) : (
         <FileList
@@ -710,6 +711,6 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         }
         onConfirm={executeShare}
       />
-    </main>
+    </PageWrapper>
   )
 }

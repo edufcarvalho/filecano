@@ -16,6 +16,7 @@ import {
 } from "@ui/card"
 import { cn } from "@/lib/utils"
 import { useTranslation } from "@/i18n"
+import { LoadingState } from "@misc/page-wrapper"
 
 export type UploadingFile = {
   id: string
@@ -62,7 +63,7 @@ export function FileUploadDropzone({
         "cursor-pointer"
       )}
     >
-      <UploadIcon className="mx-auto mb-2 text-muted-foreground" size={32} />
+      <UploadIcon className="mx-auto mb-2 icon-muted" size={32} />
       <p className="text-sm text-muted-foreground">
         {t("files.dropzone.instruction")}
       </p>
@@ -105,15 +106,15 @@ export function UploadActivityPanel({
         : t("files.dropzone.uploadsComplete")
 
   return (
-    <Card className="fixed right-4 bottom-4 z-40 w-[calc(100vw-2rem)] max-w-sm shadow-lg">
+    <Card className="upload-panel-base">
       <CardHeader className="flex flex-row items-center justify-between gap-3 pt-3 pb-1">
         <CardTitle className="flex min-w-0 items-center gap-2 text-sm">
           {activeCount > 0 ? (
-            <LoaderCircleIcon className="animate-spin text-muted-foreground" />
+            <LoaderCircleIcon className="icon-spin icon-muted" />
           ) : (
-            <UploadIcon className="text-muted-foreground" />
+            <UploadIcon className="icon-muted" />
           )}
-          <span className="truncate">{title}</span>
+          <span className="truncate-base">{title}</span>
         </CardTitle>
         <div className="flex items-center gap-1">
           <Button
@@ -144,12 +145,12 @@ export function UploadActivityPanel({
         <CardContent className="max-h-80 overflow-y-auto pt-0 pb-3">
           <div className="flex flex-col gap-3">
             {uploadingFiles.map((file) => (
-              <div key={file.id} className="text-left">
-                <div className="mb-1 flex items-center gap-2 text-xs">
-                  <span className="min-w-0 flex-1 truncate text-muted-foreground">
+              <div key={file.id} className="upload-file-item">
+                <div className="upload-file-header">
+                  <span className="upload-file-name">
                     {file.name}
                   </span>
-                  <span className="shrink-0 text-muted-foreground">
+                  <span className="upload-file-status">
                     {file.error
                       ? t("files.dropzone.failed")
                       : file.done
@@ -167,11 +168,11 @@ export function UploadActivityPanel({
                     </button>
                   ) : null}
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div className="upload-progress-bar-container">
                   <div
                     className={cn(
-                      "h-full transition-all duration-300",
-                      file.error ? "bg-destructive" : "bg-primary"
+                      "upload-progress-bar",
+                      file.error ? "upload-progress-bar-error" : "upload-progress-bar-success"
                     )}
                     style={{ width: `${file.error ? 100 : file.progress}%` }}
                   />

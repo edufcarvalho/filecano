@@ -23,6 +23,7 @@ import { LoadingButton } from "@misc/loading-button"
 import { updateUser, type UserResponse } from "@/lib/api"
 import type { FormSubmitHandler } from "@/lib/form-types"
 import { validatePassword } from "@/lib/password"
+import { CenteredPageWrapper } from "@misc/page-wrapper"
 
 const languages = [
   { code: "en", name: "American English", flag: "fi fi-us" },
@@ -109,7 +110,7 @@ export function EditUserForm({
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center bg-muted/40 p-6">
+    <CenteredPageWrapper>
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>{t("auth.editUser.title")}</CardTitle>
@@ -151,7 +152,13 @@ export function EditUserForm({
                       id="language"
                       type="button"
                       disabled={isPending}
-                      className="flex h-8 w-full min-w-0 items-center gap-2 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80"
+                      className={cn(
+                        "input-base",
+                        "input-focus",
+                        "input-disabled",
+                        "input-dark",
+                        "flex items-center gap-2"
+                      )}
                     >
                       <span
                         className={cn(
@@ -162,7 +169,7 @@ export function EditUserForm({
                       <span className="flex-1 text-start">
                         {languages.find((l) => l.code === i18n.language)?.name}
                       </span>
-                      <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+                      <ChevronDown className="size-4 shrink-0 icon-muted" />
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="w-[--radix-dropdown-menu-trigger-width]">
@@ -217,6 +224,6 @@ export function EditUserForm({
           </form>
         </CardContent>
       </Card>
-    </main>
+    </CenteredPageWrapper>
   )
 }

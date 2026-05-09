@@ -143,3 +143,333 @@
     transform: scaleX(0);
   }
 }
+
+@layer components {
+  .page-wrapper {
+    @apply flex h-full min-h-0 w-full flex-col gap-4 overflow-hidden bg-muted/40 p-4;
+  }
+
+  .page-center-wrapper {
+    @apply flex flex-1 items-center justify-center bg-muted/40 p-6;
+  }
+
+  .card-content-base {
+    @apply flex items-center gap-3 py-6 text-sm text-muted-foreground;
+  }
+
+  .empty-state-base {
+    @apply relative px-4 text-center;
+  }
+
+  .file-item-base {
+    @apply grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border p-3 sm:p-4;
+  }
+
+  .file-item-selected {
+    @apply bg-muted/50;
+  }
+
+  .file-item-new {
+    @apply border-green-600/40 bg-green-500/10;
+  }
+
+  .file-item-deleted {
+    @apply border-destructive/40 bg-destructive/5;
+  }
+
+  .file-icon-container {
+    @apply flex size-10 shrink-0 items-center justify-center overflow-hidden rounded;
+  }
+
+  .file-name-text {
+    @apply max-w-fit min-w-0 overflow-x-auto overscroll-x-contain text-base font-medium whitespace-nowrap [scrollbar-width:thin];
+  }
+
+  .file-meta-text {
+    @apply mt-1 hidden flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground sm:flex;
+  }
+
+  .file-actions-base {
+    @apply flex shrink-0 justify-end gap-1 sm:justify-end;
+  }
+
+  .file-actions-desktop {
+    @apply hidden shrink-0 justify-end gap-1 sm:flex;
+  }
+
+  .checkbox-base {
+    @apply size-4 shrink-0;
+  }
+
+  .link-text-base {
+    @apply text-primary underline underline-offset-4 hover:text-primary/90;
+  }
+
+  .text-center-description {
+    @apply text-balance text-muted-foreground;
+  }
+
+  .loading-spinner-base {
+    @apply animate-spin;
+  }
+
+  .button-icon-xs-base {
+    @apply size-4;
+  }
+
+  .dropdown-menu-item-base {
+    @apply flex items-center gap-2;
+  }
+
+  .avatar-fallback-base {
+    @apply rounded-lg;
+  }
+
+  .user-menu-base {
+    @apply flex h-full items-center gap-2 px-1.5 md:px-3;
+  }
+
+  .user-menu-text {
+    @apply hidden min-w-0 flex-1 text-start text-sm leading-tight md:grid;
+  }
+
+  .user-menu-name {
+    @apply truncate font-medium;
+  }
+
+  .user-menu-email {
+    @apply truncate text-xs text-muted-foreground;
+  }
+
+  .breadcrumb-list-base {
+    @apply flex flex-row items-center gap-1.5 whitespace-nowrap;
+  }
+
+  .header-base {
+    @apply sticky top-0 z-50 flex w-full shrink-0 items-center border-b bg-background;
+  }
+
+  .header-content {
+    @apply flex h-14 w-full min-w-0 items-center gap-2 px-3 font-sans sm:gap-3 sm:px-5 lg:px-8;
+  }
+
+  .auth-card-title {
+    @apply text-2xl font-bold;
+  }
+
+  .auth-card-description {
+    @apply text-balance text-muted-foreground;
+  }
+
+  .auth-card-marketing-title {
+    @apply text-3xl font-semibold tracking-normal;
+  }
+
+  .auth-marketing-text {
+    @apply text-balance text-muted-foreground;
+  }
+
+  .tooltip-content-rich {
+    @apply max-w-64 dark:border dark:border-border dark:bg-popover dark:text-popover-foreground dark:shadow-lg dark:[&_[data-slot=tooltip-arrow]]:bg-popover dark:[&_[data-slot=tooltip-arrow]]:fill-popover;
+  }
+
+  .scrollable-list-container {
+    @apply h-full overflow-y-auto;
+  }
+
+  .file-info-details {
+    @apply grid gap-1 text-xs;
+  }
+
+  .upload-panel-base {
+    @apply fixed right-4 bottom-4 z-40 w-[calc(100vw-2rem)] max-w-sm shadow-lg;
+  }
+
+  .upload-file-item {
+    @apply text-left;
+  }
+
+  .upload-file-header {
+    @apply mb-1 flex items-center gap-2 text-xs;
+  }
+
+  .upload-file-name {
+    @apply min-w-0 flex-1 truncate text-muted-foreground;
+  }
+
+  .upload-file-status {
+    @apply shrink-0 text-muted-foreground;
+  }
+
+  .upload-progress-bar-container {
+    @apply h-2 w-full overflow-hidden rounded-full bg-muted;
+  }
+
+  .upload-progress-bar {
+    @apply h-full transition-all duration-300;
+  }
+
+  .upload-progress-bar-success {
+    @apply bg-primary;
+  }
+
+  .upload-progress-bar-error {
+    @apply bg-destructive;
+  }
+
+  .search-form-base {
+    @apply w-full min-w-0 flex-1;
+  }
+
+  .bulk-actions-mobile {
+    @apply gap-1;
+  }
+
+  .bulk-actions-mobile-default {
+    @apply flex w-full flex-nowrap sm:hidden;
+  }
+
+  .bulk-actions-mobile-shared {
+    @apply flex w-full flex-wrap gap-2 sm:hidden;
+  }
+
+  .bulk-actions-desktop {
+    @apply ml-auto hidden shrink-0 gap-1 sm:flex sm:flex-wrap sm:justify-end;
+  }
+
+  .loading-button-base {
+    @apply min-w-0 justify-center overflow-hidden flex-auto max-sm:px-1;
+  }
+
+  .loading-button-centered {
+    @apply min-w-0 justify-center px-1.5 min-[430px]:px-2.5;
+  }
+
+  .input-base {
+    @apply h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none;
+  }
+
+  .input-focus {
+    @apply focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50;
+  }
+
+  .input-disabled {
+    @apply disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50;
+  }
+
+  .input-dark {
+    @apply dark:bg-input/30 dark:disabled:bg-input/80;
+  }
+
+  .field-group-base {
+    @apply flex flex-col gap-3;
+  }
+
+  .field-center-content {
+    @apply flex flex-col items-center gap-3 text-center;
+  }
+
+  .icon-spin {
+    @apply animate-spin;
+  }
+
+  .icon-muted {
+    @apply text-muted-foreground;
+  }
+
+  .text-destructive-base {
+    @apply text-destructive;
+  }
+
+  .font-medium-destructive {
+    @apply font-medium text-destructive;
+  }
+
+  .font-medium-success {
+    @apply font-medium text-green-700 dark:text-green-400;
+  }
+
+  .truncate-base {
+    @apply truncate;
+  }
+
+  .min-w-0-base {
+    @apply min-w-0;
+  }
+
+  .gap-1-base {
+    @apply gap-1;
+  }
+
+  .gap-2-base {
+    @apply gap-2;
+  }
+
+  .gap-3-base {
+    @apply gap-3;
+  }
+
+  .rounded-lg-base {
+    @apply rounded-lg;
+  }
+
+  .rounded-base {
+    @apply rounded;
+  }
+
+  .border-transparent-base {
+    @apply border-transparent;
+  }
+
+  .bg-transparent-base {
+    @apply bg-transparent;
+  }
+
+  .shadow-none-base {
+    @apply shadow-none;
+  }
+
+  .focus-visible-ring-0 {
+    @apply focus-visible:border-transparent focus-visible:ring-0;
+  }
+
+  .scrollbar-thin {
+    @apply [scrollbar-width:thin];
+  }
+
+  .overscroll-contain {
+    @apply overscroll-contain;
+  }
+
+  .overscroll-x-contain {
+    @apply overscroll-x-contain;
+  }
+
+  .overscroll-y-contain {
+    @apply overscroll-y-contain;
+  }
+
+  .whitespace-nowrap-base {
+    @apply whitespace-nowrap;
+  }
+
+  .text-balance {
+    @apply text-balance;
+  }
+
+  .leading-tight {
+    @apply leading-tight;
+  }
+
+  .leading-snug {
+    @apply leading-snug;
+  }
+
+  .tracking-tight {
+    @apply tracking-tight;
+  }
+
+  .tracking-normal {
+    @apply tracking-normal;
+  }
+}

@@ -33,11 +33,11 @@ export function AuthCard({
         <CardContent className="grid p-0 md:grid-cols-2">
           <form className="p-6 md:p-8" onSubmit={onSubmit}>
             <FieldGroup>
-              <div className="flex flex-col items-center gap-3 text-center">
+              <div className="field-center-content">
                 <Icon />
                 <div className="flex flex-col gap-1">
-                  <h1 className="text-2xl font-bold">{title}</h1>
-                  <p className="text-balance text-muted-foreground">
+                  <h1 className="auth-card-title">{title}</h1>
+                  <p className="auth-card-description">
                     {description}
                   </p>
                 </div>
@@ -49,10 +49,10 @@ export function AuthCard({
             <div className="absolute inset-0 flex flex-col justify-between bg-primary p-8 text-primary-foreground">
               <Icon />
               <div className="flex flex-col gap-3">
-                <p className="text-3xl font-semibold tracking-normal">
+                <p className="auth-card-marketing-title">
                   {t("marketing.headline")}
                 </p>
-                <p className="text-balance text-muted-foreground">
+                <p className="auth-marketing-text">
                   {t("marketing.description")}
                 </p>
               </div>

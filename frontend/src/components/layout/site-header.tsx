@@ -77,13 +77,13 @@ export function SiteHeader({
   }, [title, t])
 
   return (
-    <header className="sticky top-0 z-50 flex w-full shrink-0 items-center border-b bg-background">
-      <div className="flex h-14 w-full min-w-0 items-center gap-2 px-3 font-sans sm:gap-3 sm:px-5 lg:px-8">
+    <header className="header-base">
+      <div className="header-content">
         <Link to="/" className="shrink-0" aria-label={t("app.filecanoHome")}>
           <Icon className="size-7 sm:size-8" markClassName="size-7 sm:size-8" />
         </Link>
         <Breadcrumb className="hidden shrink-0 md:flex">
-          <BreadcrumbList className="flex flex-row items-center gap-1.5 whitespace-nowrap">
+          <BreadcrumbList className="breadcrumb-list-base">
             <BreadcrumbItem>
               <BreadcrumbLink asChild className="text-sm">
                 <Link to="/">{t("app.filecano")}</Link>
@@ -116,16 +116,16 @@ export function SiteHeader({
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="flex h-full items-center gap-2 px-1.5 md:px-3"
+                  className="user-menu-base"
                 >
                   <Avatar className="size-7 shrink-0 rounded-lg">
-                    <AvatarFallback className="rounded-lg text-xs">
+                    <AvatarFallback className="avatar-fallback-base text-xs">
                       {initials}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="hidden min-w-0 flex-1 text-start text-sm leading-tight md:grid">
-                    <span className="truncate font-medium">{user.name}</span>
-                    <span className="truncate text-xs text-muted-foreground">
+                  <div className="user-menu-text">
+                    <span className="user-menu-name">{user.name}</span>
+                    <span className="user-menu-email">
                       {user.email}
                     </span>
                   </div>
@@ -157,29 +157,29 @@ export function SiteHeader({
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
                   <DropdownMenuItem asChild>
-                    <Link to="/trash" className="flex items-center gap-2">
-                      <TrashIcon className="size-4" />
+                    <Link to="/trash" className="dropdown-menu-item-base">
+                      <TrashIcon className="button-icon-xs-base" />
                       {t("app.trash")}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <a
                       href="http://localhost:8000/docs"
-                      className="flex items-center gap-2"
+                      className="dropdown-menu-item-base"
                     >
-                      <BookOpenIcon className="size-4" />
+                      <BookOpenIcon className="button-icon-xs-base" />
                       {t("app.docs")}
                     </a>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={() => setLanguageDialogOpen(true)}>
-                  <Globe className="size-4" />
+                  <Globe className="button-icon-xs-base" />
                   {t("app.selectLanguage")}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem variant="destructive" onSelect={onSignOut}>
-                  <LogOutIcon className="size-4" />
+                  <LogOutIcon className="button-icon-xs-base" />
                   {t("app.logOut")}
                 </DropdownMenuItem>
               </DropdownMenuContent>

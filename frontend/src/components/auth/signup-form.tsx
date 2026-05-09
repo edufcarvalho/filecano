@@ -119,7 +119,7 @@ export function SignupForm({ className, onLogin, ...props }: SignupFormProps) {
         {t("auth.signup.hasAccountPrompt")}{" "}
         <Link
           to="/login"
-          className="text-primary underline underline-offset-4 hover:text-primary/90"
+          className="link-text-base"
         >
           {t("auth.signup.signInLink")}
         </Link>

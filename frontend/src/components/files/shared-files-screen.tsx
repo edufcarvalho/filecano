@@ -8,6 +8,7 @@ import {
 } from "@errors/share-link-error-screen"
 import { SiteHeader } from "@/components/layout/site-header"
 import { ErrorField, DescriptionField } from "@misc/status-field"
+import { PageWrapper } from "@misc/page-wrapper"
 import {
   ApiError,
   cloneSharedFiles,
@@ -245,7 +246,7 @@ export function SharedFilesScreen({ accessToken, user, token, onSignOut }: Share
   return (
     <div className="fixed inset-0 flex min-h-0 flex-col overflow-hidden">
       <SiteHeader pageTitle={t("app.sharedFiles")} user={user} token={token} onSignOut={onSignOut} />
-      <main className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden bg-muted/40 p-4">
+      <PageWrapper>
         <ErrorField message={error} />
         <DescriptionField>{success}</DescriptionField>
 
@@ -266,7 +267,7 @@ export function SharedFilesScreen({ accessToken, user, token, onSignOut }: Share
           onSelectAll={selectAllFiles}
           onToggleSelection={toggleFileSelection}
         />
-      </main>
+      </PageWrapper>
     </div>
   )
 }

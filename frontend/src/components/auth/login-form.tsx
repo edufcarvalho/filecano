@@ -85,10 +85,10 @@ export function LoginForm({ className, onLogin, ...props }: LoginFormProps) {
         {t("auth.login.helpText")}
       </FieldDescription>
       <FieldDescription className="text-center">
-        {t("auth.login.noAccountPrompt")}{" "}
+        {t("auth.login.hasAccountPrompt")}{" "}
         <Link
           to="/register"
-          className="text-primary underline underline-offset-4 hover:text-primary/90"
+          className="link-text-base"
         >
           {t("auth.login.signUpLink")}
         </Link>
