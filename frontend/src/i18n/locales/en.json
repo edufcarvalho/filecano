@@ -61,6 +61,8 @@
       "passwordError": "New password does not meet the requirements",
       "noChangesError": "Change at least one field before saving",
       "languageLabel": "Language",
+      "searchLanguage": "Search language...",
+      "noLanguages": "No languages found",
       "fallbackError": "Unable to update user"
     },
     "password": {
@@ -213,7 +215,8 @@
     "unit": "Unit",
     "permanent": "Permanent (never expires)",
     "expiryDate": "Expiry date",
-    "timeOptional": "Time (optional, defaults current hour)",
+    "pickDate": "Pick a date",
+    "timeOptional": "Time (optional, defaults to current time)",
     "dateInPast": "The selected date is in the past",
     "cancel": "Cancel",
     "confirm": "Confirm"

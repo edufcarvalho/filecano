@@ -16,7 +16,6 @@ import {
 } from "@ui/card"
 import { cn } from "@/lib/utils"
 import { useTranslation } from "@/i18n"
-import { LoadingState } from "@misc/page-wrapper"
 
 export type UploadingFile = {
   id: string

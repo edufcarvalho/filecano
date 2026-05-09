@@ -53,6 +53,75 @@ import {
   isImageFile,
 } from "@/lib/file-display"
 
+type FileListProps = {
+  variant?: "default" | "shared" | "trash"
+  title?: string
+  files: FileResponse[]
+  previewUrls?: Record<string, string>
+  selectedFileIds?: Set<string>
+  newlyAddedFileIds?: Set<string>
+  editingFileId?: string | null
+  editingName?: string
+  pendingFileId: string | null
+  error?: string | null
+  isLoading?: boolean
+  isUploading?: boolean
+  loadingLabel?: string
+  emptyLabel?: string
+  noMatchesLabel?: string
+  searchQuery?: string
+  onSearch?: (query: string) => void
+  onBulkDelete?: () => void
+  onBulkDownload?: () => void
+  onBulkPermanentDelete?: () => void
+  onBulkRestore?: () => void
+  onBulkShare?: () => void
+  onClone?: (file: FileResponse) => void
+  onCloneAll?: () => void
+  onClearSelection?: () => void
+  onDelete?: (file: FileResponse) => void
+  onDownload: (file: FileResponse) => void
+  onDownloadAll?: () => void
+  onEditingNameChange?: (name: string) => void
+  onRefresh?: () => void
+  onRename?: (file: FileResponse) => void
+  onPermanentDelete?: (file: FileResponse) => void
+  onRestore?: (file: FileResponse) => void
+  onShare?: (file: FileResponse) => void
+  onSelectAll?: () => void
+  onClearNewlyAdded?: (fileId: string) => void
+  onStartEditing?: (file: FileResponse) => void
+  onStopEditing?: () => void
+  onToggleSelection?: (fileId: string) => void
+  stretch?: boolean
+}
+
+type FileListItemProps = Pick<
+  FileListProps,
+  | "editingFileId"
+  | "editingName"
+  | "error"
+  | "pendingFileId"
+  | "newlyAddedFileIds"
+  | "previewUrls"
+  | "selectedFileIds"
+  | "onDelete"
+  | "onDownload"
+  | "onClone"
+  | "onEditingNameChange"
+  | "onRename"
+  | "onPermanentDelete"
+  | "onRestore"
+  | "onShare"
+  | "onClearNewlyAdded"
+  | "onStartEditing"
+  | "onStopEditing"
+  | "onToggleSelection"
+> & {
+  file: FileResponse
+  variant: "default" | "shared" | "trash"
+}
+
 const checkboxClassName = "checkbox-base"
 
 type FileInfoDetailsProps = {

@@ -1,6 +1,5 @@
 import type { ComponentProps, ReactNode } from "react"
 
-import { Card, CardContent } from "@ui/card"
 import { cn } from "@/lib/utils"
 
 export function PageWrapper({
@@ -43,19 +42,5 @@ export function EmptyState({
     >
       {children}
     </div>
-  )
-}
-
-export function LoadingState({
-  children,
-  iconClassName,
-}: {
-  children: ReactNode
-  iconClassName?: string
-}) {
-  return (
-    <CardContent className="card-content-base">
-      {children}
-    </CardContent>
   )
 }

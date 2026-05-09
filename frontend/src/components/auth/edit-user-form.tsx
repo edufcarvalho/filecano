@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Link } from "react-router-dom"
 import { ChevronDown } from "lucide-react"
 
@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@ui/dropdown-menu"
 import { Field, FieldGroup, FieldLabel } from "@ui/field"
+import { Input } from "@ui/input"
 import { cn } from "@/lib/utils"
 
 import { AuthPasswordField, AuthTextField } from "@auth/auth-form-fields"
@@ -51,8 +52,20 @@ export function EditUserForm({
   const [password, setPassword] = useState("")
   const [passwordTouched, setPasswordTouched] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [languageSearch, setLanguageSearch] = useState("")
+  const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false)
 
   const passwordErrors = password ? validatePassword(password) : []
+
+  const filteredLanguages = useMemo(
+    () =>
+      languages.filter(
+        (lang) =>
+          lang.code !== i18n.language &&
+          lang.name.toLowerCase().includes(languageSearch.toLowerCase())
+      ),
+    [i18n.language, languageSearch]
+  )
 
   const handleSubmit: FormSubmitHandler = async (event) => {
     event.preventDefault()
@@ -146,7 +159,7 @@ export function EditUserForm({
                 <FieldLabel htmlFor="language">
                   {t("auth.editUser.languageLabel")}
                 </FieldLabel>
-                <DropdownMenu>
+                <DropdownMenu open={languageDropdownOpen} onOpenChange={(open) => { setLanguageDropdownOpen(open); if (!open) setLanguageSearch("") }}>
                   <DropdownMenuTrigger asChild>
                     <button
                       id="language"
@@ -155,9 +168,8 @@ export function EditUserForm({
                       className={cn(
                         "input-base",
                         "input-focus",
-                        "input-disabled",
-                        "input-dark",
-                        "flex items-center gap-2"
+                        "flex items-center gap-2",
+                        "bg-transparent dark:bg-input/30"
                       )}
                     >
                       <span
@@ -166,24 +178,38 @@ export function EditUserForm({
                           "shrink-0 rounded-sm"
                         )}
                       />
-                      <span className="flex-1 text-start">
+                      <span className="flex-1 text-start text-sm">
                         {languages.find((l) => l.code === i18n.language)?.name}
                       </span>
                       <ChevronDown className="size-4 shrink-0 icon-muted" />
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-[--radix-dropdown-menu-trigger-width]">
+                  <DropdownMenuContent align="start">
+                    <div className="px-1 py-1">
+                      <Input
+                        placeholder={t("auth.editUser.searchLanguage")}
+                        value={languageSearch}
+                        onChange={(e) => setLanguageSearch(e.target.value)}
+                        className="h-7 text-sm"
+                      />
+                    </div>
                     <DropdownMenuGroup>
-                      {languages.map((lang) => (
-                        <DropdownMenuItem
-                          key={lang.code}
-                          onSelect={() => i18n.changeLanguage(lang.code)}
-                          className={cn(i18n.language === lang.code && "font-medium")}
-                        >
-                          <span className={cn(lang.flag, "shrink-0 rounded-sm")} />
-                          {lang.name}
+                      {filteredLanguages.length === 0 ? (
+                        <DropdownMenuItem disabled className="text-sm">
+                          {t("auth.editUser.noLanguages")}
                         </DropdownMenuItem>
-                      ))}
+                      ) : (
+                        filteredLanguages.map((lang) => (
+                          <DropdownMenuItem
+                            key={lang.code}
+                            onSelect={() => i18n.changeLanguage(lang.code)}
+                            className="text-sm"
+                          >
+                            <span className={cn(lang.flag, "shrink-0 rounded-sm")} />
+                            {lang.name}
+                          </DropdownMenuItem>
+                        ))
+                      )}
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>

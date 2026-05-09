@@ -49,18 +49,20 @@
       "fallbackError": "Não foi possível cadastrar"
     },
     "editUser": {
-      "title": "Editar dados do usuário",
+      "title": "Editar dados",
       "nameLabel": "Nome",
-      "emailLabel": "E-mail",
+      "emailLabel": "Email",
       "newPasswordLabel": "Nova senha",
-      "passwordPlaceholder": "Deixe em branco para manter a senha atual",
+      "passwordPlaceholder": "Deixe em branco para manter a atual",
       "submitButton": "Salvar alterações",
       "cancelButton": "Cancelar",
-      "successMessage": "Dados do usuário atualizados",
+      "successMessage": "Dados atualizados",
       "currentPasswordError": "Confirme sua senha atual antes de salvar",
-      "passwordError": "A nova senha não atende aos requisitos",
+      "passwordError": "Nova senha não atende aos requisitos",
       "noChangesError": "Altere pelo menos um campo antes de salvar",
       "languageLabel": "Idioma",
+      "searchLanguage": "Buscar idioma...",
+      "noLanguages": "Nenhum idioma encontrado",
       "fallbackError": "Não foi possível atualizar o usuário"
     },
     "password": {
@@ -213,7 +215,8 @@
     "unit": "Unidade",
     "permanent": "Permanente (nunca expira)",
     "expiryDate": "Data de expiração",
-    "timeOptional": "Hora (opcional, padrão: hora atual)",
+    "pickDate": "Escolha uma data",
+    "timeOptional": "Hora (opcional, padrão: horário atual)",
     "dateInPast": "A data selecionada está no passado",
     "cancel": "Cancelar",
     "confirm": "Confirmar"

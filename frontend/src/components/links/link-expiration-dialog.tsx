@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"
+import { useState } from "react"
 import { CalendarIcon, ClockIcon, InfinityIcon } from "lucide-react"
 
 import { useTranslation } from "@/i18n"
@@ -12,6 +12,8 @@ import {
 } from "@ui/dialog"
 import { Button } from "@ui/button"
 import { Input } from "@ui/input"
+import { Calendar } from "@ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@ui/popover"
 import { cn } from "@/lib/utils"
 import {
   todayStr,
@@ -47,7 +49,6 @@ export function LinkExpirationDialog({
   const [exactDate, setExactDate] = useState(todayStr)
   const [exactTime, setExactTime] = useState("")
   const [permanent, setPermanent] = useState(false)
-  const dateInputRef = useRef<HTMLInputElement>(null)
 
   function resolveExactDateTime() {
     if (!exactDate) return null
@@ -89,14 +90,14 @@ export function LinkExpirationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="expiration-dialog-content">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4">
-          <div className="flex gap-2">
+        <div className="expiration-dialog-body">
+          <div className="expiration-mode-buttons">
             <Button
               variant={mode === "from-now" ? "default" : "outline"}
               size="sm"
@@ -120,13 +121,13 @@ export function LinkExpirationDialog({
           </div>
 
           {mode === "from-now" ? (
-            <div className="flex flex-col gap-3">
+            <div className="expiration-section">
               <div
                 data-disabled={permanent ? true : undefined}
                 className="flex items-end gap-2"
               >
                 <div className="flex-1">
-                  <label className="mb-1 block text-xs text-muted-foreground">
+                  <label className="expiration-field-label">
                     {t("expiration.amount")}
                   </label>
                   <Input
@@ -138,14 +139,14 @@ export function LinkExpirationDialog({
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="mb-1 block text-xs text-muted-foreground">
+                  <label className="expiration-field-label">
                     {t("expiration.unit")}
                   </label>
                   <select
                     value={unit}
                     onChange={(e) => setUnit(e.target.value)}
                     disabled={permanent}
-                    className="h-8 w-full min-w-0 rounded-lg border border-input bg-background px-2.5 py-1 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="expiration-select"
                   >
                     {UNITS.map((u) => (
                       <option key={u} value={u}>
@@ -158,10 +159,8 @@ export function LinkExpirationDialog({
 
               <label
                 className={cn(
-                  "flex cursor-pointer items-center gap-2 rounded-lg border p-3 transition-colors",
-                  permanent
-                    ? "border-primary/50 bg-primary/5"
-                    : "border-border hover:bg-muted/50"
+                  "expiration-permanent-label",
+                  permanent && "expiration-permanent-label-active"
                 )}
               >
                 <input
@@ -175,36 +174,49 @@ export function LinkExpirationDialog({
               </label>
             </div>
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="expiration-section">
               <div>
-                <label className="mb-1 block text-xs text-muted-foreground">
+                <label className="expiration-field-label">
                   {t("expiration.expiryDate")}
                 </label>
                 <div className="relative">
                   <input
-                    ref={dateInputRef}
                     type="date"
                     value={exactDate}
                     onChange={(e) => setExactDate(e.target.value)}
                     min={todayStr()}
-                    className={cn(
-                      "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent py-1 pl-8 pr-2.5 text-sm outline-none",
-                      "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-                      "disabled:cursor-not-allowed disabled:opacity-50"
-                    )}
+                    className="expiration-date-input"
                   />
-                  <button
-                    type="button"
-                    onClick={() => dateInputRef.current?.showPicker()}
-                    className="absolute inset-y-0 left-0 flex items-center pl-2 text-muted-foreground hover:text-foreground"
-                    tabIndex={-1}
-                  >
-                    <CalendarIcon className="size-4" />
-                  </button>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="expiration-date-button"
+                        tabIndex={-1}
+                      >
+                        <CalendarIcon className="size-4" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={exactDate ? new Date(exactDate) : undefined}
+                        onSelect={(date) => {
+                          if (date) {
+                            setExactDate(date.toISOString().split("T")[0])
+                          }
+                        }}
+                        disabled={(date) => date < new Date(todayStr())}
+                        startMonth={new Date()}
+                        endMonth={new Date("2100-12-31")}
+                        captionLayout="dropdown"
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
               <div>
-                <label className="mb-1 block text-xs text-muted-foreground">
+                <label className="expiration-field-label">
                   {t("expiration.timeOptional")}
                 </label>
                 <div className="relative">
@@ -212,19 +224,15 @@ export function LinkExpirationDialog({
                     type="time"
                     value={exactTime}
                     onChange={(e) => setExactTime(e.target.value)}
-                    className={cn(
-                      "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent py-1 pl-8 pr-2.5 text-sm outline-none",
-                      "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-                      "disabled:cursor-not-allowed disabled:opacity-50"
-                    )}
+                    className="expiration-time-input"
                   />
-                  <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2 text-muted-foreground">
+                  <span className="expiration-time-icon">
                     <ClockIcon className="size-4" />
                   </span>
                 </div>
               </div>
               {isDateInPast && (
-                <p className="text-xs text-destructive">
+                <p className="expiration-date-past-error">
                   {t("expiration.dateInPast")}
                 </p>
               )}
