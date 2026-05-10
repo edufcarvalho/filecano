@@ -80,7 +80,7 @@ class FileRepository:
     query = (
       select(File)
       .where(File.user_id == user_id, File.deleted_at.is_(None))
-      .order_by(File.created_at.desc())
+      .order_by(File.id.desc())
     )
 
     return self.session.exec(query).all()
@@ -130,7 +130,7 @@ class FileRepository:
         File.folder_id.is_(None),
         File.deleted_at.is_(None),
       )
-      .order_by(File.created_at.desc())
+      .order_by(File.id.desc())
     )
 
     return self.session.exec(query).all()
