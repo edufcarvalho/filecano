@@ -26,12 +26,10 @@ import {
 import { LinksProvider } from "@/lib/links-context"
 import { SiteHeader } from "@layout/site-header"
 import { useTranslation } from "@/i18n"
+import { FilesScreen } from "@files/files-screen"
 
 const EditUserForm = lazy(() =>
   import("@auth/edit-user-form").then((m) => ({ default: m.EditUserForm }))
-)
-const FilesScreen = lazy(() =>
-  import("@files/files-screen").then((m) => ({ default: m.FilesScreen }))
 )
 const LoginForm = lazy(() =>
   import("@auth/login-form").then((m) => ({ default: m.LoginForm }))

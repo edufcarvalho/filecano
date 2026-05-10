@@ -2,8 +2,6 @@ import type { ComponentProps } from "react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { LoaderCircleIcon } from "lucide-react"
 
-import { Card, CardContent } from "@ui/card"
-
 import { FileList } from "@files/file-list"
 import {
   FileUploadDropzone,
@@ -18,11 +16,12 @@ import {
   downloadMultipleFiles,
   fetchFilePreviewAsDataUrl,
   getSharedFiles,
-  listFiles,
+  listFolderedFiles,
   shareFiles,
   updateFile,
   uploadFile,
   type FileResponse,
+  type FolderResponse,
 } from "@/lib/api"
 import { useLinks } from "@/lib/links-context"
 import { isPreviewSupportedFile } from "@/lib/file-display"
@@ -141,6 +140,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   const { addLink } = useLinks()
   const { t } = useTranslation()
   const [files, setFiles] = useState<FileResponse[]>([])
+  const [folders, setFolders] = useState<FolderResponse[]>([])
   const [error, setError] = useState<string | null>(null)
   const [editingFileId, setEditingFileId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState("")
@@ -193,20 +193,28 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   const applyLoadedFiles = useCallback(
     async (
       loadedFiles: FileResponse[],
+      loadedFolders: FolderResponse[],
       isCurrent: () => boolean = () => true
     ) => {
       if (!isCurrent()) return
 
       setFiles(loadedFiles)
+      setFolders(loadedFolders)
+
+      const allFiles = [
+        ...loadedFiles,
+        ...loadedFolders.flatMap((f) => f.files),
+      ]
+
       setSelectedFileIds(
         (currentSelection) =>
           new Set(
-            loadedFiles
+            allFiles
               .filter((file) => currentSelection.has(file.id))
               .map((file) => file.id)
           )
       )
-      void loadPreviews(loadedFiles, isCurrent)
+      void loadPreviews(allFiles, isCurrent)
     },
     [loadPreviews]
   )
@@ -216,8 +224,8 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     setIsLoading(true)
 
     try {
-      const loadedFiles = await listFiles(accessToken)
-      await applyLoadedFiles(loadedFiles)
+      const response = await listFolderedFiles(accessToken)
+      await applyLoadedFiles(response.other_files, response.folders)
     } catch (error) {
       setError(getErrorMessage(error, t("files.error.loadFiles")))
     } finally {
@@ -225,27 +233,12 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     }
   }, [accessToken, applyLoadedFiles, t])
 
+  const didFetchRef = useRef(false)
   useEffect(() => {
-    let isCurrent = true
-
-    async function loadInitialFiles() {
-      try {
-        const loadedFiles = await listFiles(accessToken)
-        await applyLoadedFiles(loadedFiles, () => isCurrent)
-      } catch (error) {
-        if (!isCurrent) return
-        setError(getErrorMessage(error, t("files.error.loadFiles")))
-      } finally {
-        if (isCurrent) setIsLoading(false)
-      }
-    }
-
-    void loadInitialFiles()
-
-    return () => {
-      isCurrent = false
-    }
-  }, [accessToken, applyLoadedFiles, t])
+    if (didFetchRef.current) return
+    didFetchRef.current = true
+    loadFiles()
+  }, [loadFiles])
 
   useEffect(() => {
     const timers = newlyAddedTimersRef.current
@@ -329,6 +322,14 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
           currentFile.id === updatedFile.id ? updatedFile : currentFile
         )
       )
+      setFolders((currentFolders) =>
+        currentFolders.map((folder) => ({
+          ...folder,
+          files: folder.files.map((f) =>
+            f.id === updatedFile.id ? updatedFile : f
+          ),
+        }))
+      )
       stopEditing()
     } catch (error) {
       setError(getErrorMessage(error, t("files.error.updateFile")))
@@ -345,6 +346,14 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       await deleteFile(accessToken, file.id)
       setFiles((currentFiles) =>
         currentFiles.filter((currentFile) => currentFile.id !== file.id)
+      )
+      setFolders((currentFolders) =>
+        currentFolders
+          .map((folder) => ({
+            ...folder,
+            files: folder.files.filter((f) => f.id !== file.id),
+          }))
+          .filter((folder) => folder.files.length > 0)
       )
       setSelectedFileIds((currentSelection) => {
         const nextSelection = new Set(currentSelection)
@@ -513,7 +522,8 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   }
 
   function selectAllFiles() {
-    setSelectedFileIds(new Set(files.map((file) => file.id)))
+    const folderFileIds = folders.flatMap((f) => f.files.map((file) => file.id))
+    setSelectedFileIds(new Set([...files.map((file) => file.id), ...folderFileIds]))
   }
 
   function clearFileSelection() {
@@ -534,6 +544,14 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       )
       setFiles((currentFiles) =>
         currentFiles.filter((file) => !selectedFileIds.has(file.id))
+      )
+      setFolders((currentFolders) =>
+        currentFolders
+          .map((folder) => ({
+            ...folder,
+            files: folder.files.filter((f) => !selectedFileIds.has(f.id)),
+          }))
+          .filter((folder) => folder.files.length > 0)
       )
       setPreviewUrls((currentUrls) =>
         Object.fromEntries(
@@ -556,7 +574,10 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     setError(null)
     setPendingFileId("bulk-download")
 
-    const filesToDownload = files.filter((file) => selectedFileIds.has(file.id))
+    const folderFiles = folders.flatMap((f) => f.files)
+    const filesToDownload = [...files, ...folderFiles].filter((file) =>
+      selectedFileIds.has(file.id)
+    )
 
     try {
       await downloadMultipleFiles(
@@ -637,15 +658,17 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
 
   return (
     <PageWrapper onClick={dismissUploadError}>
-      <FileUploadDropzone
-        fileInputRef={fileInputRef}
-        isDragOver={isDragOver}
-        onBrowseFiles={() => fileInputRef.current?.click()}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        onFileSelect={handleFileSelect}
-      />
+      {!isLoading ? (
+        <FileUploadDropzone
+          fileInputRef={fileInputRef}
+          isDragOver={isDragOver}
+          onBrowseFiles={() => fileInputRef.current?.click()}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onFileSelect={handleFileSelect}
+        />
+      ) : null}
 
       <ErrorField message={error} />
 
@@ -654,15 +677,16 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       ) : null}
 
       {isLoading ? (
-        <Card>
-        <CardContent className="card-content-base">
-          <LoaderCircleIcon className="icon-spin" />
-          {t("files.loadingFiles")}
-        </CardContent>
-        </Card>
+        <div className="flex flex-1 items-center justify-center">
+          <div className="flex flex-col items-center gap-3 text-muted-foreground">
+            <LoaderCircleIcon className="icon-spin size-10" />
+            <span className="text-base">{t("files.loadingFiles")}</span>
+          </div>
+        </div>
       ) : (
         <FileList
           files={files}
+          folders={folders}
           previewUrls={previewUrls}
           selectedFileIds={selectedFileIds}
           newlyAddedFileIds={newlyAddedFileIds}

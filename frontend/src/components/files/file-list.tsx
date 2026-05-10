@@ -45,13 +45,14 @@ import { SearchForm } from "@misc/search-form"
 import { FileIconContainer, FileItem, FileMetadata, FileActions } from "@files/file-item"
 import { BulkActionButton, CompactBulkActionButton } from "@misc/bulk-action-button"
 
-import type { FileResponse } from "@/lib/api"
+import type { FileResponse, FolderResponse } from "@/lib/api"
 import {
   formatCreatedAt,
   formatFileSize,
   getFileKind,
   isImageFile,
 } from "@/lib/file-display"
+import { Folder } from "@files/folder"
 
 type FileListProps = {
   variant?: "default" | "shared" | "trash"
@@ -94,6 +95,7 @@ type FileListProps = {
   onStopEditing?: () => void
   onToggleSelection?: (fileId: string) => void
   stretch?: boolean
+  folders?: FolderResponse[]
 }
 
 type FileListItemProps = Pick<
@@ -154,7 +156,7 @@ export function FileTypeIcon({ contentType }: { contentType: string | null }) {
 export function FileList({
   variant = "default",
   title,
-  files,
+  files = [],
   previewUrls = {},
   selectedFileIds = new Set(),
   newlyAddedFileIds = new Set(),
@@ -192,15 +194,18 @@ export function FileList({
   onStopEditing,
   onToggleSelection,
   stretch = true,
+  folders,
 }: FileListProps) {
   const { t } = useTranslation()
   const selectedCount = selectedFileIds.size
+  const folderFiles = folders?.flatMap((f) => f.files) ?? []
   const selectableFiles =
     variant === "trash" ? files : files.filter((file) => !file.deleted_at)
+  const allSelectableFiles = [...selectableFiles, ...folderFiles]
   const hasSelectedFiles = selectedCount > 0
   const allFilesSelected =
-    selectableFiles.length > 0 &&
-    selectableFiles.every((file) => selectedFileIds.has(file.id))
+    allSelectableFiles.length > 0 &&
+    allSelectableFiles.every((file) => selectedFileIds.has(file.id))
 
   function handleSearch(query: string) {
     onSearch?.(query)
@@ -314,7 +319,7 @@ export function FileList({
               type="checkbox"
               aria-label={t("files.selectAll")}
               checked={allFilesSelected}
-              disabled={selectableFiles.length === 0}
+              disabled={allSelectableFiles.length === 0}
               onChange={(event) =>
                 event.target.checked ? onSelectAll?.() : onClearSelection?.()
               }
@@ -400,60 +405,104 @@ export function FileList({
           stretch && "flex-1 overflow-hidden"
         )}
       >
-        {isLoading ? (
-          <div className="card-content-base">
-            <LoaderCircleIcon className="icon-spin" />
-            {loadingLabel ?? (variant === "shared" ? t("files.loadingSharedFiles") : variant === "trash" ? t("files.loadingDeletedFiles") : t("files.loadingFiles"))}
-          </div>
-        ) : filteredFiles.length === 0 ? (
-          <div
-            className={cn(
-              "empty-state-base",
-              stretch ? "h-full" : "min-h-72"
-            )}
-          >
-            <FileSearchIcon
-              className="absolute top-1/2 left-1/2 size-[var(--empty-icon-size)] -translate-x-1/2 -translate-y-1/2 icon-muted"
-              strokeWidth={1.75}
-            />
-            <p className="absolute top-[calc(50%+var(--empty-icon-size)/2+0.75rem)] left-1/2 w-[min(26rem,62cqw)] -translate-x-1/2 text-[clamp(1rem,var(--empty-text-size),1.4rem)] leading-tight font-medium text-muted-foreground">
-              {files.length === 0
-                ? (emptyLabel ?? (variant === "shared" ? t("files.emptyShared") : variant === "trash" ? t("files.emptyTrash") : t("files.emptyDefault")))
-                : (noMatchesLabel ?? (variant === "shared" ? t("files.noMatchesShared") : variant === "trash" ? t("files.noMatchesTrash") : t("files.noMatchesDefault")))}
-            </p>
-          </div>
-        ) : (
-          <ScrollableList stretch={stretch}>
-            <div className="grid gap-3 pe-0.5">
-              {filteredFiles.map((file) => (
-                <FileListItem
-                  key={file.id}
-                  file={file}
-                  previewUrls={previewUrls}
-                  selectedFileIds={selectedFileIds}
-                  newlyAddedFileIds={newlyAddedFileIds}
-                  editingFileId={editingFileId}
-                  editingName={editingName}
-                  pendingFileId={pendingFileId}
-                  error={error}
-                  onDelete={onDelete}
-                  onDownload={onDownload}
-                  onClone={onClone}
-                  onEditingNameChange={onEditingNameChange}
-                  onRename={onRename}
-                  onPermanentDelete={onPermanentDelete}
-                  onRestore={onRestore}
-                  onShare={onShare}
-                  onClearNewlyAdded={onClearNewlyAdded}
-                  onStartEditing={onStartEditing}
-                  onStopEditing={onStopEditing}
-                  onToggleSelection={onToggleSelection}
-                  variant={variant}
-                />
+        <div className={cn(stretch && "flex min-h-0 h-full flex-col")}>
+          {!isLoading && folders && folders.length > 0 ? (
+            <div className="mb-3 grid gap-2 shrink-0">
+              {folders.map((folder) => (
+                <Folder
+                  key={folder.name}
+                  name={folder.name}
+                  fileCount={folder.files.length}
+                >
+                  <div className="ps-4 border-l-2 border-primary/20 grid gap-2">
+                    {folder.files.map((file) => (
+                      <FileListItem
+                        key={file.id}
+                        file={file}
+                        previewUrls={previewUrls}
+                        selectedFileIds={selectedFileIds}
+                        newlyAddedFileIds={newlyAddedFileIds}
+                        editingFileId={editingFileId}
+                        editingName={editingName}
+                        pendingFileId={pendingFileId}
+                        error={error}
+                        onDelete={onDelete}
+                        onDownload={onDownload}
+                        onClone={onClone}
+                        onEditingNameChange={onEditingNameChange}
+                        onRename={onRename}
+                        onPermanentDelete={onPermanentDelete}
+                        onRestore={onRestore}
+                        onShare={onShare}
+                        onClearNewlyAdded={onClearNewlyAdded}
+                        onStartEditing={onStartEditing}
+                        onStopEditing={onStopEditing}
+                        onToggleSelection={onToggleSelection}
+                        variant={variant}
+                      />
+                    ))}
+                  </div>
+                </Folder>
               ))}
             </div>
-          </ScrollableList>
-        )}
+          ) : null}
+          {isLoading ? (
+            <div className="card-content-base">
+              <LoaderCircleIcon className="icon-spin" />
+              {loadingLabel ?? (variant === "shared" ? t("files.loadingSharedFiles") : variant === "trash" ? t("files.loadingDeletedFiles") : t("files.loadingFiles"))}
+            </div>
+          ) : filteredFiles.length === 0 ? (
+            (!folders || folders.length === 0) ? (
+              <div
+                className={cn(
+                  "empty-state-base",
+                  stretch ? "h-full" : "min-h-72"
+                )}
+              >
+                <FileSearchIcon
+                  className="absolute top-1/2 left-1/2 size-[var(--empty-icon-size)] -translate-x-1/2 -translate-y-1/2 icon-muted"
+                  strokeWidth={1.75}
+                />
+                <p className="absolute top-[calc(50%+var(--empty-icon-size)/2+0.75rem)] left-1/2 w-[min(26rem,62cqw)] -translate-x-1/2 text-[clamp(1rem,var(--empty-text-size),1.4rem)] leading-tight font-medium text-muted-foreground">
+                  {files.length === 0
+                    ? (emptyLabel ?? (variant === "shared" ? t("files.emptyShared") : variant === "trash" ? t("files.emptyTrash") : t("files.emptyDefault")))
+                    : (noMatchesLabel ?? (variant === "shared" ? t("files.noMatchesShared") : variant === "trash" ? t("files.noMatchesTrash") : t("files.noMatchesDefault")))}
+                </p>
+              </div>
+            ) : null
+          ) : (
+            <ScrollableList stretch={stretch}>
+              <div className="grid gap-3 pe-0.5">
+                {filteredFiles.map((file) => (
+                  <FileListItem
+                    key={file.id}
+                    file={file}
+                    previewUrls={previewUrls}
+                    selectedFileIds={selectedFileIds}
+                    newlyAddedFileIds={newlyAddedFileIds}
+                    editingFileId={editingFileId}
+                    editingName={editingName}
+                    pendingFileId={pendingFileId}
+                    error={error}
+                    onDelete={onDelete}
+                    onDownload={onDownload}
+                    onClone={onClone}
+                    onEditingNameChange={onEditingNameChange}
+                    onRename={onRename}
+                    onPermanentDelete={onPermanentDelete}
+                    onRestore={onRestore}
+                    onShare={onShare}
+                    onClearNewlyAdded={onClearNewlyAdded}
+                    onStartEditing={onStartEditing}
+                    onStopEditing={onStopEditing}
+                    onToggleSelection={onToggleSelection}
+                    variant={variant}
+                  />
+                ))}
+              </div>
+            </ScrollableList>
+          )}
+        </div>
       </CardContent>
     </Card>
   )

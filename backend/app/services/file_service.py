@@ -159,9 +159,6 @@ class FileService(BaseService):
       return self.repository.list_by_user(user.id)
 
     folders = self.folder_repository.list_by_user(user.id)
-    for folder in folders:
-      folder.files = [f for f in (folder.files or []) if f.deleted_at is None]
-
     orphans = self.repository.list_folder_orphans_by_user(user.id)
 
     return FileByFolderReturn(

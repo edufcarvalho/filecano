@@ -111,7 +111,8 @@ async function authFetch(
       }
     }
     onUnauthorized?.()
-    throw new Error(translate("api.error.tokenExpired"))  }
+    throw new Error(translate("api.error.tokenExpired"))
+  }
 
   return response
 }
@@ -140,7 +141,8 @@ export async function loginUser(credentials: {
     body: JSON.stringify(credentials),
   })
 
-  if (!response.ok) await readError(response, translate("auth.login.fallbackError"))
+  if (!response.ok)
+    await readError(response, translate("auth.login.fallbackError"))
 
   return response.json()
 }
@@ -155,7 +157,8 @@ export async function refreshAccessToken(
     },
   })
 
-  if (!response.ok) await readError(response, translate("api.error.refreshSession"))
+  if (!response.ok)
+    await readError(response, translate("api.error.refreshSession"))
 
   return response.json()
 }
@@ -173,7 +176,8 @@ export async function signupUser(data: {
     body: JSON.stringify(data),
   })
 
-  if (!response.ok) await readError(response, translate("auth.signup.fallbackError"))
+  if (!response.ok)
+    await readError(response, translate("auth.signup.fallbackError"))
 
   return response.json()
 }
@@ -199,6 +203,16 @@ export async function updateUser(
   if (!response.ok) await readError(response, translate("api.error.updateUser"))
 
   return response.json()
+}
+
+export type FolderResponse = {
+  name: string
+  files: FileResponse[]
+}
+
+export type FolderListResponse = {
+  folders: FolderResponse[]
+  other_files: FileResponse[]
 }
 
 type ListFilesFilters = {
@@ -230,9 +244,33 @@ export async function listFiles(
     accessToken
   )
 
-  if (!response.ok) await readError(response, translate("files.error.loadFiles"))
+  if (!response.ok)
+    await readError(response, translate("files.error.loadFiles"))
 
   return response.json()
+}
+
+export async function listFolderedFiles(
+  accessToken: string
+): Promise<FolderListResponse> {
+  const response = await authFetch(
+    `${API_URL}/v1/files?by_folder=true`,
+    accessToken
+  )
+
+  if (!response.ok)
+    await readError(response, translate("files.error.loadFiles"))
+
+  const data = await response.json()
+
+  if (Array.isArray(data)) {
+    return { folders: [], other_files: data }
+  }
+
+  return {
+    folders: data.folders ?? [],
+    other_files: data.other_files ?? [],
+  }
 }
 
 export function listDeletedFiles(accessToken: string): Promise<FileResponse[]> {
@@ -249,7 +287,8 @@ export async function fetchFilePreviewAsDataUrl(
 ): Promise<string> {
   const response = await authFetch(getFilePreviewUrl(fileId), accessToken)
 
-  if (!response.ok) await readError(response, translate("api.error.loadPreview"))
+  if (!response.ok)
+    await readError(response, translate("api.error.loadPreview"))
 
   const blob = await response.blob()
 
@@ -269,7 +308,8 @@ export async function fetchSharedFilePreviewAsDataUrl(
     `${API_URL}/v1/share/${encodeURIComponent(shareToken)}/preview/${fileId}`
   )
 
-  if (!response.ok) await readError(response, translate("api.error.loadPreview"))
+  if (!response.ok)
+    await readError(response, translate("api.error.loadPreview"))
 
   const blob = await response.blob()
 
@@ -300,7 +340,8 @@ export async function updateFile(
     }
   )
 
-  if (!response.ok) await readError(response, translate("files.error.updateFile"))
+  if (!response.ok)
+    await readError(response, translate("files.error.updateFile"))
 
   return response.json()
 }
@@ -318,7 +359,8 @@ export async function deleteFile(
     }
   )
 
-  if (!response.ok) await readError(response, translate("files.error.deleteFile"))
+  if (!response.ok)
+    await readError(response, translate("files.error.deleteFile"))
 }
 
 export async function restoreFile(
@@ -333,7 +375,8 @@ export async function restoreFile(
     }
   )
 
-  if (!response.ok) await readError(response, translate("files.error.restoreFile"))
+  if (!response.ok)
+    await readError(response, translate("files.error.restoreFile"))
 
   return response.json()
 }
@@ -345,7 +388,8 @@ export async function downloadFile(
 ): Promise<void> {
   const response = await authFetch(`${API_URL}/v1/files/${fileId}`, accessToken)
 
-  if (!response.ok) await readError(response, translate("files.error.downloadFile"))
+  if (!response.ok)
+    await readError(response, translate("files.error.downloadFile"))
 
   // Check for checksum mismatch
   const checksumError = response.headers.get("X-Checksum-Error")
@@ -387,7 +431,8 @@ export async function shareFiles(
     body: JSON.stringify(body),
   })
 
-  if (!response.ok) await readError(response, translate("files.error.shareFiles"))
+  if (!response.ok)
+    await readError(response, translate("files.error.shareFiles"))
 
   return response.json()
 }
@@ -463,7 +508,8 @@ export async function restoreLink(
     }
   )
 
-  if (!response.ok) await readError(response, translate("api.error.restoreLink"))
+  if (!response.ok)
+    await readError(response, translate("api.error.restoreLink"))
 
   return response.json()
 }
@@ -479,7 +525,8 @@ export function getShareUrl(token: string, customName: string | null): string {
 export async function getSharedFiles(token: string): Promise<LinkResponse> {
   const response = await fetch(`${API_URL}/v1/share/${token}`)
 
-  if (!response.ok) await readError(response, translate("files.error.loadSharedFiles"))
+  if (!response.ok)
+    await readError(response, translate("files.error.loadSharedFiles"))
 
   return response.json()
 }
@@ -491,7 +538,8 @@ export async function downloadSharedFile(
 ): Promise<void> {
   const response = await fetch(`${API_URL}/v1/share/${token}/${fileId}`)
 
-  if (!response.ok) await readError(response, translate("files.error.downloadFile"))
+  if (!response.ok)
+    await readError(response, translate("files.error.downloadFile"))
 
   const blob = await response.blob()
   const url = window.URL.createObjectURL(blob)
@@ -514,7 +562,8 @@ export async function cloneSharedFiles(
     { method: "POST" }
   )
 
-  if (!response.ok) throw await readError(response, translate("files.error.cloneFiles"))
+  if (!response.ok)
+    throw await readError(response, translate("files.error.cloneFiles"))
 
   return response.json()
 }

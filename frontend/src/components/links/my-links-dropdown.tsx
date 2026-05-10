@@ -92,10 +92,12 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
     }
   }, [accessToken, userId, setLinks, t])
 
-  useEffect(() => {
-    /* Data fetching in effect is correct for syncing external API state */
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadLinks()
+  const didFetchLinksRef = useRef(false)
+  const handleOpenChange = useCallback((open: boolean) => {
+    if (open && !didFetchLinksRef.current) {
+      didFetchLinksRef.current = true
+      loadLinks()
+    }
   }, [loadLinks])
 
   const scrollLinkToEnd = useCallback((element: HTMLSpanElement) => {
@@ -296,7 +298,7 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
 
   return (
     <>
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
