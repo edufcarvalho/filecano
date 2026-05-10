@@ -530,6 +530,19 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     setSelectedFileIds(new Set())
   }
 
+  function toggleFolderSelection(fileIds: string[]) {
+    setSelectedFileIds((currentSelection) => {
+      const allSelected = fileIds.every((id) => currentSelection.has(id))
+      const nextSelection = new Set(currentSelection)
+      if (allSelected) {
+        fileIds.forEach((id) => nextSelection.delete(id))
+      } else {
+        fileIds.forEach((id) => nextSelection.add(id))
+      }
+      return nextSelection
+    })
+  }
+
   async function handleBulkDelete() {
     if (selectedFileIds.size === 0) return
 
@@ -713,6 +726,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
           onStartEditing={startEditing}
           onStopEditing={stopEditing}
           onToggleSelection={toggleFileSelection}
+          onToggleFolderSelection={toggleFolderSelection}
         />
       )}
       <UploadActivityPanel

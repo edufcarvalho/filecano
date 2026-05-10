@@ -171,12 +171,38 @@
     @apply relative px-4 text-center;
   }
 
+  .file-list-grid {
+    @apply grid items-start gap-3 pe-0.5;
+    grid-template-columns: repeat(auto-fit, minmax(min(10.5rem, 100%), 1fr));
+  }
+
+  .file-list-grid > .file-item-base {
+    inline-size: 100%;
+  }
+
+  @media (min-width: 32rem) {
+    .file-list-grid {
+      grid-template-columns: repeat(auto-fill, minmax(min(13rem, 100%), 1fr));
+    }
+
+    .file-list-grid > .file-item-base {
+      inline-size: 100%;
+    }
+  }
+
   .file-item-base {
-    @apply grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border p-3 sm:p-4;
+    @apply relative flex flex-col min-w-0 overflow-hidden rounded-lg border p-3 transition-colors;
+    aspect-ratio: 1 / 1;
+    container-type: inline-size;
+  }
+
+  .file-card-preview-container {
+    @apply grid min-w-0 min-h-0 flex-1;
+    grid-template-rows: minmax(0, 1fr) auto;
   }
 
   .file-item-selected {
-    @apply bg-muted/50;
+    @apply border-primary/40 bg-primary/10;
   }
 
   .file-item-new {
@@ -188,27 +214,49 @@
   }
 
   .file-icon-container {
-    @apply flex size-10 shrink-0 items-center justify-center overflow-hidden rounded;
+    @apply flex shrink-0 items-center justify-center overflow-hidden rounded-md;
+    block-size: clamp(4.5rem, 58cqi, 10.5rem);
+    inline-size: 100%;
+  }
+
+  .file-card-main {
+    @apply flex min-h-0 w-full items-center justify-center;
+  }
+
+  .file-card-name-area {
+    @apply flex min-h-7 w-full min-w-0 items-start;
+  }
+
+  .file-card-name-row {
+    @apply flex h-7 w-full min-w-0 items-center gap-1.5;
   }
 
   .file-name-text {
-    @apply max-w-fit min-w-0 overflow-x-auto overscroll-x-contain text-base font-medium whitespace-nowrap [scrollbar-width:thin];
+    @apply block flex-1 truncate text-sm leading-5 font-medium;
   }
 
-  .file-meta-text {
-    @apply mt-1 hidden flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground sm:flex;
+  .file-card-edit-button {
+    @apply shrink-0 text-muted-foreground hover:text-foreground;
+  }
+
+  .file-card-bottom {
+    @apply flex h-7 min-w-0 items-center justify-between gap-2;
   }
 
   .file-actions-base {
-    @apply flex shrink-0 justify-end gap-1 sm:justify-end;
+    @apply flex min-w-0 shrink-0 items-center justify-end gap-1;
   }
 
   .file-actions-desktop {
     @apply hidden shrink-0 justify-end gap-1 sm:flex;
   }
 
-  .checkbox-base {
-    @apply size-4 shrink-0;
+  .file-selection-toggle {
+    @apply size-4 shrink-0 rounded-sm p-0 text-muted-foreground [&_svg:not([class*='size-'])]:size-4;
+  }
+
+  .file-selection-toggle-active {
+    @apply border-primary/50 bg-primary/10 text-primary hover:bg-primary/15;
   }
 
   .link-text-base {
@@ -280,7 +328,14 @@
   }
 
   .tooltip-content-rich {
-    @apply max-w-64 dark:border dark:border-border dark:bg-popover dark:text-popover-foreground dark:shadow-lg dark:[&_[data-slot=tooltip-arrow]]:bg-popover dark:[&_[data-slot=tooltip-arrow]]:fill-popover;
+    @apply max-w-64 border border-border shadow-lg;
+    background-color: var(--popover) !important;
+    color: var(--popover-foreground) !important;
+  }
+
+  .tooltip-content-rich [data-slot="tooltip-arrow"] {
+    background-color: var(--popover) !important;
+    fill: var(--popover) !important;
   }
 
   .scrollable-list-container {
@@ -398,6 +453,10 @@
 
   .icon-muted {
     @apply text-muted-foreground;
+  }
+
+  .file-type-icon-muted {
+    color: color-mix(in oklab, var(--muted-foreground) 82%, var(--foreground));
   }
 
   .text-destructive-base {
