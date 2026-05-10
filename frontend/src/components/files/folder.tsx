@@ -57,9 +57,9 @@ export function Folder({
           )}
         >
           {allSelected ? (
-            <CheckIcon strokeWidth={3} />
+            <CheckIcon strokeWidth={7} />
           ) : someSelected ? (
-            <MinusIcon strokeWidth={3.5} />
+            <MinusIcon strokeWidth={7} />
           ) : null}
         </Button>
         <button

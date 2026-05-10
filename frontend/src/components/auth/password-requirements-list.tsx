@@ -31,9 +31,9 @@ export function PasswordRequirementsList({
               )}
             >
               {isMet ? (
-                <CheckIcon className="size-3.5" />
+                <CheckIcon strokeWidth={3.5} />
               ) : (
-                <XIcon className="size-3.5" />
+                <XIcon strokeWidth={3.5} />
               )}
               {t(requirement.key)}
             </div>
