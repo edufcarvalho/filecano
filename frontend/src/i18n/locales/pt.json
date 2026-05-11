@@ -122,6 +122,7 @@
     "emptyDefault": "Os arquivos enviados aparecerão aqui",
     "emptyShared": "Nenhum arquivo compartilhado disponível",
     "emptyTrash": "A lixeira está vazia",
+    "emptyFolder": "Esta pasta está vazia",
     "noMatchesDefault": "Nenhum arquivo corresponde à pesquisa",
     "noMatchesShared": "Nenhum arquivo compartilhado corresponde à pesquisa",
     "noMatchesTrash": "Nenhum arquivo excluído corresponde à pesquisa",

@@ -8,6 +8,7 @@ import {
 } from "lucide-react"
 import type { ReactNode } from "react"
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 
 import { Button } from "@ui/button"
 import { cn } from "@/lib/utils"
@@ -29,6 +30,7 @@ export function Folder({
   selectedFileIds,
   onToggleFolderSelection,
 }: FolderProps) {
+  const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
 
   const allSelected =
@@ -85,7 +87,13 @@ export function Folder({
       </div>
       {isOpen ? (
         <div className="border-t px-3 pb-3 pt-2">
-          {children}
+          {fileCount > 0 ? (
+            children
+          ) : (
+            <p className="text-center text-sm text-muted-foreground py-4">
+              {t("files.emptyFolder")}
+            </p>
+          )}
         </div>
       ) : null}
     </div>

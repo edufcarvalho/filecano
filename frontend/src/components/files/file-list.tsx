@@ -447,25 +447,23 @@ export function FileList({
               <LoaderCircleIcon className="icon-spin" />
               {loadingLabel ?? (variant === "shared" ? t("files.loadingSharedFiles") : variant === "trash" ? t("files.loadingDeletedFiles") : t("files.loadingFiles"))}
             </div>
-          ) : filteredFiles.length === 0 ? (
-            (!folders || folders.length === 0) ? (
-              <div
-                className={cn(
-                  "empty-state-base",
-                  stretch ? "h-full" : "min-h-72"
-                )}
-              >
-                <FileSearchIcon
-                  className="absolute top-1/2 left-1/2 size-[var(--empty-icon-size)] -translate-x-1/2 -translate-y-1/2 icon-muted"
-                  strokeWidth={1.75}
-                />
-                <p className="absolute top-[calc(50%+var(--empty-icon-size)/2+0.75rem)] left-1/2 w-[min(26rem,62cqw)] -translate-x-1/2 text-[clamp(1rem,var(--empty-text-size),1.4rem)] leading-tight font-medium text-muted-foreground">
-                  {files.length === 0
-                    ? (emptyLabel ?? (variant === "shared" ? t("files.emptyShared") : variant === "trash" ? t("files.emptyTrash") : t("files.emptyDefault")))
-                    : (noMatchesLabel ?? (variant === "shared" ? t("files.noMatchesShared") : variant === "trash" ? t("files.noMatchesTrash") : t("files.noMatchesDefault")))}
-                </p>
-              </div>
-            ) : null
+          ) : filteredFiles.length === 0 && (!folders || folders.length === 0) ? (
+            <div
+              className={cn(
+                "empty-state-base",
+                stretch ? "h-full" : "min-h-72"
+              )}
+            >
+              <FileSearchIcon
+                className="size-[var(--empty-icon-size)] icon-muted"
+                strokeWidth={1.75}
+              />
+              <p className="text-[clamp(1rem,var(--empty-text-size),1.4rem)] leading-tight font-medium text-muted-foreground">
+                {files.length === 0
+                  ? (emptyLabel ?? (variant === "shared" ? t("files.emptyShared") : variant === "trash" ? t("files.emptyTrash") : t("files.emptyDefault")))
+                  : (noMatchesLabel ?? (variant === "shared" ? t("files.noMatchesShared") : variant === "trash" ? t("files.noMatchesTrash") : t("files.noMatchesDefault")))}
+              </p>
+            </div>
           ) : (
             <ScrollableList stretch={stretch}>
               {folders && folders.length > 0 ? (
@@ -513,6 +511,19 @@ export function FileList({
                   ))}
                 </div>
               ) : null}
+              {folders && folders.length > 0 && filteredFiles.length === 0 && (
+                <div className="flex-1 flex items-center justify-center min-h-0">
+                  <div className="empty-state-base">
+                    <FileSearchIcon
+                      className="size-[var(--empty-icon-size)] icon-muted"
+                      strokeWidth={1.75}
+                    />
+                    <p className="text-[clamp(1rem,var(--empty-text-size),1.4rem)] leading-tight font-medium text-muted-foreground">
+                      {emptyLabel ?? (variant === "shared" ? t("files.emptyShared") : variant === "trash" ? t("files.emptyTrash") : t("files.emptyDefault"))}
+                    </p>
+                  </div>
+                </div>
+              )}
               {filteredFiles.length > 0 ? (
                 <div className="file-list-grid">
                   {filteredFiles.map((file) => (
@@ -560,7 +571,7 @@ function ScrollableList({
 }) {
   if (!stretch) return <>{children}</>
 
-  return <div className="scrollable-list-container">{children}</div>
+  return <div className="scrollable-list-container flex flex-col">{children}</div>
 }
 
 function FileInfoDetails({

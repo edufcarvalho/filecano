@@ -123,6 +123,7 @@
     "emptyDefault": "Uploaded files will appear here",
     "emptyShared": "No shared files are available",
     "emptyTrash": "Trash is empty",
+    "emptyFolder": "This folder is empty",
     "noMatchesDefault": "No files match your search",
     "noMatchesShared": "No shared files match your search",
     "noMatchesTrash": "No deleted files match your search",
