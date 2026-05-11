@@ -32,7 +32,10 @@ class Folder(SQLModel, table=True):
   user: User = Relationship(back_populates="folders")
   files: Optional[list[File]] = Relationship(
     back_populates="folder",
-    sa_relationship_kwargs={"lazy": "selectin"},
+    sa_relationship_kwargs= {
+      "lazy": "selectin",
+      "primaryjoin": "and_(Folder.id == File.folder_id, File.deleted_at == None)",
+    }
   )
   parent: Optional[Folder] = Relationship(
     back_populates="children", sa_relationship_kwargs={"remote_side": "Folder.id"}

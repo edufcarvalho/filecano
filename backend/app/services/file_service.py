@@ -253,16 +253,19 @@ class FileService(BaseService):
     raise UnsupportedFileTypeError("File type not supported")
 
   def _get_unique_filename(self, user_id: UUID, original_name: str) -> str:
-    count = self.repository.file_name_stored_by_user_count(original_name, user_id)
-    original_name = self._remove_file_extension(original_name)
+    original_name = self._remove_file_extensions(original_name)
+    count = self.repository.filename_stored_by_user_count(original_name, user_id)
 
     if count > 0:
       return f"{original_name} ({count})"
 
     return original_name
 
-  def _remove_file_extension(self, filename: str) -> str:
-    return Path(filename).stem
+  def _remove_file_extensions(self, filename: str) -> str:
+    if (dot_place := filename.find(".")) != -1:
+      return filename[:dot_place]
+
+    return filename
 
   def _restore_file_if_deleted(self, checksum: str, display_name: str, user: User):
     file = self.repository.get_deleted_file_by_checksum_and_user(

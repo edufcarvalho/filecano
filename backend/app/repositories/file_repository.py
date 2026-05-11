@@ -94,13 +94,13 @@ class FileRepository:
 
     return self.session.exec(query).all()
 
-  def file_name_stored_by_user_count(self, original_name: str, user_id: UUID) -> int:
+  def filename_stored_by_user_count(self, original_name: str, user_id: UUID) -> int:
     query = (
       select(func.count())
       .select_from(File)
       .where(
         File.user_id == user_id,
-        File.original_name == original_name,
+        File.display_name == original_name,
         File.deleted_at.is_(None),
       )
     )
