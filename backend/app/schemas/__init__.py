@@ -10,11 +10,8 @@ from app.schemas.params.user_params import (
   UserParams,
   UserUpdateParams,
 )
-from app.schemas.responses.file_responses import (
-  FileByFolderReturn,
-  FileResponse,
-  FolderResponse,
-)
+from app.schemas.responses.file_responses import FileResponse
+from app.schemas.responses.folder_responses import FolderWithFilesResponse, FolderResponse
 from app.schemas.responses.link_responses import (
   LinkResponse,
   LinkRestoreResponse,
@@ -27,7 +24,7 @@ from app.schemas.responses.user_responses import (
 )
 
 __all__ = [
-  "FileByFolderReturn",
+  "FolderWithFilesResponse",
   "FileListParams",
   "FileResponse",
   "FileUpdateParams",

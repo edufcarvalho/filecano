@@ -8,7 +8,7 @@ from app.api.dependencies import get_current_user, get_file_service
 from app.core import NotFoundError
 from app.models import User
 from app.schemas import (
-  FileByFolderReturn,
+  FolderWithFilesResponse,
   FileListParams,
   FileResponse,
   FileUpdateParams,
@@ -27,12 +27,12 @@ def upload_file(
   return service.create_file(current_user, file)
 
 
-@router.get("", response_model=Union[list[FileResponse], FileByFolderReturn])
+@router.get("", response_model=Union[list[FileResponse], FolderWithFilesResponse])
 def list_files(
   params: FileListParams = Depends(FileListParams),
   current_user: User = Depends(get_current_user),
   service: Service = Depends(get_file_service),
-) -> Union[list[FileResponse], FileByFolderReturn]:
+) -> Union[list[FileResponse], FolderWithFilesResponse]:
   return service.list_files(current_user, params)
 
 

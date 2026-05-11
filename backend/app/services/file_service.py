@@ -8,7 +8,6 @@ import PIL.Image
 from fastapi import UploadFile
 from PIL import UnidentifiedImageError
 from sqlalchemy.exc import SQLAlchemyError
-from sqlmodel import Session
 from urllib3.response import BaseHTTPResponse
 from uuid6 import uuid7
 
@@ -23,7 +22,7 @@ from app.core import (
 from app.models import File, User
 from app.repositories import FileRepository, FolderRepository
 from app.schemas import (
-  FileByFolderReturn,
+  FolderWithFilesResponse,
   FileListParams,
   FileUpdateParams,
 )
@@ -43,13 +42,11 @@ class FileService(BaseService):
     file_repository: FileRepository,
     folder_repository: FolderRepository,
     storage_service: FileStorageService,
-    session: Session,
     settings: Settings,
   ):
     self.repository = file_repository
     self.folder_repository = folder_repository
     self.storage = storage_service
-    self.session = session
     self.settings = settings
 
   def create_file(
@@ -150,7 +147,7 @@ class FileService(BaseService):
 
   def list_files(
     self, user: User, params: FileListParams
-  ) -> list[File] | FileByFolderReturn:
+  ) -> list[File] | FolderWithFilesResponse:
     if params.deleted:
       return self.repository.list_deleted_by_user(user.id)
 
@@ -160,7 +157,7 @@ class FileService(BaseService):
     folders = self.folder_repository.list_by_user(user.id)
     orphans = self.repository.list_folder_orphans_by_user(user.id)
 
-    return FileByFolderReturn(
+    return FolderWithFilesResponse(
       folders=folders,
       other_files=orphans,
     )

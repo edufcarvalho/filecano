@@ -6,6 +6,7 @@ from app.api.dependencies.services import (
   get_file_service,
   get_file_storage_service,
   get_folder_repository,
+  get_folder_service,
   get_link_repository,
   get_link_service,
   get_user_repository,
@@ -23,5 +24,6 @@ __all__ = [
   "get_link_service",
   "get_user_repository",
   "get_user_service",
+  "get_folder_service",
   "register_exception_handlers",
 ]
