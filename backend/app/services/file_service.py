@@ -1,7 +1,6 @@
 import hashlib
 from contextlib import suppress
 from io import BytesIO
-from pathlib import Path
 from typing import BinaryIO, Optional
 from uuid import UUID
 
