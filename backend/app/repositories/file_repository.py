@@ -21,6 +21,15 @@ class FileRepository:
 
     return files
 
+  def commit(self) -> None:
+    self.session.commit()
+
+  def refresh(self, file: File) -> None:
+    self.session.refresh(file)
+
+  def rollback(self) -> None:
+    self.session.rollback()
+
   def get_by_id(self, file_id: UUID) -> Optional[File]:
     return self.session.get(File, file_id)
 

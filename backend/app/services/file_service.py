@@ -105,10 +105,10 @@ class FileService(BaseService):
     self.repository.add(file)
 
     try:
-      self.session.commit()
-      self.session.refresh(file)
+      self.repository.commit()
+      self.repository.refresh(file)
     except SQLAlchemyError:
-      self.session.rollback()
+      self.repository.rollback()
       with suppress(StorageError):
         self.storage.delete_all_versions(file.object_key)
         if file.preview_object_key:
@@ -121,10 +121,10 @@ class FileService(BaseService):
     clones = [self._duplicate_file(f, user.id) for f in files]
 
     self.repository.add_all(clones)
-    self.session.commit()
+    self.repository.commit()
 
     for clone in clones:
-      self.session.refresh(clone)
+      self.repository.refresh(clone)
 
     return clones
 
@@ -172,8 +172,8 @@ class FileService(BaseService):
     file.display_name = self._get_unique_filename(user.id, params.original_name)
 
     self.repository.add(file)
-    self.session.commit()
-    self.session.refresh(file)
+    self.repository.commit()
+    self.repository.refresh(file)
 
     return file
 
@@ -192,8 +192,8 @@ class FileService(BaseService):
     file.deleted_at = current_datetime()
 
     self.repository.add(file)
-    self.session.commit()
-    self.session.refresh(file)
+    self.repository.commit()
+    self.repository.refresh(file)
 
     return file
 
@@ -214,7 +214,7 @@ class FileService(BaseService):
     if file.preview_object_key:
       self.storage.delete_all_versions(file.preview_object_key)
     self.repository.delete(file)
-    self.session.commit()
+    self.repository.commit()
 
   def _get_user_file(self, user: User, file_id: UUID) -> File:
     file = self.repository.get_by_id(file_id)
