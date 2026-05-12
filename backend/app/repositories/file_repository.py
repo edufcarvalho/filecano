@@ -1,7 +1,7 @@
 from typing import Optional
 from uuid import UUID
 
-from sqlmodel import Session, func, select, update
+from sqlmodel import Session, func, select, update, or_
 
 from app.models import File
 from app.models.file_link_relation import FileLinkRelation
@@ -105,13 +105,17 @@ class FileRepository:
     return self.session.exec(query).all()
 
   def filename_stored_by_user_count(self, original_name: str, user_id: UUID) -> int:
+    pattern = rf'^{original_name} \([0-9]+\)$'
+
     query = (
       select(func.count())
-      .select_from(File)
       .where(
-        File.user_id == user_id,
-        File.display_name == original_name,
         File.deleted_at.is_(None),
+        File.user_id == user_id,
+        or_(
+          File.original_name == original_name,
+          File.display_name.op("~")(pattern),
+        ),
       )
     )
 
