@@ -6,10 +6,13 @@ from sqlmodel import DateTime, Field, Relationship, SQLModel, UniqueConstraint
 from uuid6 import uuid7
 
 from app.utils.time import current_datetime
+from app.models.folder_link_relation import FolderLinkRelation
+
 
 if TYPE_CHECKING:
   from app.models.file import File
   from app.models.user import User
+  from backend.app.models.link import Link
 
 
 class Folder(SQLModel, table=True):
@@ -41,3 +44,6 @@ class Folder(SQLModel, table=True):
     back_populates="children", sa_relationship_kwargs={"remote_side": "Folder.id"}
   )
   children: Optional[list[Folder]] = Relationship(back_populates="parent")
+  links: list["Link"] = Relationship(
+    back_populates="folders", link_model=FolderLinkRelation
+  )

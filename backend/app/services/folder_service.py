@@ -23,7 +23,7 @@ class FolderService(BaseService):
     return self.repository.list_by_user(user.id)
 
   def create_folder(self, user: User, name: str) -> Folder:
-    folder = Folder(user_id=user.id, name=name)
+    folder = Folder(user=user, name=name)
 
     return self.repository.add(folder)
 

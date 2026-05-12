@@ -1,7 +1,8 @@
 from typing import Optional
 from uuid import UUID
 
-from sqlmodel import Session, func, select, update, or_
+from sqlalchemy.orm import selectinload
+from sqlmodel import Session, func, or_, select, update
 
 from app.models import File
 from app.models.file_link_relation import FileLinkRelation
@@ -83,6 +84,24 @@ class FileRepository:
 
     if file_ids is not None:
       query = query.where(File.id.in_(file_ids))
+
+    return self.session.exec(query).all()
+
+  def list_by_link_with_folder(
+    self,
+    link_id: UUID,
+    include_deleted: bool = False,
+  ) -> list[File]:
+    query = (
+      select(File)
+      .options(selectinload(File.folder))
+      .join(FileLinkRelation, FileLinkRelation.file_id == File.id)
+      .where(FileLinkRelation.link_id == link_id)
+      .order_by(File.id)
+    )
+
+    if not include_deleted:
+      query = query.where(File.deleted_at.is_(None))
 
     return self.session.exec(query).all()
 
