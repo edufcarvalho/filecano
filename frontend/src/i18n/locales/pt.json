@@ -187,9 +187,18 @@
       "shareFiles": "Não foi possível compartilhar os arquivos",
       "cloneFiles": "Não foi possível clonar os arquivos",
       "fileDeletedByOwner": "Este arquivo foi excluído pelo proprietário",
-      "someDownloadFailed": "Alguns arquivos falharam no download"
+      "someDownloadFailed": "Alguns arquivos falharam no download",
+      "createFolder": "Não foi possível criar a pasta",
+      "moveFile": "Não foi possível mover o arquivo"
     },
-    "cloneSuccess": "Clonado(s) com sucesso"
+    "cloneSuccess": "Clonado(s) com sucesso",
+    "createFolder": "Criar pasta",
+    "createFolderTitle": "Criar nova pasta",
+    "createFolderName": "Nome da pasta",
+    "createFolderNamePlaceholder": "Digite o nome da pasta",
+    "createFolderSelectFiles": "Adicionar arquivos sem pasta",
+    "createFolderNoOrphans": "Nenhum arquivo sem pasta disponível",
+    "createFolderSubmit": "Criar pasta"
   },
   "links": {
     "myLinks": "Meus Links",

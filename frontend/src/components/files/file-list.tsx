@@ -12,6 +12,7 @@ import {
   FileSearchIcon,
   FileTextIcon,
   FileVideoIcon,
+  FolderPlusIcon,
   InfoIcon,
   LoaderCircleIcon,
   MinusIcon,
@@ -24,7 +25,7 @@ import {
   XIcon,
 } from "lucide-react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import type { ReactNode } from "react"
+import type { DragEvent, ReactNode } from "react"
 
 import { Button } from "@ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@ui/card"
@@ -38,6 +39,14 @@ import {
 import { Field, FieldGroup, FieldLabel } from "@ui/field"
 import { Input } from "@ui/input"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@ui/tooltip"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui/dialog"
 import { cn } from "@/lib/utils"
 import { useTranslation } from "@/i18n"
 
@@ -99,6 +108,10 @@ type FileListProps = {
   onStopEditing?: () => void
   onToggleSelection?: (fileId: string) => void
   onToggleFolderSelection?: (fileIds: string[]) => void
+  onCreateFolder?: (name: string, fileIds: string[]) => void
+  onMoveFile?: (fileId: string, folderId: string | null) => void
+  onReorderFiles?: (fileId: string, targetIndex: number) => void
+  movingFileIds?: Set<string>
   stretch?: boolean
   folders?: FolderResponse[]
 }
@@ -125,6 +138,7 @@ type FileListItemProps = Pick<
   file: FileResponse
   isNewlyAdded: boolean
   isSelected: boolean
+  isMoving?: boolean
   previewUrl?: string
   variant: "default" | "shared" | "trash"
 }
@@ -206,6 +220,10 @@ export function FileList({
   onStopEditing,
   onToggleSelection,
   onToggleFolderSelection,
+  onCreateFolder,
+  onMoveFile,
+  onReorderFiles,
+  movingFileIds,
   stretch = true,
   folders,
 }: FileListProps) {
@@ -233,6 +251,91 @@ export function FileList({
   const safeToggleFolderSelection = useCallback(
     (fileIds: string[]) => onToggleFolderSelection?.(fileIds),
     [onToggleFolderSelection]
+  )
+
+  const [showCreateFolder, setShowCreateFolder] = useState(false)
+  const [newFolderName, setNewFolderName] = useState("")
+  const [selectedOrphanIds, setSelectedOrphanIds] = useState<Set<string>>(
+    new Set()
+  )
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+
+  const handleCreateFolderOpen = useCallback(() => {
+    setNewFolderName("")
+    setSelectedOrphanIds(new Set())
+    setShowCreateFolder(true)
+  }, [])
+
+  const handleCreateFolderSubmit = useCallback(() => {
+    if (!newFolderName.trim() || !onCreateFolder) return
+    onCreateFolder(newFolderName.trim(), Array.from(selectedOrphanIds))
+    setShowCreateFolder(false)
+    setNewFolderName("")
+    setSelectedOrphanIds(new Set())
+  }, [newFolderName, selectedOrphanIds, onCreateFolder])
+
+  const toggleOrphanSelection = useCallback((fileId: string) => {
+    setSelectedOrphanIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(fileId)) {
+        next.delete(fileId)
+      } else {
+        next.add(fileId)
+      }
+      return next
+    })
+  }, [])
+
+  const handleReorderDragOver = useCallback(
+    (event: DragEvent, index: number) => {
+      event.preventDefault()
+      event.dataTransfer.dropEffect = "move"
+      setDragOverIndex(index)
+    },
+    []
+  )
+
+  const handleReorderDragLeave = useCallback(() => {
+    setDragOverIndex(null)
+  }, [])
+
+  const handleReorderDrop = useCallback(
+    (event: DragEvent, index: number) => {
+      event.preventDefault()
+      event.stopPropagation()
+      setDragOverIndex(null)
+      const fileId = event.dataTransfer.getData("text/plain")
+      if (!fileId) return
+
+      const isOrphan = files.some((f) => f.id === fileId)
+      if (isOrphan && onReorderFiles) {
+        onReorderFiles(fileId, index)
+      } else if (onMoveFile) {
+        onMoveFile(fileId, null)
+      }
+    },
+    [files, onReorderFiles, onMoveFile]
+  )
+
+  const handleOrphanZoneDragOver = useCallback((event: DragEvent) => {
+    event.preventDefault()
+    event.dataTransfer.dropEffect = "move"
+  }, [])
+
+  const handleOrphanZoneDrop = useCallback(
+    (event: DragEvent) => {
+      event.preventDefault()
+      const fileId = event.dataTransfer.getData("text/plain")
+      if (fileId && onMoveFile) {
+        onMoveFile(fileId, null)
+      }
+    },
+    [onMoveFile]
+  )
+
+  const safeMoveFile = useCallback(
+    (fileId: string, folderId: string | null) => onMoveFile?.(fileId, folderId),
+    [onMoveFile]
   )
 
   function handleSelectionToggle() {
@@ -394,6 +497,18 @@ export function FileList({
             </CardTitle>
           </div>
           <div className="bulk-actions-desktop">{bulkActions}</div>
+          {variant === "default" && onCreateFolder ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleCreateFolderOpen}
+              disabled={pendingFileId !== null}
+            >
+              <FolderPlusIcon data-icon="inline-start" />
+              {t("files.createFolder")}
+            </Button>
+          ) : null}
           {variant !== "shared" ? (
             <LoadingButton
               type="button"
@@ -514,12 +629,15 @@ export function FileList({
                 >
                   {folders.map((folder) => (
                     <Folder
-                      key={folder.name}
+                      key={folder.id}
                       name={folder.name}
                       fileCount={folder.files.length}
                       folderFileIds={folder.files.map((f) => f.id)}
+                      folderId={folder.id}
                       selectedFileIds={selectedFileIds}
+                      movingFileIds={movingFileIds}
                       onToggleFolderSelection={safeToggleFolderSelection}
+                      onFileDrop={variant === "default" ? safeMoveFile : undefined}
                     >
                       <div className="file-list-grid">
                         {folder.files.map((file) => (
@@ -529,6 +647,7 @@ export function FileList({
                             previewUrl={previewUrls[file.id]}
                             isSelected={selectedFileIds.has(file.id)}
                             isNewlyAdded={newlyAddedFileIds.has(file.id)}
+                            isMoving={movingFileIds?.has(file.id)}
                             editingFileId={editingFileId}
                             editingName={editingName}
                             pendingFileId={pendingFileId}
@@ -572,32 +691,65 @@ export function FileList({
                 </div>
               )}
               {filteredFiles.length > 0 ? (
-                <div className="file-list-grid">
-                  {filteredFiles.map((file) => (
-                    <FileListItem
+                <div
+                  className="file-list-grid"
+                  onDragOver={
+                    variant === "default"
+                      ? handleOrphanZoneDragOver
+                      : undefined
+                  }
+                  onDrop={
+                    variant === "default" ? handleOrphanZoneDrop : undefined
+                  }
+                >
+                  {filteredFiles.map((file, index) => (
+                    <ReorderDropZone
                       key={file.id}
-                      file={file}
-                      previewUrl={previewUrls[file.id]}
-                      isSelected={selectedFileIds.has(file.id)}
-                      isNewlyAdded={newlyAddedFileIds.has(file.id)}
-                      editingFileId={editingFileId}
-                      editingName={editingName}
-                      pendingFileId={pendingFileId}
-                      error={error}
-                      onDelete={onDelete}
-                      onDownload={onDownload}
-                      onClone={onClone}
-                      onEditingNameChange={onEditingNameChange}
-                      onRename={onRename}
-                      onPermanentDelete={onPermanentDelete}
-                      onRestore={onRestore}
-                      onShare={onShare}
-                      onClearNewlyAdded={onClearNewlyAdded}
-                      onStartEditing={onStartEditing}
-                      onStopEditing={onStopEditing}
-                      onToggleSelection={onToggleSelection}
-                      variant={variant}
-                    />
+                      index={index}
+                      isDragOver={
+                        variant === "default" && dragOverIndex === index
+                      }
+                      onDragOver={
+                        variant === "default"
+                          ? handleReorderDragOver
+                          : undefined
+                      }
+                      onDragLeave={
+                        variant === "default"
+                          ? handleReorderDragLeave
+                          : undefined
+                      }
+                      onDrop={
+                        variant === "default"
+                          ? handleReorderDrop
+                          : undefined
+                      }
+                    >
+                      <FileListItem
+                        file={file}
+                        previewUrl={previewUrls[file.id]}
+                        isSelected={selectedFileIds.has(file.id)}
+                        isNewlyAdded={newlyAddedFileIds.has(file.id)}
+                        isMoving={movingFileIds?.has(file.id)}
+                        editingFileId={editingFileId}
+                        editingName={editingName}
+                        pendingFileId={pendingFileId}
+                        error={error}
+                        onDelete={onDelete}
+                        onDownload={onDownload}
+                        onClone={onClone}
+                        onEditingNameChange={onEditingNameChange}
+                        onRename={onRename}
+                        onPermanentDelete={onPermanentDelete}
+                        onRestore={onRestore}
+                        onShare={onShare}
+                        onClearNewlyAdded={onClearNewlyAdded}
+                        onStartEditing={onStartEditing}
+                        onStopEditing={onStopEditing}
+                        onToggleSelection={onToggleSelection}
+                        variant={variant}
+                      />
+                    </ReorderDropZone>
                   ))}
                 </div>
               ) : null}
@@ -605,6 +757,17 @@ export function FileList({
           )}
         </div>
       </CardContent>
+      <CreateFolderDialog
+        open={showCreateFolder}
+        onOpenChange={setShowCreateFolder}
+        folderName={newFolderName}
+        onFolderNameChange={setNewFolderName}
+        orphanedFiles={files}
+        selectedOrphanIds={selectedOrphanIds}
+        onToggleOrphan={toggleOrphanSelection}
+        onSubmit={handleCreateFolderSubmit}
+        isPending={false}
+      />
     </Card>
   )
 }
@@ -764,6 +927,7 @@ const FileListItem = memo(function FileListItem({
   previewUrl,
   isSelected,
   isNewlyAdded,
+  isMoving,
   editingFileId,
   editingName,
   pendingFileId,
@@ -804,6 +968,16 @@ const FileListItem = memo(function FileListItem({
     [file.id, isSelectable, onClearNewlyAdded, onToggleSelection]
   )
 
+  const handleDragStart = useCallback(
+    (event: DragEvent) => {
+      event.dataTransfer.setData("text/plain", file.id)
+      event.dataTransfer.effectAllowed = "move"
+    },
+    [file.id]
+  )
+
+  const isDraggable = variant === "default" && !isEditing && !isDeleted
+
   const handleEditingNameChange = useCallback(
     (event: { target: { value: string } }) => {
       onEditingNameChange?.(event.target.value)
@@ -817,7 +991,9 @@ const FileListItem = memo(function FileListItem({
       isSelected={isSelected}
       isNewlyAdded={isNewlyAdded}
       isDeleted={showDeletedState}
-      className={cn(isSelectable && "cursor-pointer")}
+      draggable={isDraggable && !isMoving}
+      onDragStart={isDraggable && !isMoving ? handleDragStart : undefined}
+      className={cn(isSelectable && "cursor-pointer", isMoving && "opacity-50")}
     >
       <div className="file-card-name-area">
         {isEditing ? (
@@ -1062,3 +1238,149 @@ const FileListItem = memo(function FileListItem({
     </FileItem>
   )
 })
+
+type ReorderDropZoneProps = {
+  children: ReactNode
+  index: number
+  isDragOver: boolean
+  onDragOver?: (event: DragEvent, index: number) => void
+  onDragLeave?: () => void
+  onDrop?: (event: DragEvent, index: number) => void
+}
+
+function ReorderDropZone({
+  children,
+  index,
+  isDragOver,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+}: ReorderDropZoneProps) {
+  const handleDragOver = useCallback(
+    (event: DragEvent) => onDragOver?.(event, index),
+    [onDragOver, index]
+  )
+
+  const handleDrop = useCallback(
+    (event: DragEvent) => onDrop?.(event, index),
+    [onDrop, index]
+  )
+
+  return (
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={handleDrop}
+      className={cn(
+        "rounded-md transition-colors",
+        isDragOver && "ring-2 ring-primary bg-primary/5"
+      )}
+    >
+      {children}
+    </div>
+  )
+}
+
+type CreateFolderDialogProps = {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  folderName: string
+  onFolderNameChange: (name: string) => void
+  orphanedFiles: FileResponse[]
+  selectedOrphanIds: Set<string>
+  onToggleOrphan: (fileId: string) => void
+  onSubmit: () => void
+  isPending: boolean
+}
+
+function CreateFolderDialog({
+  open,
+  onOpenChange,
+  folderName,
+  onFolderNameChange,
+  orphanedFiles,
+  selectedOrphanIds,
+  onToggleOrphan,
+  onSubmit,
+  isPending,
+}: CreateFolderDialogProps) {
+  const { t } = useTranslation()
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent showCloseButton={!isPending}>
+        <DialogHeader>
+          <DialogTitle>{t("files.createFolderTitle")}</DialogTitle>
+          <DialogDescription>
+            {t("files.createFolderNamePlaceholder")}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-4">
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="new-folder-name">
+                {t("files.createFolderName")}
+              </FieldLabel>
+              <Input
+                id="new-folder-name"
+                value={folderName}
+                onChange={(e) => onFolderNameChange(e.target.value)}
+                disabled={isPending}
+                placeholder={t("files.createFolderNamePlaceholder")}
+              />
+            </Field>
+          </FieldGroup>
+          {orphanedFiles.length > 0 ? (
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-medium">
+                {t("files.createFolderSelectFiles")}
+              </span>
+              <div className="max-h-48 overflow-y-auto rounded-md border p-2">
+                {orphanedFiles.map((file) => (
+                  <label
+                    key={file.id}
+                    className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-2 hover:bg-muted"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedOrphanIds.has(file.id)}
+                      onChange={() => onToggleOrphan(file.id)}
+                      disabled={isPending}
+                      className="size-4"
+                    />
+                    <span className="truncate text-sm">
+                      {file.display_name}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {t("files.createFolderNoOrphans")}
+            </p>
+          )}
+        </div>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isPending}
+          >
+            {t("files.cancel")}
+          </Button>
+          <LoadingButton
+            type="button"
+            onClick={onSubmit}
+            disabled={!folderName.trim() || isPending}
+            isLoading={isPending}
+            idleIcon={<FolderPlusIcon data-icon="inline-start" />}
+          >
+            {t("files.createFolderSubmit")}
+          </LoadingButton>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}

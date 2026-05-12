@@ -43,6 +43,7 @@ export type FileResponse = {
   content_type: string | null
   size_bytes: number | null
   checksum: string | null
+  folder_id: string | null
   created_at: string
   deleted_at: string | null
 }
@@ -206,6 +207,7 @@ export async function updateUser(
 }
 
 export type FolderResponse = {
+  id: string
   name: string
   files: FileResponse[]
 }
@@ -273,6 +275,28 @@ export async function listFolderedFiles(
   }
 }
 
+export async function createFolder(
+  accessToken: string,
+  name: string
+): Promise<FolderResponse> {
+  const response = await authFetch(
+    `${API_URL}/v1/folders`,
+    accessToken,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ name }),
+    }
+  )
+
+  if (!response.ok)
+    await readError(response, translate("files.error.createFolder"))
+
+  return response.json()
+}
+
 export function listDeletedFiles(accessToken: string): Promise<FileResponse[]> {
   return listFiles(accessToken, { deleted: true })
 }
@@ -325,7 +349,8 @@ export async function updateFile(
   accessToken: string,
   fileId: string,
   data: {
-    original_name: string
+    original_name?: string
+    folder_id?: string | null
   }
 ): Promise<FileResponse> {
   const response = await authFetch(

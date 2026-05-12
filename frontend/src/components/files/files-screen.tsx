@@ -11,6 +11,7 @@ import {
 import { ErrorField } from "@misc/status-field"
 import { PageWrapper } from "@misc/page-wrapper"
 import {
+  createFolder,
   deleteFile,
   downloadFile,
   downloadMultipleFiles,
@@ -148,6 +149,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   const [newlyAddedFileIds, setNewlyAddedFileIds] = useState<Set<string>>(
     new Set()
   )
+  const [movingFileIds, setMovingFileIds] = useState<Set<string>>(new Set())
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({})
   const [searchQuery, setSearchQuery] = useState("")
   const [notice, setNotice] = useState<string | null>(null)
@@ -709,6 +711,105 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     loadFiles()
   }, [loadFiles])
 
+  const handleCreateFolder = useCallback(
+    async (name: string, fileIds: string[]) => {
+      setError(null)
+      setPendingFileId("create-folder")
+
+      try {
+        const folder = await createFolder(accessToken, name)
+
+        if (fileIds.length > 0) {
+          await Promise.all(
+            fileIds.map((fileId) =>
+              updateFile(accessToken, fileId, { folder_id: folder.id })
+            )
+          )
+        }
+
+        await loadFiles()
+      } catch (error) {
+        setError(
+          getErrorMessage(error, t("files.error.createFolder"))
+        )
+      } finally {
+        setPendingFileId(null)
+      }
+    },
+    [accessToken, loadFiles, t]
+  )
+
+  const handleMoveFile = useCallback(
+    async (fileId: string, folderId: string | null) => {
+      setError(null)
+      setMovingFileIds((prev) => new Set(prev).add(fileId))
+
+      const prevFiles = files
+      const prevFolders = folders
+
+      const movedFile =
+        files.find((f) => f.id === fileId) ??
+        folders.flatMap((f) => f.files).find((f) => f.id === fileId)
+
+      if (folderId) {
+        setFiles((current) => current.filter((f) => f.id !== fileId))
+        setFolders((current) =>
+          current.map((folder) => {
+            if (folder.id === folderId && movedFile) {
+              return { ...folder, files: [...folder.files, movedFile] }
+            }
+            return {
+              ...folder,
+              files: folder.files.filter((f) => f.id !== fileId),
+            }
+          }).filter((folder) => folder.files.length > 0)
+        )
+      } else {
+        setFolders((current) =>
+          current
+            .map((folder) => ({
+              ...folder,
+              files: folder.files.filter((f) => f.id !== fileId),
+            }))
+            .filter((folder) => folder.files.length > 0)
+        )
+        if (movedFile) {
+          setFiles((current) => [movedFile, ...current])
+        }
+      }
+
+      try {
+        await updateFile(accessToken, fileId, { folder_id: folderId })
+      } catch (error) {
+        setFiles(prevFiles)
+        setFolders(prevFolders)
+        setError(getErrorMessage(error, t("files.error.moveFile")))
+      } finally {
+        setMovingFileIds((prev) => {
+          const next = new Set(prev)
+          next.delete(fileId)
+          return next
+        })
+      }
+    },
+    [accessToken, files, folders, t]
+  )
+
+  const handleReorderFiles = useCallback(
+    (fileId: string, targetIndex: number) => {
+      setFiles((currentFiles) => {
+        const sourceIndex = currentFiles.findIndex((f) => f.id === fileId)
+        if (sourceIndex === -1 || sourceIndex === targetIndex) return currentFiles
+
+        const nextFiles = [...currentFiles]
+        const [movedFile] = nextFiles.splice(sourceIndex, 1)
+        nextFiles.splice(targetIndex, 0, movedFile)
+        return nextFiles
+      })
+    },
+    []
+  )
+
   const handleToggleUploadCollapse = useCallback(() => {
     setIsUploadPanelCollapsed((collapsed) => !collapsed)
   }, [])
@@ -771,6 +872,10 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
           onStopEditing={stopEditing}
           onToggleSelection={toggleFileSelection}
           onToggleFolderSelection={toggleFolderSelection}
+          onCreateFolder={handleCreateFolder}
+          onMoveFile={handleMoveFile}
+          onReorderFiles={handleReorderFiles}
+          movingFileIds={movingFileIds}
         />
       )}
       <UploadActivityPanel

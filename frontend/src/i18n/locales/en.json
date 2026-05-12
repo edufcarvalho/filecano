@@ -188,9 +188,18 @@
       "shareFiles": "Unable to share files",
       "cloneFiles": "Unable to clone files",
       "fileDeletedByOwner": "This file was deleted by the owner",
-      "someDownloadFailed": "Some files failed to download"
+      "someDownloadFailed": "Some files failed to download",
+      "createFolder": "Unable to create folder",
+      "moveFile": "Unable to move file"
     },
-    "cloneSuccess": "Successfully cloned"
+    "cloneSuccess": "Successfully cloned",
+    "createFolder": "Create folder",
+    "createFolderTitle": "Create new folder",
+    "createFolderName": "Folder name",
+    "createFolderNamePlaceholder": "Enter folder name",
+    "createFolderSelectFiles": "Add orphaned files",
+    "createFolderNoOrphans": "No orphaned files available",
+    "createFolderSubmit": "Create folder"
   },
   "links": {
     "myLinks": "My Links",

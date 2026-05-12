@@ -4,10 +4,11 @@ import {
   ChevronRightIcon,
   FolderIcon,
   FolderOpenIcon,
+  LoaderCircleIcon,
   MinusIcon,
 } from "lucide-react"
-import type { ReactNode } from "react"
-import { useState } from "react"
+import type { DragEvent, ReactNode } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@ui/button"
@@ -19,7 +20,10 @@ type FolderProps = {
   children: ReactNode
   folderFileIds: string[]
   selectedFileIds: Set<string>
+  movingFileIds?: Set<string>
   onToggleFolderSelection: (fileIds: string[]) => void
+  onFileDrop?: (fileId: string, folderId: string) => void
+  folderId?: string
 }
 
 export function Folder({
@@ -28,18 +32,60 @@ export function Folder({
   children,
   folderFileIds,
   selectedFileIds,
+  movingFileIds = new Set(),
   onToggleFolderSelection,
+  onFileDrop,
+  folderId,
 }: FolderProps) {
   const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
+  const [isDragOver, setIsDragOver] = useState(false)
+
+  const isReceiving = useMemo(
+    () => folderFileIds.some((id) => movingFileIds.has(id)),
+    [folderFileIds, movingFileIds]
+  )
 
   const allSelected =
     folderFileIds.length > 0 &&
     folderFileIds.every((id) => selectedFileIds.has(id))
   const someSelected = folderFileIds.some((id) => selectedFileIds.has(id))
 
+  const handleDragOver = useCallback((event: DragEvent) => {
+    event.preventDefault()
+    event.dataTransfer.dropEffect = "move"
+    setIsDragOver(true)
+  }, [])
+
+  const handleDragLeave = useCallback((event: DragEvent) => {
+    event.preventDefault()
+    setIsDragOver(false)
+  }, [])
+
+  const handleDrop = useCallback(
+    (event: DragEvent) => {
+      event.preventDefault()
+      setIsDragOver(false)
+
+      const fileId = event.dataTransfer.getData("text/plain")
+      if (fileId && folderId && onFileDrop) {
+        onFileDrop(fileId, folderId)
+      }
+    },
+    [folderId, onFileDrop]
+  )
+
   return (
-    <div className={cn("folder-panel", allSelected && "folder-panel-selected")}>
+    <div
+      className={cn(
+        "folder-panel",
+        allSelected && "folder-panel-selected",
+        isDragOver && "ring-2 ring-primary"
+      )}
+      onDragOver={onFileDrop ? handleDragOver : undefined}
+      onDragLeave={onFileDrop ? handleDragLeave : undefined}
+      onDrop={onFileDrop ? handleDrop : undefined}
+    >
       <div className="folder-panel-header">
         <Button
           type="button"
@@ -80,6 +126,9 @@ export function Folder({
           )}
           <span className="truncate font-medium">{name}</span>
           <span className="folder-count">({fileCount})</span>
+          {isReceiving ? (
+            <LoaderCircleIcon className="icon-spin size-4 shrink-0 text-muted-foreground" />
+          ) : null}
         </button>
       </div>
       {isOpen ? (
