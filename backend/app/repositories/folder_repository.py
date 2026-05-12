@@ -1,5 +1,6 @@
-from uuid import UUID
 from typing import Optional
+from uuid import UUID
+
 from sqlmodel import Session, select
 
 from app.models import Folder
@@ -20,8 +21,8 @@ class FolderRepository:
   def commit(self) -> None:
     self.session.commit()
 
-  def refresh(self, file: File) -> None:
-    self.session.refresh(file)
+  def refresh(self, folder: Folder) -> None:
+    self.session.refresh(folder)
 
   def rollback(self) -> None:
     self.session.rollback()

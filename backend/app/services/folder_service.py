@@ -1,13 +1,14 @@
 from typing import Optional
 from uuid import UUID
 
-from app.models import Folder, User
-from app.repositories.folder_repository import FolderRepository
-from app.repositories.file_repository import FileRepository
-from app.utils.time import current_datetime
 from app.core.exceptions import NotFoundError
-from app.services.base_service import BaseService
+from app.models import Folder, User
+from app.repositories.file_repository import FileRepository
+from app.repositories.folder_repository import FolderRepository
 from app.schemas import FolderParams
+from app.services.base_service import BaseService
+from app.utils.time import current_datetime
+
 
 class FolderService(BaseService):
   def __init__(
@@ -55,7 +56,7 @@ class FolderService(BaseService):
     self.repository.refresh(folder)
 
     return folder
-  
+
   def _get_folder(self, folder_id: UUID) -> Folder:
     folder = self.repository.get_by_id(folder_id)
 

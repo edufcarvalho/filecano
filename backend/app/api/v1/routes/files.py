@@ -8,10 +8,10 @@ from app.api.dependencies import get_current_user, get_file_service
 from app.core import NotFoundError
 from app.models import User
 from app.schemas import (
-  FolderWithFilesResponse,
   FileListParams,
   FileResponse,
   FileUpdateParams,
+  FolderWithFilesResponse,
 )
 from app.services import FileService as Service
 

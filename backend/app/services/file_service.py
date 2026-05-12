@@ -22,9 +22,9 @@ from app.core import (
 from app.models import File, User
 from app.repositories import FileRepository, FolderRepository
 from app.schemas import (
-  FolderWithFilesResponse,
   FileListParams,
   FileUpdateParams,
+  FolderWithFilesResponse,
 )
 from app.services.base_service import BaseService
 from app.services.file_storage_service import FileStorageService
@@ -167,7 +167,7 @@ class FileService(BaseService):
 
     if file.deleted_at is not None:
       raise GoneError("File has been deleted")
-  
+
     if params.original_name is not None:
       file.original_name = params.original_name
       file.display_name = self._get_unique_filename(user.id, params.original_name)

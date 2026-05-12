@@ -1,11 +1,12 @@
 from typing import Optional
 from uuid import UUID
 
-from sqlmodel import Session, func, select, delete, update
+from sqlmodel import Session, func, select, update
 
 from app.models import File
 from app.models.file_link_relation import FileLinkRelation
 from app.utils.time import current_datetime
+
 
 class FileRepository:
   def __init__(self, session: Session):
@@ -118,7 +119,7 @@ class FileRepository:
 
   def delete(self, file: File) -> None:
     self.session.delete(file)
-  
+
   def delete_by_folder(self, folder_id: UUID) -> None:
     query = (
       update(File)

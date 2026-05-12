@@ -1,16 +1,18 @@
-from fastapi import APIRouter, Depends, Body, status
 from typing import Annotated
 from uuid import UUID
 
-from app.models import User
-from app.api.dependencies.services import get_folder_service
-from app.services.folder_service import FolderService
-from app.schemas import FolderParams, FolderResponse
+from fastapi import APIRouter, Body, Depends, status
+
 from app.api.dependencies.auth import get_current_user
+from app.api.dependencies.services import get_folder_service
+from app.models import User
+from app.schemas import FolderParams, FolderResponse
+from app.services.folder_service import FolderService
 
 router = APIRouter(prefix="/folders", tags=["folders"])
 
-@router.post("", response_model=FolderResponse)
+
+@router.post("", response_model=FolderResponse, status_code=status.HTTP_201_CREATED)
 def create_folder(
   params: Annotated[FolderParams, Body()],
   current_user: User = Depends(get_current_user),
@@ -20,7 +22,8 @@ def create_folder(
 
   return folder
 
-@router.get("", response_model=list[FolderResponse])
+
+@router.get("", response_model=list[FolderResponse], status_code=status.HTTP_200_OK)
 def list_folders(
   current_user: User = Depends(get_current_user),
   service: FolderService = Depends(get_folder_service),
@@ -29,7 +32,8 @@ def list_folders(
 
   return folders
 
-@router.put("/{folder_id}", response_model=FolderResponse)
+
+@router.put("/{folder_id}", response_model=FolderResponse, status_code=status.HTTP_200_OK)
 def update_folder(
   folder_id: UUID,
   params: Annotated[FolderParams, Body()],
@@ -39,6 +43,7 @@ def update_folder(
   folder = service.update_folder(current_user, folder_id, params)
 
   return folder
+
 
 @router.delete("/{folder_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_folder(
