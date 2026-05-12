@@ -35,8 +35,9 @@ def get_folder_repository(session: Session = Depends(get_session)) -> FolderRepo
 
 def get_folder_service(
   repository: FolderRepository = Depends(get_folder_repository),
+  file_repository: FileRepository = Depends(get_file_repository),
 ) -> FolderService:
-  return FolderService(repository)
+  return FolderService(repository, file_repository)
 
 
 def get_file_service(

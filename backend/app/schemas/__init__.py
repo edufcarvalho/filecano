@@ -1,4 +1,5 @@
 from app.schemas.params.file_params import FileListParams, FileUpdateParams
+from app.schemas.params.folder_params import FolderParams
 from app.schemas.params.link_params import (
   LinkCreateParams,
   LinkRestoreParams,
@@ -28,6 +29,7 @@ __all__ = [
   "FileListParams",
   "FileResponse",
   "FileUpdateParams",
+  "FolderParams",
   "FolderResponse",
   "LinkResponse",
   "LinkRestoreResponse",

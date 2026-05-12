@@ -1,8 +1,12 @@
+from typing import Optional
+from uuid import UUID
+
 from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class FileUpdateParams(BaseModel):
-  original_name: str
+  original_name: Optional[str] = None
+  folder_id: Optional[UUID] = None
 
   @field_validator("original_name")
   @classmethod
