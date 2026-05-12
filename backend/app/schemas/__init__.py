@@ -5,6 +5,7 @@ from app.schemas.params.link_params import (
   LinkRestoreParams,
   LinkUpdateParams,
 )
+from app.schemas.params.paginate_params import PaginateParams
 from app.schemas.params.user_params import (
   UserCreationParams,
   UserLoginParams,
@@ -12,12 +13,16 @@ from app.schemas.params.user_params import (
   UserUpdateParams,
 )
 from app.schemas.responses.file_responses import FileResponse
-from app.schemas.responses.folder_responses import FolderWithFilesResponse, FolderResponse
+from app.schemas.responses.folder_responses import (
+  FolderResponse,
+  FolderWithFilesResponse,
+)
 from app.schemas.responses.link_responses import (
   LinkResponse,
   LinkRestoreResponse,
   LinkUpdateResponse,
 )
+from app.schemas.responses.paginated_response import PaginatedResponse
 from app.schemas.responses.user_responses import (
   MessageResponse,
   TokenResponse,
@@ -44,4 +49,6 @@ __all__ = [
   "UserUpdateParams",
   "LinkCreateParams",
   "LinkRestoreParams",
+  "PaginateParams",
+  "PaginatedResponse",
 ]
