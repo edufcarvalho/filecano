@@ -30,7 +30,7 @@ class Folder(SQLModel, table=True):
   deleted_at: Optional[datetime] = Field(default=None, sa_type=DateTime(timezone=True))
 
   user: User = Relationship(back_populates="folders")
-  files: Optional[list[File]] = Relationship(
+  files: list[File] = Relationship(
     back_populates="folder",
     sa_relationship_kwargs={
       "lazy": "selectin",
