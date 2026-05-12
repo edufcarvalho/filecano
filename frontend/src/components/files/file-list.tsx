@@ -221,7 +221,8 @@ export function FileList({
   const selectedCount = selectedFileIds.size
   const totalFileCount = allFiles.length
   const hasSelectedFiles = selectedCount > 0
-  const allFilesSelected = allFiles.length > 0 && selectedFileIds.size === allFiles.length
+  const allFilesSelected =
+    allFiles.length > 0 && selectedFileIds.size === allFiles.length
   const fileCountLabel = hasSelectedFiles ? selectedCount : totalFileCount
 
   const handleSearch = useCallback(
@@ -348,7 +349,12 @@ export function FileList({
   )
 
   return (
-    <Card className={cn("flex min-h-0 flex-col pb-3 gap-3 w-full", stretch && "flex-1")}>
+    <Card
+      className={cn(
+        "flex min-h-0 w-full flex-col gap-3 pb-3",
+        stretch && "flex-1"
+      )}
+    >
       <CardHeader className="flex flex-col gap-3">
         <div className="flex w-full min-w-0 items-center gap-1">
           <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -458,7 +464,7 @@ export function FileList({
           stretch && "flex-1 overflow-hidden"
         )}
       >
-        <div className={cn(stretch && "flex min-h-0 h-full flex-col")}>
+        <div className={cn(stretch && "flex h-full min-h-0 flex-col")}>
           {isLoading ? (
             <div className="card-content-base">
               <LoaderCircleIcon className="icon-spin" />
@@ -478,10 +484,10 @@ export function FileList({
               )}
             >
               <FileSearchIcon
-                className="size-[var(--empty-icon-size)] icon-muted"
+                className="icon-muted size-[var(--empty-icon-size)]"
                 strokeWidth={1.75}
               />
-              <p className="text-[clamp(1rem,var(--empty-text-size),1.4rem)] leading-tight font-medium text-muted-foreground">
+              <p className="file-empty-state-label">
                 {files.length === 0
                   ? (emptyLabel ??
                     (variant === "shared"
@@ -548,13 +554,13 @@ export function FileList({
                 </div>
               ) : null}
               {folders && folders.length > 0 && filteredFiles.length === 0 && (
-                <div className="flex-1 flex items-center justify-center min-h-0">
+                <div className="flex min-h-0 flex-1 items-center justify-center">
                   <div className="empty-state-base">
                     <FileSearchIcon
-                      className="size-[var(--empty-icon-size)] icon-muted"
+                      className="icon-muted size-[var(--empty-icon-size)]"
                       strokeWidth={1.75}
                     />
-                    <p className="text-[clamp(1rem,var(--empty-text-size),1.4rem)] leading-tight font-medium text-muted-foreground">
+                    <p className="file-empty-state-label">
                       {emptyLabel ??
                         (variant === "shared"
                           ? t("files.emptyShared")
@@ -612,7 +618,9 @@ function ScrollableList({
 }) {
   if (!stretch) return <>{children}</>
 
-  return <div className="scrollable-list-container flex flex-col">{children}</div>
+  return (
+    <div className="scrollable-list-container flex flex-col">{children}</div>
+  )
 }
 
 function FileInfoDetails({

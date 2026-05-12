@@ -130,7 +130,7 @@ export function LinkExpirationDialog({
             <div className="expiration-section">
               <div
                 data-disabled={permanent ? true : undefined}
-                className="flex items-end gap-2"
+                className="expiration-inline-fields"
               >
                 <div className="flex-1">
                   <label className="expiration-field-label">

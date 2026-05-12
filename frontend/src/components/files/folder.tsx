@@ -39,13 +39,8 @@ export function Folder({
   const someSelected = folderFileIds.some((id) => selectedFileIds.has(id))
 
   return (
-    <div
-      className={cn(
-        "rounded-lg border transition-colors",
-        allSelected && "border-primary/40 bg-primary/5"
-      )}
-    >
-      <div className="flex w-full items-center gap-2 rounded-lg p-3">
+    <div className={cn("folder-panel", allSelected && "folder-panel-selected")}>
+      <div className="folder-panel-header">
         <Button
           type="button"
           variant="outline"
@@ -71,7 +66,7 @@ export function Folder({
         <button
           type="button"
           onClick={() => setIsOpen((prev) => !prev)}
-          className="flex min-w-0 flex-1 items-center gap-2 text-left hover:bg-muted/50 rounded-lg py-1 transition-colors"
+          className="folder-toggle-button"
         >
           {isOpen ? (
             <FolderOpenIcon className="size-5 shrink-0 text-muted-foreground" />
@@ -83,20 +78,16 @@ export function Folder({
           ) : (
             <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
           )}
-          <span className="font-medium truncate">{name}</span>
-          <span className="text-sm text-muted-foreground shrink-0">
-            ({fileCount})
-          </span>
+          <span className="truncate font-medium">{name}</span>
+          <span className="folder-count">({fileCount})</span>
         </button>
       </div>
       {isOpen ? (
-        <div className="border-t px-3 pb-3 pt-2">
+        <div className="border-t px-3 pt-2 pb-3">
           {fileCount > 0 ? (
             children
           ) : (
-            <p className="text-center text-sm text-muted-foreground py-4">
-              {t("files.emptyFolder")}
-            </p>
+            <p className="folder-empty-label">{t("files.emptyFolder")}</p>
           )}
         </div>
       ) : null}

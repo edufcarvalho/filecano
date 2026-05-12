@@ -50,14 +50,11 @@ export function FileUploadDropzone({
       onDrop={onDrop}
       onClick={onBrowseFiles}
       className={cn(
-        "rounded-lg border-2 border-dashed p-8 text-center transition-colors",
-        isDragOver
-          ? "border-primary bg-primary/10"
-          : "border-muted-foreground/25",
-        "cursor-pointer"
+        "upload-dropzone",
+        isDragOver ? "upload-dropzone-active" : "upload-dropzone-idle"
       )}
     >
-      <UploadIcon className="mx-auto mb-2 icon-muted" size={32} />
+      <UploadIcon className="icon-muted mx-auto mb-2" size={32} />
       <p className="text-sm text-muted-foreground">
         {t("files.dropzone.instruction")}
       </p>
@@ -159,7 +156,7 @@ export function UploadActivityPanel({
                     <button
                       type="button"
                       onClick={() => onDismiss(file.id)}
-                      className="shrink-0 text-muted-foreground hover:text-foreground"
+                      className="upload-dismiss-button"
                       aria-label={t("files.dropzone.dismiss", {
                         name: file.name,
                       })}

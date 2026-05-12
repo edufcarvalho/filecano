@@ -8,7 +8,11 @@ import {
 
 import { cn } from "@/lib/utils"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "lucide-react"
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ChevronDownIcon,
+} from "lucide-react"
 
 function Calendar({
   className,
@@ -69,11 +73,11 @@ function Calendar({
           defaultClassNames.dropdowns
         ),
         dropdown_root: cn(
-          "relative rounded-(--cell-radius) border border-border bg-background hover:bg-accent hover:text-accent-foreground overflow-hidden",
+          "relative overflow-hidden rounded-(--cell-radius) border border-border bg-background hover:bg-accent hover:text-accent-foreground",
           defaultClassNames.dropdown_root
         ),
         dropdown: cn(
-          "absolute inset-0 w-full opacity-0 cursor-pointer border-0 bg-transparent text-foreground font-semibold [&>option]:bg-popover [&>option]:text-popover-foreground [&>option]:font-medium",
+          "absolute inset-0 w-full cursor-pointer border-0 bg-transparent font-semibold text-foreground opacity-0 [&>option]:bg-popover [&>option]:font-medium [&>option]:text-popover-foreground",
           defaultClassNames.dropdown
         ),
         caption_label: cn(
@@ -148,7 +152,10 @@ function Calendar({
 
           if (orientation === "right") {
             return (
-              <ChevronRightIcon className={cn("size-4", className)} {...props} />
+              <ChevronRightIcon
+                className={cn("size-4", className)}
+                {...props}
+              />
             )
           }
 
@@ -195,11 +202,7 @@ function CalendarDayButton({
       data-range-start={modifiers.range_start}
       data-range-end={modifiers.range_end}
       data-range-middle={modifiers.range_middle}
-      className={cn(
-        "calendar-day-button group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:border-ring group-data-[focused=true]/day:ring-[3px] group-data-[focused=true]/day:ring-ring/50",
-        defaultClassNames.day,
-        className
-      )}
+      className={cn("calendar-day-button", defaultClassNames.day, className)}
       {...props}
     />
   )
