@@ -50,7 +50,11 @@ export function Folder({
           type="button"
           variant="outline"
           size="icon-xs"
-          aria-label={allSelected ? "Deselect all files in folder" : "Select all files in folder"}
+          aria-label={
+            allSelected
+              ? "Deselect all files in folder"
+              : "Select all files in folder"
+          }
           aria-pressed={allSelected}
           onClick={() => onToggleFolderSelection(folderFileIds)}
           className={cn(

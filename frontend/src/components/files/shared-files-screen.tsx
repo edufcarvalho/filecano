@@ -41,15 +41,22 @@ type SharedFilesScreenProps = {
   onSignOut?: () => void
 }
 
-export function SharedFilesScreen({ accessToken, user, token, onSignOut }: SharedFilesScreenProps) {
+export function SharedFilesScreen({
+  accessToken,
+  user,
+  token,
+  onSignOut,
+}: SharedFilesScreenProps) {
   const { t } = useTranslation()
   const { shareToken } = useParams()
   const [files, setFiles] = useState<FileResponse[]>([])
   const [linkId, setLinkId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [linkError, setLinkError] = useState<ShareLinkErrorKind | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [linkError, setLinkError] = useState<ShareLinkErrorKind | null>(
+    !shareToken ? "not-found" : null
+  )
+  const [isLoading, setIsLoading] = useState(!shareToken ? false : true)
   const [pendingFileId, setPendingFileId] = useState<string | null>(null)
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState("")
@@ -80,14 +87,11 @@ export function SharedFilesScreen({ accessToken, user, token, onSignOut }: Share
     },
     [shareToken]
   )
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     isCurrentRef.current = true
 
-    if (!shareToken) {
-      setLinkError("not-found")
-      setIsLoading(false)
-      return
-    }
+    if (!shareToken) return
 
     setError(null)
     setLinkError(null)
@@ -133,27 +137,31 @@ export function SharedFilesScreen({ accessToken, user, token, onSignOut }: Share
       isCurrentRef.current = false
     }
   }, [shareToken, loadPreviews, t])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
-  async function handleDownload(file: FileResponse) {
-    if (!shareToken) return
+  const handleDownload = useCallback(
+    async (file: FileResponse) => {
+      if (!shareToken) return
 
-    if (!isAvailableFile(file)) {
-      setError(t("files.error.fileDeletedByOwner"))
-      return
-    }
-    setError(null)
-    setPendingFileId(file.id)
+      if (!isAvailableFile(file)) {
+        setError(t("files.error.fileDeletedByOwner"))
+        return
+      }
+      setError(null)
+      setPendingFileId(file.id)
 
-    try {
-      await downloadSharedFile(shareToken, file.id, file.original_name)
-    } catch (error) {
-      setError(getErrorMessage(error, t("files.error.downloadFile")))
-    } finally {
-      setPendingFileId(null)
-    }
-  }
+      try {
+        await downloadSharedFile(shareToken, file.id, file.original_name)
+      } catch (error) {
+        setError(getErrorMessage(error, t("files.error.downloadFile")))
+      } finally {
+        setPendingFileId(null)
+      }
+    },
+    [shareToken, t]
+  )
 
-  async function handleDownloadSelected() {
+  const handleDownloadSelected = useCallback(async () => {
     if (!shareToken || selectedFileIds.size === 0) return
 
     setError(null)
@@ -174,33 +182,36 @@ export function SharedFilesScreen({ accessToken, user, token, onSignOut }: Share
     } finally {
       setPendingFileId(null)
     }
-  }
+  }, [files, selectedFileIds, shareToken, t])
 
-  async function handleClone(file: FileResponse) {
-    if (!accessToken || !linkId) return
+  const handleClone = useCallback(
+    async (file: FileResponse) => {
+      if (!accessToken || !linkId) return
 
-    if (!isAvailableFile(file)) {
-      setError(t("files.error.fileDeletedByOwner"))
-      return
-    }
+      if (!isAvailableFile(file)) {
+        setError(t("files.error.fileDeletedByOwner"))
+        return
+      }
 
-    setError(null)
-    setSuccess(null)
-    setPendingFileId(`clone-${file.id}`)
+      setError(null)
+      setSuccess(null)
+      setPendingFileId(`clone-${file.id}`)
 
-    try {
-      const cloned = await cloneSharedFiles(accessToken, linkId)
-      setSuccess(
-        `${t("files.cloneSuccess")}: ${cloned.map((f) => f.display_name).join(", ")}`
-      )
-    } catch (error) {
-      setError(getErrorMessage(error, t("files.error.cloneFiles")))
-    } finally {
-      setPendingFileId(null)
-    }
-  }
+      try {
+        const cloned = await cloneSharedFiles(accessToken, linkId)
+        setSuccess(
+          `${t("files.cloneSuccess")}: ${cloned.map((f) => f.display_name).join(", ")}`
+        )
+      } catch (error) {
+        setError(getErrorMessage(error, t("files.error.cloneFiles")))
+      } finally {
+        setPendingFileId(null)
+      }
+    },
+    [accessToken, linkId, t]
+  )
 
-  async function handleCloneAll() {
+  const handleCloneAll = useCallback(async () => {
     if (!accessToken || !linkId || selectedFileIds.size === 0) return
 
     setError(null)
@@ -217,9 +228,9 @@ export function SharedFilesScreen({ accessToken, user, token, onSignOut }: Share
     } finally {
       setPendingFileId(null)
     }
-  }
+  }, [accessToken, linkId, selectedFileIds, t])
 
-  function toggleFileSelection(fileId: string) {
+  const toggleFileSelection = useCallback((fileId: string) => {
     setSelectedFileIds((currentSelection) => {
       const nextSelection = new Set(currentSelection)
       if (nextSelection.has(fileId)) {
@@ -229,23 +240,29 @@ export function SharedFilesScreen({ accessToken, user, token, onSignOut }: Share
       }
       return nextSelection
     })
-  }
+  }, [])
 
-  function selectAllFiles() {
+  const selectAllFiles = useCallback(() => {
     setSelectedFileIds(
       new Set(files.filter(isAvailableFile).map((file) => file.id))
     )
-  }
+  }, [files])
 
-  function clearFileSelection() {
+  const clearFileSelection = useCallback(() => {
     setSelectedFileIds(new Set())
-  }
+  }, [])
 
+  if (!shareToken) return <ShareLinkErrorScreen kind="not-found" />
   if (linkError) return <ShareLinkErrorScreen kind={linkError} />
 
   return (
     <div className="fixed inset-0 flex min-h-0 flex-col overflow-hidden">
-      <SiteHeader pageTitle={t("app.sharedFiles")} user={user} token={token} onSignOut={onSignOut} />
+      <SiteHeader
+        pageTitle={t("app.sharedFiles")}
+        user={user}
+        token={token}
+        onSignOut={onSignOut}
+      />
       <PageWrapper>
         <ErrorField message={error} />
         <DescriptionField>{success}</DescriptionField>

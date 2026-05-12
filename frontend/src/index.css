@@ -645,6 +645,34 @@
   .expiration-dialog-body {
     @apply flex flex-col gap-4;
   }
+
+  .calendar-day-button {
+    @apply relative isolate z-10 flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 border-0 leading-none font-normal;
+  }
+
+  .calendar-day-button[data-selected-single="true"] {
+    @apply bg-primary text-primary-foreground;
+  }
+
+  .calendar-day-button[data-range-start="true"] {
+    @apply rounded-(--cell-radius) rounded-l-(--cell-radius) bg-primary text-primary-foreground;
+  }
+
+  .calendar-day-button[data-range-end="true"] {
+    @apply rounded-(--cell-radius) rounded-r-(--cell-radius) bg-primary text-primary-foreground;
+  }
+
+  .calendar-day-button[data-range-middle="true"] {
+    @apply rounded-none bg-muted text-foreground;
+  }
+
+  .calendar-day-button > span {
+    @apply text-xs opacity-70;
+  }
+
+  .dark .calendar-day-button:hover {
+    @apply text-foreground;
+  }
 }
 
 .fi {

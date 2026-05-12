@@ -1,7 +1,6 @@
 import {
   ArchiveRestoreIcon,
   CheckIcon,
-  CircleAlertIcon,
   CopyIcon,
   DownloadIcon,
   EraserIcon,
@@ -24,7 +23,7 @@ import {
   Trash2Icon,
   XIcon,
 } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { ReactNode } from "react"
 
 import { Button } from "@ui/button"
@@ -45,7 +44,10 @@ import { useTranslation } from "@/i18n"
 import { LoadingButton } from "@misc/loading-button"
 import { SearchForm } from "@misc/search-form"
 import { FileIconContainer, FileItem, FileActions } from "@files/file-item"
-import { BulkActionButton, CompactBulkActionButton } from "@misc/bulk-action-button"
+import {
+  BulkActionButton,
+  CompactBulkActionButton,
+} from "@misc/bulk-action-button"
 
 import type { FileResponse, FolderResponse } from "@/lib/api"
 import {
@@ -107,9 +109,6 @@ type FileListItemProps = Pick<
   | "editingName"
   | "error"
   | "pendingFileId"
-  | "newlyAddedFileIds"
-  | "previewUrls"
-  | "selectedFileIds"
   | "onDelete"
   | "onDownload"
   | "onClone"
@@ -124,6 +123,9 @@ type FileListItemProps = Pick<
   | "onToggleSelection"
 > & {
   file: FileResponse
+  isNewlyAdded: boolean
+  isSelected: boolean
+  previewUrl?: string
   variant: "default" | "shared" | "trash"
 }
 
@@ -208,22 +210,29 @@ export function FileList({
   folders,
 }: FileListProps) {
   const { t } = useTranslation()
-  const folderFiles = folders?.flatMap((f) => f.files) ?? []
-  const allFiles = [...files, ...folderFiles]
-  const selectedCount = allFiles.filter((file) => selectedFileIds.has(file.id)).length
+  const folderFiles = useMemo(
+    () => folders?.flatMap((f) => f.files) ?? [],
+    [folders]
+  )
+  const allFiles = useMemo(
+    () => [...files, ...folderFiles],
+    [files, folderFiles]
+  )
+  const selectedCount = selectedFileIds.size
   const totalFileCount = allFiles.length
-  const selectableFiles =
-    variant === "trash" ? files : files.filter((file) => !file.deleted_at)
-  const allSelectableFiles = [...selectableFiles, ...folderFiles]
   const hasSelectedFiles = selectedCount > 0
-  const allFilesSelected =
-    allSelectableFiles.length > 0 &&
-    allSelectableFiles.every((file) => selectedFileIds.has(file.id))
+  const allFilesSelected = allFiles.length > 0 && selectedFileIds.size === allFiles.length
   const fileCountLabel = hasSelectedFiles ? selectedCount : totalFileCount
 
-  function handleSearch(query: string) {
-    onSearch?.(query)
-  }
+  const handleSearch = useCallback(
+    (query: string) => onSearch?.(query),
+    [onSearch]
+  )
+
+  const safeToggleFolderSelection = useCallback(
+    (fileIds: string[]) => onToggleFolderSelection?.(fileIds),
+    [onToggleFolderSelection]
+  )
 
   function handleSelectionToggle() {
     if (hasSelectedFiles) {
@@ -234,10 +243,15 @@ export function FileList({
     onSelectAll?.()
   }
 
-  const filteredFiles = files.filter(
-    (file) =>
-      !searchQuery.trim() ||
-      file.display_name.toLowerCase().includes(searchQuery.toLowerCase())
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase()
+  const filteredFiles = useMemo(
+    () =>
+      files.filter(
+        (file) =>
+          !normalizedSearchQuery ||
+          file.display_name.toLowerCase().includes(normalizedSearchQuery)
+      ),
+    [files, normalizedSearchQuery]
   )
   const bulkActions = (
     <>
@@ -348,7 +362,7 @@ export function FileList({
                   : t("files.selectAll")
               }
               aria-pressed={hasSelectedFiles}
-              disabled={allSelectableFiles.length === 0}
+              disabled={allFiles.length === 0}
               onClick={handleSelectionToggle}
               className={cn(
                 "file-selection-toggle",
@@ -362,15 +376,18 @@ export function FileList({
               ) : null}
             </Button>
             <CardTitle className="truncate-base">
-              {title ?? (variant === "shared" ? t("app.sharedFiles") : variant === "trash" ? t("app.trash") : t("app.files"))}
+              {title ??
+                (variant === "shared"
+                  ? t("app.sharedFiles")
+                  : variant === "trash"
+                    ? t("app.trash")
+                    : t("app.files"))}
               <span className="ml-1 text-sm font-normal text-muted-foreground">
                 ({fileCountLabel})
               </span>
             </CardTitle>
           </div>
-          <div className="bulk-actions-desktop">
-            {bulkActions}
-          </div>
+          <div className="bulk-actions-desktop">{bulkActions}</div>
           {variant !== "shared" ? (
             <LoadingButton
               type="button"
@@ -445,9 +462,15 @@ export function FileList({
           {isLoading ? (
             <div className="card-content-base">
               <LoaderCircleIcon className="icon-spin" />
-              {loadingLabel ?? (variant === "shared" ? t("files.loadingSharedFiles") : variant === "trash" ? t("files.loadingDeletedFiles") : t("files.loadingFiles"))}
+              {loadingLabel ??
+                (variant === "shared"
+                  ? t("files.loadingSharedFiles")
+                  : variant === "trash"
+                    ? t("files.loadingDeletedFiles")
+                    : t("files.loadingFiles"))}
             </div>
-          ) : filteredFiles.length === 0 && (!folders || folders.length === 0) ? (
+          ) : filteredFiles.length === 0 &&
+            (!folders || folders.length === 0) ? (
             <div
               className={cn(
                 "empty-state-base",
@@ -460,14 +483,29 @@ export function FileList({
               />
               <p className="text-[clamp(1rem,var(--empty-text-size),1.4rem)] leading-tight font-medium text-muted-foreground">
                 {files.length === 0
-                  ? (emptyLabel ?? (variant === "shared" ? t("files.emptyShared") : variant === "trash" ? t("files.emptyTrash") : t("files.emptyDefault")))
-                  : (noMatchesLabel ?? (variant === "shared" ? t("files.noMatchesShared") : variant === "trash" ? t("files.noMatchesTrash") : t("files.noMatchesDefault")))}
+                  ? (emptyLabel ??
+                    (variant === "shared"
+                      ? t("files.emptyShared")
+                      : variant === "trash"
+                        ? t("files.emptyTrash")
+                        : t("files.emptyDefault")))
+                  : (noMatchesLabel ??
+                    (variant === "shared"
+                      ? t("files.noMatchesShared")
+                      : variant === "trash"
+                        ? t("files.noMatchesTrash")
+                        : t("files.noMatchesDefault")))}
               </p>
             </div>
           ) : (
             <ScrollableList stretch={stretch}>
               {folders && folders.length > 0 ? (
-                <div className={cn("grid gap-2", filteredFiles.length > 0 && "mb-3")}>
+                <div
+                  className={cn(
+                    "grid gap-2",
+                    filteredFiles.length > 0 && "mb-3"
+                  )}
+                >
                   {folders.map((folder) => (
                     <Folder
                       key={folder.name}
@@ -475,18 +513,16 @@ export function FileList({
                       fileCount={folder.files.length}
                       folderFileIds={folder.files.map((f) => f.id)}
                       selectedFileIds={selectedFileIds}
-                      onToggleFolderSelection={(fileIds) =>
-                        onToggleFolderSelection?.(fileIds)
-                      }
+                      onToggleFolderSelection={safeToggleFolderSelection}
                     >
                       <div className="file-list-grid">
                         {folder.files.map((file) => (
                           <FileListItem
                             key={file.id}
                             file={file}
-                            previewUrls={previewUrls}
-                            selectedFileIds={selectedFileIds}
-                            newlyAddedFileIds={newlyAddedFileIds}
+                            previewUrl={previewUrls[file.id]}
+                            isSelected={selectedFileIds.has(file.id)}
+                            isNewlyAdded={newlyAddedFileIds.has(file.id)}
                             editingFileId={editingFileId}
                             editingName={editingName}
                             pendingFileId={pendingFileId}
@@ -519,7 +555,12 @@ export function FileList({
                       strokeWidth={1.75}
                     />
                     <p className="text-[clamp(1rem,var(--empty-text-size),1.4rem)] leading-tight font-medium text-muted-foreground">
-                      {emptyLabel ?? (variant === "shared" ? t("files.emptyShared") : variant === "trash" ? t("files.emptyTrash") : t("files.emptyDefault"))}
+                      {emptyLabel ??
+                        (variant === "shared"
+                          ? t("files.emptyShared")
+                          : variant === "trash"
+                            ? t("files.emptyTrash")
+                            : t("files.emptyDefault"))}
                     </p>
                   </div>
                 </div>
@@ -530,9 +571,9 @@ export function FileList({
                     <FileListItem
                       key={file.id}
                       file={file}
-                      previewUrls={previewUrls}
-                      selectedFileIds={selectedFileIds}
-                      newlyAddedFileIds={newlyAddedFileIds}
+                      previewUrl={previewUrls[file.id]}
+                      isSelected={selectedFileIds.has(file.id)}
+                      isNewlyAdded={newlyAddedFileIds.has(file.id)}
                       editingFileId={editingFileId}
                       editingName={editingName}
                       pendingFileId={pendingFileId}
@@ -582,19 +623,27 @@ function FileInfoDetails({
   const { t } = useTranslation()
   return (
     <div className="file-info-details">
-      <div>{t("files.sizeLabel")} {formatFileSize(file.size_bytes)}</div>
-      <div>{t("files.typeLabel")} {file.content_type ?? t("files.unknownType")}</div>
-      <div>{t("files.createdLabel")} {formatCreatedAt(file.created_at)}</div>
+      <div>
+        {t("files.sizeLabel")} {formatFileSize(file.size_bytes)}
+      </div>
+      <div>
+        {t("files.typeLabel")} {file.content_type ?? t("files.unknownType")}
+      </div>
+      <div>
+        {t("files.createdLabel")} {formatCreatedAt(file.created_at)}
+      </div>
       {file.deleted_at ? (
-        <div>{t("files.deletedLabel")} {formatCreatedAt(file.deleted_at)}</div>
+        <div>
+          {t("files.deletedLabel")} {formatCreatedAt(file.deleted_at)}
+        </div>
       ) : null}
       {isDeleted ? (
-        <div className="font-medium-destructive">{t("files.deletedByOwner")}</div>
+        <div className="font-medium-destructive">
+          {t("files.deletedByOwner")}
+        </div>
       ) : null}
       {isNewlyAdded ? (
-        <div className="font-medium-success">
-          {t("files.newlyAdded")}
-        </div>
+        <div className="font-medium-success">{t("files.newlyAdded")}</div>
       ) : null}
     </div>
   )
@@ -632,6 +681,36 @@ function FileInfoButton({
     }
   }, [isPinnedOpen])
 
+  const handleClick = useCallback((event: { stopPropagation: () => void }) => {
+    event.stopPropagation()
+    setIsPinnedOpen(true)
+    setIsHoverOpen(false)
+  }, [])
+
+  const handleMouseEnter = useCallback(() => {
+    setIsHoverOpen(true)
+  }, [])
+
+  const handleMouseLeave = useCallback(() => {
+    if (!isPinnedOpen) setIsHoverOpen(false)
+  }, [isPinnedOpen])
+
+  const handleFocus = useCallback(() => {
+    setIsHoverOpen(true)
+  }, [])
+
+  const handleBlur = useCallback(() => {
+    if (!isPinnedOpen) setIsHoverOpen(false)
+  }, [isPinnedOpen])
+
+  const handleContentMouseEnter = useCallback(() => {
+    setIsHoverOpen(true)
+  }, [])
+
+  const handleContentMouseLeave = useCallback(() => {
+    if (!isPinnedOpen) setIsHoverOpen(false)
+  }, [isPinnedOpen])
+
   return (
     <Tooltip open={isOpen}>
       <TooltipTrigger asChild>
@@ -645,19 +724,11 @@ function FileInfoButton({
             isDeleted && "text-destructive hover:text-destructive"
           )}
           aria-label={t("files.showDetails", { name: file.display_name })}
-          onClick={(event) => {
-            event.stopPropagation()
-            setIsPinnedOpen(true)
-            setIsHoverOpen(false)
-          }}
-          onMouseEnter={() => setIsHoverOpen(true)}
-          onMouseLeave={() => {
-            if (!isPinnedOpen) setIsHoverOpen(false)
-          }}
-          onFocus={() => setIsHoverOpen(true)}
-          onBlur={() => {
-            if (!isPinnedOpen) setIsHoverOpen(false)
-          }}
+          onClick={handleClick}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
         >
           <InfoIcon />
         </Button>
@@ -667,10 +738,8 @@ function FileInfoButton({
         side="top"
         align="start"
         className="tooltip-content-rich"
-        onMouseEnter={() => setIsHoverOpen(true)}
-        onMouseLeave={() => {
-          if (!isPinnedOpen) setIsHoverOpen(false)
-        }}
+        onMouseEnter={handleContentMouseEnter}
+        onMouseLeave={handleContentMouseLeave}
       >
         <FileInfoDetails
           file={file}
@@ -682,11 +751,11 @@ function FileInfoButton({
   )
 }
 
-function FileListItem({
+const FileListItem = memo(function FileListItem({
   file,
-  previewUrls = {},
-  selectedFileIds = new Set(),
-  newlyAddedFileIds = new Set(),
+  previewUrl,
+  isSelected,
+  isNewlyAdded,
   editingFileId,
   editingName,
   pendingFileId,
@@ -708,25 +777,35 @@ function FileListItem({
   const { t } = useTranslation()
   const isEditing = editingFileId === file.id
   const isPending = pendingFileId === file.id
-  const isSelected = selectedFileIds.has(file.id)
   const isDownloading = pendingFileId === `download-${file.id}`
   const isCloning = pendingFileId === `clone-${file.id}`
   const isSharing = pendingFileId === `share-${file.id}`
   const isPermanentlyDeleting = pendingFileId === `permanent-delete-${file.id}`
   const isRestoring = pendingFileId === `restore-${file.id}`
   const isDeleted = file.deleted_at !== null
-  const isNewlyAdded = newlyAddedFileIds.has(file.id)
   const isSelectable = variant === "trash" || !isDeleted
   const showDeletedState = isDeleted && variant !== "trash"
 
+  const handleCardClick = useCallback(
+    (event: { target: EventTarget | null }) => {
+      if (shouldIgnoreCardSelection(event.target)) return
+
+      onClearNewlyAdded?.(file.id)
+      if (isSelectable) onToggleSelection?.(file.id)
+    },
+    [file.id, isSelectable, onClearNewlyAdded, onToggleSelection]
+  )
+
+  const handleEditingNameChange = useCallback(
+    (event: { target: { value: string } }) => {
+      onEditingNameChange?.(event.target.value)
+    },
+    [onEditingNameChange]
+  )
+
   return (
     <FileItem
-      onClick={(event) => {
-        if (shouldIgnoreCardSelection(event.target)) return
-
-        onClearNewlyAdded?.(file.id)
-        if (isSelectable) onToggleSelection?.(file.id)
-      }}
+      onClick={handleCardClick}
       isSelected={isSelected}
       isNewlyAdded={isNewlyAdded}
       isDeleted={showDeletedState}
@@ -742,7 +821,7 @@ function FileListItem({
               <Input
                 id={`file-name-${file.id}`}
                 value={editingName}
-                onChange={(event) => onEditingNameChange?.(event.target.value)}
+                onChange={handleEditingNameChange}
                 disabled={isPending}
                 aria-invalid={error ? true : undefined}
                 className="min-w-0"
@@ -754,30 +833,25 @@ function FileListItem({
             <h2 className="file-name-text" title={file.display_name}>
               {file.display_name}
             </h2>
-            {showDeletedState ? (
-              <CircleAlertIcon className="size-4 shrink-0 text-destructive" />
-            ) : null}
-            {variant === "default" ? (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => onStartEditing?.(file)}
-                disabled={pendingFileId !== null || editingFileId !== null}
-                className="size-5 file-card-edit-button"
-                aria-label={t("files.editName", { name: file.display_name })}
-              >
-                <PencilIcon className="size-3.5" />
-              </Button>
-            ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => onStartEditing?.(file)}
+              disabled={pendingFileId !== null || editingFileId !== null}
+              className="file-card-edit-button size-5"
+              aria-label={t("files.editName", { name: file.display_name })}
+            >
+              <PencilIcon className="size-3.5" />
+            </Button>
           </div>
         )}
       </div>
       <div className="file-card-preview-container">
         <div className="file-card-main">
           <FileIconContainer>
-            {isImageFile(file.content_type) && previewUrls[file.id] ? (
+            {isImageFile(file.content_type) && previewUrl ? (
               <img
-                src={previewUrls[file.id]}
+                src={previewUrl}
                 alt={file.display_name}
                 className="size-full object-cover"
               />
@@ -979,4 +1053,4 @@ function FileListItem({
       </div>
     </FileItem>
   )
-}
+})

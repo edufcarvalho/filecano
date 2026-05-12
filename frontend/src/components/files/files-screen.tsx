@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { LoaderCircleIcon } from "lucide-react"
 
 import { FileList } from "@files/file-list"
@@ -25,13 +25,8 @@ import {
 } from "@/lib/api"
 import { useLinks } from "@/lib/links-context"
 import { isPreviewSupportedFile } from "@/lib/file-display"
-import {
-  LinkExpirationDialog,
-} from "@/components/links/link-expiration-dialog"
-import {
-  resolveExpiresAt,
-  type LinkExpiration,
-} from "@/lib/link-expiration"
+import { LinkExpirationDialog } from "@/components/links/link-expiration-dialog"
+import { resolveExpiresAt, type LinkExpiration } from "@/lib/link-expiration"
 import { useTranslation } from "@/i18n"
 
 type FilesScreenProps = {
@@ -162,7 +157,12 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const newlyAddedTimersRef = useRef<Record<string, number>>({})
   const uploadErrorTimerRef = useRef<number>(0)
-  const isUploading = uploadingFiles.some((file) => !file.done)
+  const editingFileIdRef = useRef<string | null>(null)
+  const editingNameRef = useRef("")
+  const isUploading = useMemo(
+    () => uploadingFiles.some((file) => !file.done),
+    [uploadingFiles]
+  )
 
   const loadPreviews = useCallback(
     async (
@@ -285,101 +285,116 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     )
   }, [t])
 
-  function startEditing(file: FileResponse) {
+  const startEditing = useCallback((file: FileResponse) => {
+    editingFileIdRef.current = file.id
+    editingNameRef.current = file.display_name
     setEditingFileId(file.id)
     setEditingName(file.display_name)
     setError(null)
-  }
+  }, [])
 
-  function stopEditing() {
+  const stopEditing = useCallback(() => {
+    editingFileIdRef.current = null
+    editingNameRef.current = ""
     setEditingFileId(null)
     setEditingName("")
-  }
+  }, [])
 
-  async function handleRename(file: FileResponse) {
-    const newName = editingName.trim()
+  const handleEditingNameChange = useCallback((name: string) => {
+    editingNameRef.current = name
+    setEditingName(name)
+  }, [])
 
-    if (!newName) {
-      setError(t("files.error.nameBlank"))
-      return
-    }
+  const handleRename = useCallback(
+    async (file: FileResponse) => {
+      const newName = editingNameRef.current.trim()
 
-    if (newName === file.display_name) {
-      stopEditing()
-      return
-    }
+      if (!newName) {
+        setError(t("files.error.nameBlank"))
+        return
+      }
 
-    setError(null)
-    setPendingFileId(file.id)
+      if (newName === file.display_name) {
+        stopEditing()
+        return
+      }
 
-    try {
-      const updatedFile = await updateFile(accessToken, file.id, {
-        original_name: newName,
-      })
+      setError(null)
+      setPendingFileId(file.id)
 
-      setFiles((currentFiles) =>
-        currentFiles.map((currentFile) =>
-          currentFile.id === updatedFile.id ? updatedFile : currentFile
+      try {
+        const updatedFile = await updateFile(accessToken, file.id, {
+          original_name: newName,
+        })
+
+        setFiles((currentFiles) =>
+          currentFiles.map((currentFile) =>
+            currentFile.id === updatedFile.id ? updatedFile : currentFile
+          )
         )
-      )
-      setFolders((currentFolders) =>
-        currentFolders.map((folder) => ({
-          ...folder,
-          files: folder.files.map((f) =>
-            f.id === updatedFile.id ? updatedFile : f
-          ),
-        }))
-      )
-      stopEditing()
-    } catch (error) {
-      setError(getErrorMessage(error, t("files.error.updateFile")))
-    } finally {
-      setPendingFileId(null)
-    }
-  }
-
-  async function handleDelete(file: FileResponse) {
-    setError(null)
-    setPendingFileId(file.id)
-
-    try {
-      await deleteFile(accessToken, file.id)
-      setFiles((currentFiles) =>
-        currentFiles.filter((currentFile) => currentFile.id !== file.id)
-      )
-      setFolders((currentFolders) =>
-        currentFolders
-          .map((folder) => ({
+        setFolders((currentFolders) =>
+          currentFolders.map((folder) => ({
             ...folder,
-            files: folder.files.filter((f) => f.id !== file.id),
+            files: folder.files.map((f) =>
+              f.id === updatedFile.id ? updatedFile : f
+            ),
           }))
-          .filter((folder) => folder.files.length > 0)
-      )
-      setSelectedFileIds((currentSelection) => {
-        const nextSelection = new Set(currentSelection)
-        nextSelection.delete(file.id)
-        return nextSelection
-      })
-      setNewlyAddedFileIds((currentFileIds) => {
-        const nextFileIds = new Set(currentFileIds)
-        nextFileIds.delete(file.id)
-        return nextFileIds
-      })
-      window.clearTimeout(newlyAddedTimersRef.current[file.id])
-      delete newlyAddedTimersRef.current[file.id]
-      setPreviewUrls((currentUrls) =>
-        Object.fromEntries(
-          Object.entries(currentUrls).filter(([fileId]) => fileId !== file.id)
         )
-      )
+        stopEditing()
+      } catch (error) {
+        setError(getErrorMessage(error, t("files.error.updateFile")))
+      } finally {
+        setPendingFileId(null)
+      }
+    },
+    [accessToken, t, stopEditing]
+  )
 
-      if (editingFileId === file.id) stopEditing()
-    } catch (error) {
-      setError(getErrorMessage(error, t("files.error.deleteFile")))
-    } finally {
-      setPendingFileId(null)
-    }
-  }
+  const handleDelete = useCallback(
+    async (file: FileResponse) => {
+      setError(null)
+      setPendingFileId(file.id)
+
+      try {
+        await deleteFile(accessToken, file.id)
+        setFiles((currentFiles) =>
+          currentFiles.filter((currentFile) => currentFile.id !== file.id)
+        )
+        setFolders((currentFolders) =>
+          currentFolders
+            .map((folder) => ({
+              ...folder,
+              files: folder.files.filter((f) => f.id !== file.id),
+            }))
+            .filter((folder) => folder.files.length > 0)
+        )
+        setSelectedFileIds((currentSelection) => {
+          const nextSelection = new Set(currentSelection)
+          nextSelection.delete(file.id)
+          return nextSelection
+        })
+        setNewlyAddedFileIds((currentFileIds) => {
+          const nextFileIds = new Set(currentFileIds)
+          nextFileIds.delete(file.id)
+          return nextFileIds
+        })
+        window.clearTimeout(newlyAddedTimersRef.current[file.id])
+        delete newlyAddedTimersRef.current[file.id]
+        setPreviewUrls((currentUrls) =>
+          Object.fromEntries(
+            Object.entries(currentUrls).filter(([fileId]) => fileId !== file.id)
+          )
+        )
+
+        if (editingFileIdRef.current === file.id) stopEditing()
+      } catch (error) {
+        setError(getErrorMessage(error, t("files.error.deleteFile")))
+      } finally {
+        setPendingFileId(null)
+      }
+    },
+    [accessToken, t, stopEditing]
+  )
 
   const handleUpload = useCallback(
     async (filesToUpload: File[]) => {
@@ -453,7 +468,10 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       if (results.some((result) => result.status === "rejected")) {
         setError(t("files.error.someUploadFailed"))
         window.clearTimeout(uploadErrorTimerRef.current)
-        uploadErrorTimerRef.current = window.setTimeout(dismissUploadError, 3000)
+        uploadErrorTimerRef.current = window.setTimeout(
+          dismissUploadError,
+          3000
+        )
       }
     },
     [accessToken, loadPreviews, markFileAsNewlyAdded, dismissUploadError, t]
@@ -475,41 +493,47 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     }
   }, [handleUpload])
 
-  const handleDragOver: DragHandler = (event) => {
+  const handleDragOver: DragHandler = useCallback((event) => {
     event.preventDefault()
     setIsDragOver(true)
-  }
+  }, [])
 
-  const handleDragLeave: DragHandler = (event) => {
+  const handleDragLeave: DragHandler = useCallback((event) => {
     event.preventDefault()
     setIsDragOver(false)
-  }
+  }, [])
 
-  const handleDrop: DropHandler = (event) => {
-    event.preventDefault()
-    setIsDragOver(false)
+  const handleDrop: DropHandler = useCallback(
+    (event) => {
+      event.preventDefault()
+      setIsDragOver(false)
 
-    const droppedFiles = Array.from(event.dataTransfer.files)
-    if (droppedFiles.length > 0) handleUpload(droppedFiles)
-  }
+      const droppedFiles = Array.from(event.dataTransfer.files)
+      if (droppedFiles.length > 0) handleUpload(droppedFiles)
+    },
+    [handleUpload]
+  )
 
-  const handleFileSelect: FileInputChangeHandler = (event) => {
-    const selectedFiles = Array.from(event.target.files ?? [])
-    if (selectedFiles.length > 0) handleUpload(selectedFiles)
-    if (event.target.value) event.target.value = ""
-  }
+  const handleFileSelect: FileInputChangeHandler = useCallback(
+    (event) => {
+      const selectedFiles = Array.from(event.target.files ?? [])
+      if (selectedFiles.length > 0) handleUpload(selectedFiles)
+      if (event.target.value) event.target.value = ""
+    },
+    [handleUpload]
+  )
 
-  function clearUploadActivity() {
+  const clearUploadActivity = useCallback(() => {
     setUploadingFiles([])
-  }
+  }, [])
 
-  function dismissUploadingFile(fileId: string) {
+  const dismissUploadingFile = useCallback((fileId: string) => {
     setUploadingFiles((currentFiles) =>
       currentFiles.filter((file) => file.id !== fileId)
     )
-  }
+  }, [])
 
-  function toggleFileSelection(fileId: string) {
+  const toggleFileSelection = useCallback((fileId: string) => {
     setSelectedFileIds((currentSelection) => {
       const nextSelection = new Set(currentSelection)
       if (nextSelection.has(fileId)) {
@@ -519,18 +543,20 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       }
       return nextSelection
     })
-  }
+  }, [])
 
-  function selectAllFiles() {
+  const selectAllFiles = useCallback(() => {
     const folderFileIds = folders.flatMap((f) => f.files.map((file) => file.id))
-    setSelectedFileIds(new Set([...files.map((file) => file.id), ...folderFileIds]))
-  }
+    setSelectedFileIds(
+      new Set([...files.map((file) => file.id), ...folderFileIds])
+    )
+  }, [files, folders])
 
-  function clearFileSelection() {
+  const clearFileSelection = useCallback(() => {
     setSelectedFileIds(new Set())
-  }
+  }, [])
 
-  function toggleFolderSelection(fileIds: string[]) {
+  const toggleFolderSelection = useCallback((fileIds: string[]) => {
     setSelectedFileIds((currentSelection) => {
       const allSelected = fileIds.every((id) => currentSelection.has(id))
       const nextSelection = new Set(currentSelection)
@@ -541,9 +567,9 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       }
       return nextSelection
     })
-  }
+  }, [])
 
-  async function handleBulkDelete() {
+  const handleBulkDelete = useCallback(async () => {
     if (selectedFileIds.size === 0) return
 
     setError(null)
@@ -579,9 +605,9 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     } finally {
       setPendingFileId(null)
     }
-  }
+  }, [accessToken, clearFileSelection, selectedFileIds, t])
 
-  async function handleBulkDownload() {
+  const handleBulkDownload = useCallback(async () => {
     if (selectedFileIds.size === 0) return
 
     setError(null)
@@ -605,9 +631,9 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     } finally {
       setPendingFileId(null)
     }
-  }
+  }, [accessToken, files, folders, selectedFileIds, t])
 
-  async function handleBulkShare() {
+  const handleBulkShare = useCallback(() => {
     if (selectedFileIds.size === 0) return
 
     setError(null)
@@ -615,59 +641,77 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     pendingShareFileIdsRef.current = Array.from(selectedFileIds)
     setPendingShareCount(selectedFileIds.size)
     setShowExpirationDialog(true)
-  }
+  }, [selectedFileIds])
 
-  async function executeShare(expiration: LinkExpiration) {
-    const fileIds = pendingShareFileIdsRef.current
-    if (fileIds.length === 0) return
+  const executeShare = useCallback(
+    async (expiration: LinkExpiration) => {
+      const fileIds = pendingShareFileIdsRef.current
+      if (fileIds.length === 0) return
 
-    const isBulk = fileIds.length > 1
-    setPendingFileId(isBulk ? "bulk-share" : `share-${fileIds[0]}`)
+      const isBulk = fileIds.length > 1
+      setPendingFileId(isBulk ? "bulk-share" : `share-${fileIds[0]}`)
 
-    try {
-      const shareToken = await shareFiles(
-        accessToken,
-        fileIds,
-        resolveExpiresAt(expiration)
-      )
-      const result = await copyShareUrl(shareToken.access_token)
-      setNotice(
-        result === "copied"
-          ? t("files.error.shareLinkCopied")
-          : t("files.error.shareLinkCreated", { url: result })
-      )
+      try {
+        const shareToken = await shareFiles(
+          accessToken,
+          fileIds,
+          resolveExpiresAt(expiration)
+        )
+        const result = await copyShareUrl(shareToken.access_token)
+        setNotice(
+          result === "copied"
+            ? t("files.error.shareLinkCopied")
+            : t("files.error.shareLinkCreated", { url: result })
+        )
 
-      const link = await getSharedFiles(shareToken.access_token)
-      addLink(link)
-    } catch (error) {
-      setError(getErrorMessage(error, t("files.error.shareFiles")))
-    } finally {
-      setPendingFileId(null)
-      pendingShareFileIdsRef.current = []
-      setPendingShareCount(0)
-    }
-  }
+        const link = await getSharedFiles(shareToken.access_token)
+        addLink(link)
+      } catch (error) {
+        setError(getErrorMessage(error, t("files.error.shareFiles")))
+      } finally {
+        setPendingFileId(null)
+        pendingShareFileIdsRef.current = []
+        setPendingShareCount(0)
+      }
+    },
+    [accessToken, t, addLink]
+  )
 
-  async function handleDownload(file: FileResponse) {
-    setError(null)
-    setPendingFileId(`download-${file.id}`)
+  const handleDownload = useCallback(
+    async (file: FileResponse) => {
+      setError(null)
+      setPendingFileId(`download-${file.id}`)
 
-    try {
-      await downloadFile(accessToken, file.id, file.original_name)
-    } catch (error) {
-      setError(getErrorMessage(error, t("files.error.downloadFile")))
-    } finally {
-      setPendingFileId(null)
-    }
-  }
+      try {
+        await downloadFile(accessToken, file.id, file.original_name)
+      } catch (error) {
+        setError(getErrorMessage(error, t("files.error.downloadFile")))
+      } finally {
+        setPendingFileId(null)
+      }
+    },
+    [accessToken, t]
+  )
 
-  async function handleShare(file: FileResponse) {
+  const handleShare = useCallback((file: FileResponse) => {
     setError(null)
     setNotice(null)
     pendingShareFileIdsRef.current = [file.id]
     setPendingShareCount(1)
     setShowExpirationDialog(true)
-  }
+  }, [])
+
+  const handleBrowseFiles = useCallback(() => {
+    fileInputRef.current?.click()
+  }, [])
+
+  const handleRefresh = useCallback(() => {
+    loadFiles()
+  }, [loadFiles])
+
+  const handleToggleUploadCollapse = useCallback(() => {
+    setIsUploadPanelCollapsed((collapsed) => !collapsed)
+  }, [])
 
   return (
     <PageWrapper onClick={dismissUploadError}>
@@ -675,7 +719,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         <FileUploadDropzone
           fileInputRef={fileInputRef}
           isDragOver={isDragOver}
-          onBrowseFiles={() => fileInputRef.current?.click()}
+          onBrowseFiles={handleBrowseFiles}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -717,8 +761,8 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
           onClearSelection={clearFileSelection}
           onDelete={handleDelete}
           onDownload={handleDownload}
-          onEditingNameChange={setEditingName}
-          onRefresh={() => loadFiles()}
+          onEditingNameChange={handleEditingNameChange}
+          onRefresh={handleRefresh}
           onRename={handleRename}
           onShare={handleShare}
           onSelectAll={selectAllFiles}
@@ -734,9 +778,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         uploadingFiles={uploadingFiles}
         onClear={clearUploadActivity}
         onDismiss={dismissUploadingFile}
-        onToggleCollapse={() =>
-          setIsUploadPanelCollapsed((isCollapsed) => !isCollapsed)
-        }
+        onToggleCollapse={handleToggleUploadCollapse}
       />
       <LinkExpirationDialog
         open={showExpirationDialog}
@@ -744,7 +786,9 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         title={t("files.shareDialog.title")}
         description={
           pendingShareCount > 1
-            ? t("files.shareDialog.descriptionMultiple", { count: pendingShareCount })
+            ? t("files.shareDialog.descriptionMultiple", {
+                count: pendingShareCount,
+              })
             : t("files.shareDialog.descriptionSingle")
         }
         onConfirm={executeShare}

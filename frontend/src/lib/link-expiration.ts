@@ -5,8 +5,29 @@ export type LinkExpiration =
 
 export const MAX_TIMESTAMP_ISO = "9999-12-31T23:59:59.999Z"
 
+function padDatePart(value: number): string {
+  return String(value).padStart(2, "0")
+}
+
+export function formatLocalDate(date: Date): string {
+  return [
+    date.getFullYear(),
+    padDatePart(date.getMonth() + 1),
+    padDatePart(date.getDate()),
+  ].join("-")
+}
+
+export function parseLocalDate(dateStr: string): Date | null {
+  if (!dateStr) return null
+
+  const [year, month, day] = dateStr.split("-").map(Number)
+  if (!year || !month || !day) return null
+
+  return new Date(year, month - 1, day)
+}
+
 export function todayStr(): string {
-  return new Date().toISOString().slice(0, 10)
+  return formatLocalDate(new Date())
 }
 
 export function currentTimeStr(): string {

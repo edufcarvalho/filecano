@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils"
 import {
   todayStr,
   currentTimeStr,
+  formatLocalDate,
+  parseLocalDate,
   type LinkExpiration,
 } from "@/lib/link-expiration"
 
@@ -54,22 +56,26 @@ export function LinkExpirationDialog({
     if (!exactDate) return null
     const time = exactTime || currentTimeStr()
     const [hours, minutes] = time.split(":")
-    const date = new Date(exactDate)
+    const date = parseLocalDate(exactDate)
+    if (!date) return null
     date.setHours(Number(hours), Number(minutes), 0, 0)
     return date
   }
 
-  const isDateInPast = mode === "exact" && (() => {
-    if (!exactDate) return false
-    const now = new Date()
-    if (exactTime) {
-      const [hours, minutes] = exactTime.split(":")
-      const selected = new Date(exactDate)
-      selected.setHours(Number(hours), Number(minutes), 0, 0)
-      return selected <= now
-    }
-    return exactDate < todayStr()
-  })()
+  const isDateInPast =
+    mode === "exact" &&
+    (() => {
+      if (!exactDate) return false
+      const now = new Date()
+      if (exactTime) {
+        const [hours, minutes] = exactTime.split(":")
+        const selected = parseLocalDate(exactDate)
+        if (!selected) return false
+        selected.setHours(Number(hours), Number(minutes), 0, 0)
+        return selected <= now
+      }
+      return exactDate < todayStr()
+    })()
 
   function handleConfirm() {
     if (permanent) {
@@ -200,13 +206,16 @@ export function LinkExpirationDialog({
                     <PopoverContent className="w-auto p-0" align="start">
                       <Calendar
                         mode="single"
-                        selected={exactDate ? new Date(exactDate) : undefined}
+                        selected={parseLocalDate(exactDate) ?? undefined}
                         onSelect={(date) => {
                           if (date) {
-                            setExactDate(date.toISOString().split("T")[0])
+                            setExactDate(formatLocalDate(date))
                           }
                         }}
-                        disabled={(date) => date < new Date(todayStr())}
+                        disabled={(date) => {
+                          const today = parseLocalDate(todayStr())
+                          return today ? date < today : false
+                        }}
                         startMonth={new Date()}
                         endMonth={new Date("2100-12-31")}
                         captionLayout="dropdown"

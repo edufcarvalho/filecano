@@ -8,12 +8,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@ui/card"
 import { cn } from "@/lib/utils"
 import { useTranslation } from "@/i18n"
 
@@ -95,8 +90,14 @@ export function UploadActivityPanel({
   const { t } = useTranslation()
   if (uploadingFiles.length === 0) return null
 
-  const activeCount = uploadingFiles.filter((file) => !file.done).length
-  const failedCount = uploadingFiles.filter((file) => file.error).length
+  let activeCount = 0
+  let failedCount = 0
+
+  uploadingFiles.forEach((file) => {
+    if (!file.done) activeCount += 1
+    if (file.error) failedCount += 1
+  })
+
   const title =
     activeCount > 0
       ? t("files.dropzone.uploading", { count: activeCount })
@@ -146,9 +147,7 @@ export function UploadActivityPanel({
             {uploadingFiles.map((file) => (
               <div key={file.id} className="upload-file-item">
                 <div className="upload-file-header">
-                  <span className="upload-file-name">
-                    {file.name}
-                  </span>
+                  <span className="upload-file-name">{file.name}</span>
                   <span className="upload-file-status">
                     {file.error
                       ? t("files.dropzone.failed")
@@ -161,7 +160,9 @@ export function UploadActivityPanel({
                       type="button"
                       onClick={() => onDismiss(file.id)}
                       className="shrink-0 text-muted-foreground hover:text-foreground"
-                       aria-label={t("files.dropzone.dismiss", { name: file.name })}
+                      aria-label={t("files.dropzone.dismiss", {
+                        name: file.name,
+                      })}
                     >
                       <XIcon size={14} />
                     </button>
@@ -171,7 +172,9 @@ export function UploadActivityPanel({
                   <div
                     className={cn(
                       "upload-progress-bar",
-                      file.error ? "upload-progress-bar-error" : "upload-progress-bar-success"
+                      file.error
+                        ? "upload-progress-bar-error"
+                        : "upload-progress-bar-success"
                     )}
                     style={{ width: `${file.error ? 100 : file.progress}%` }}
                   />

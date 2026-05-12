@@ -7,9 +7,9 @@ export function useAuthForm() {
   const [isPending, setIsPending] = useState(false)
 
   const clearErrors = useCallback(() => {
-    if (error) setError(null)
-    if (success) setSuccess(null)
-  }, [error, success])
+    setError(null)
+    setSuccess(null)
+  }, [])
 
   const getPasswordState = useCallback((password: string) => {
     const errors = validatePassword(password)
