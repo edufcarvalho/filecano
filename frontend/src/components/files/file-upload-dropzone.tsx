@@ -25,9 +25,6 @@ type FileUploadDropzoneProps = {
   fileInputRef: RefObject<HTMLInputElement | null>
   isDragOver: boolean
   onBrowseFiles: () => void
-  onDragOver: NonNullable<ComponentProps<"div">["onDragOver"]>
-  onDragLeave: NonNullable<ComponentProps<"div">["onDragLeave"]>
-  onDrop: NonNullable<ComponentProps<"div">["onDrop"]>
   onFileSelect: NonNullable<ComponentProps<"input">["onChange"]>
 }
 
@@ -35,9 +32,6 @@ export function FileUploadDropzone({
   fileInputRef,
   isDragOver,
   onBrowseFiles,
-  onDragOver,
-  onDragLeave,
-  onDrop,
   onFileSelect,
 }: FileUploadDropzoneProps) {
   const { t } = useTranslation()
@@ -45,9 +39,6 @@ export function FileUploadDropzone({
     <div
       role="region"
       aria-label={t("files.dropzone.area")}
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
-      onDrop={onDrop}
       onClick={onBrowseFiles}
       className={cn(
         "upload-dropzone",

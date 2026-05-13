@@ -1,5 +1,5 @@
 from app.schemas.params.file_params import FileListParams, FileUpdateParams
-from app.schemas.params.folder_params import FolderParams
+from app.schemas.params.folder_params import FolderParams, FolderUpdateParams
 from app.schemas.params.link_params import (
   LinkCreateParams,
   LinkRestoreParams,
@@ -51,4 +51,5 @@ __all__ = [
   "LinkRestoreParams",
   "PaginateParams",
   "PaginatedResponse",
+  "FolderUpdateParams",
 ]

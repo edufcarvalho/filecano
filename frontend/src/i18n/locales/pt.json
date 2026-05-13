@@ -189,6 +189,8 @@
       "fileDeletedByOwner": "Este arquivo foi excluído pelo proprietário",
       "someDownloadFailed": "Alguns arquivos falharam no download",
       "createFolder": "Não foi possível criar a pasta",
+      "updateFolder": "Não foi possível atualizar a pasta",
+      "nameBlankFolder": "O nome da pasta não pode estar vazio",
       "moveFile": "Não foi possível mover o arquivo"
     },
     "cloneSuccess": "Clonado(s) com sucesso",
@@ -198,7 +200,9 @@
     "createFolderNamePlaceholder": "Digite o nome da pasta",
     "createFolderSelectFiles": "Adicionar arquivos sem pasta",
     "createFolderNoOrphans": "Nenhum arquivo sem pasta disponível",
-    "createFolderSubmit": "Criar pasta"
+    "createFolderSubmit": "Criar pasta",
+    "uploadFolder": "Enviar pasta",
+    "uploadFolderTitle": "Ou enviar do computador"
   },
   "links": {
     "myLinks": "Meus Links",

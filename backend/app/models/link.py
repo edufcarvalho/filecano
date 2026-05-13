@@ -5,16 +5,14 @@ from uuid import UUID
 from sqlmodel import DateTime, Field, Relationship, SQLModel
 from uuid6 import uuid7
 
-from app.models.folder_link_relation import FolderLinkRelation
 from app.models.file_link_relation import FileLinkRelation
+from app.models.folder_link_relation import FolderLinkRelation
 from app.utils.time import current_datetime
-
 
 if TYPE_CHECKING:
   from app.models.file import File
-  from app.models.user import User
   from app.models.folder import Folder
-
+  from app.models.user import User
 
 
 class Link(SQLModel, table=True):
@@ -33,5 +31,7 @@ class Link(SQLModel, table=True):
   files: list["File"] = Relationship(
     back_populates="links", link_model=FileLinkRelation
   )
-  folders: list["Folder"] = Relationship(back_populates="links", link_model=FolderLinkRelation)
+  folders: list["Folder"] = Relationship(
+    back_populates="links", link_model=FolderLinkRelation
+  )
   user: "User" = Relationship(back_populates="links")

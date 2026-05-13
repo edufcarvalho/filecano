@@ -2,23 +2,20 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
-from sqlmodel import DateTime, Field, Relationship, SQLModel, UniqueConstraint
+from sqlmodel import DateTime, Field, Relationship, SQLModel
 from uuid6 import uuid7
 
-from app.utils.time import current_datetime
 from app.models.folder_link_relation import FolderLinkRelation
-
+from app.utils.time import current_datetime
 
 if TYPE_CHECKING:
   from app.models.file import File
-  from app.models.user import User
   from app.models.link import Link
+  from app.models.user import User
 
 
 class Folder(SQLModel, table=True):
   __tablename__ = "folders"
-
-  __table_args__ = (UniqueConstraint("user_id", "name", name="uq_user_item_name"),)
 
   id: UUID = Field(default_factory=uuid7, primary_key=True)
   name: str = Field(default_factory=uuid7, nullable=False)
@@ -43,7 +40,13 @@ class Folder(SQLModel, table=True):
   parent: Optional[Folder] = Relationship(
     back_populates="children", sa_relationship_kwargs={"remote_side": "Folder.id"}
   )
-  children: Optional[list[Folder]] = Relationship(back_populates="parent")
+  children: Optional[list[Folder]] = Relationship(
+    back_populates="parent",
+    sa_relationship_kwargs={
+      "lazy": "selectin",
+      "primaryjoin": "and_(Folder.parent_id == Folder.id, Folder.deleted_at == None)",
+    },
+  )
   links: list["Link"] = Relationship(
     back_populates="folders", link_model=FolderLinkRelation
   )

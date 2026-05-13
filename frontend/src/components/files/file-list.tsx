@@ -22,6 +22,7 @@ import {
   SaveIcon,
   Share2Icon,
   Trash2Icon,
+  UploadIcon,
   XIcon,
 } from "lucide-react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -74,6 +75,8 @@ type FileListProps = {
   previewUrls?: Record<string, string>
   selectedFileIds?: Set<string>
   newlyAddedFileIds?: Set<string>
+  newlyAddedFolderIds?: Set<string>
+  selectedFolderIds?: Set<string>
   editingFileId?: string | null
   editingName?: string
   pendingFileId: string | null
@@ -108,10 +111,18 @@ type FileListProps = {
   onStopEditing?: () => void
   onToggleSelection?: (fileId: string) => void
   onToggleFolderSelection?: (fileIds: string[]) => void
+  onToggleFolderSelect?: (folderId: string) => void
+  onDeleteFolder?: (folderId: string) => void
+  onClearFolderNewlyAdded?: (folderId: string) => void
   onCreateFolder?: (name: string, fileIds: string[]) => void
   onMoveFile?: (fileId: string, folderId: string | null) => void
   onReorderFiles?: (fileId: string, targetIndex: number) => void
+  onMoveFolder?: (folderId: string, parentId: string | null) => void
+  onBrowseFolder?: () => void
+  onExternalDrop?: (event: DragEvent, folderId: string) => void
+  uploadingFolderIds?: Set<string>
   movingFileIds?: Set<string>
+  movingFolderIds?: Set<string>
   stretch?: boolean
   folders?: FolderResponse[]
 }
@@ -179,6 +190,230 @@ export function FileTypeIcon({ contentType }: { contentType: string | null }) {
   }
 }
 
+function countFolderFiles(folder: FolderResponse): number {
+  let count = folder.files.length
+  if (folder.children) {
+    for (const child of folder.children) {
+      count += countFolderFiles(child)
+    }
+  }
+  return count
+}
+
+function collectFolderFileIds(folder: FolderResponse): string[] {
+  const ids = folder.files.map((f) => f.id)
+  if (folder.children) {
+    for (const child of folder.children) {
+      ids.push(...collectFolderFileIds(child))
+    }
+  }
+  return ids
+}
+
+type FolderNodeProps = {
+  folder: FolderResponse
+  previewUrls: Record<string, string>
+  selectedFileIds: Set<string>
+  newlyAddedFileIds: Set<string>
+  newlyAddedFolderIds: Set<string>
+  editingFileId: string | null | undefined
+  editingName: string
+  pendingFileId: string | null
+  error: string | null | undefined
+  movingFileIds: Set<string> | undefined
+  movingFolderIds?: Set<string>
+  variant: "default" | "shared" | "trash"
+  onDelete?: (file: FileResponse) => void
+  onDownload: (file: FileResponse) => void
+  onClone?: (file: FileResponse) => void
+  onEditingNameChange?: (name: string) => void
+  onRename?: (file: FileResponse) => void
+  onPermanentDelete?: (file: FileResponse) => void
+  onRestore?: (file: FileResponse) => void
+  onShare?: (file: FileResponse) => void
+  onClearNewlyAdded?: (fileId: string) => void
+  onStartEditing?: (file: FileResponse) => void
+  onStopEditing?: () => void
+  onToggleSelection?: (fileId: string) => void
+  onToggleFolderSelection?: (fileIds: string[]) => void
+  onToggleFolderSelect?: (folderId: string) => void
+  onDeleteFolder?: (folderId: string) => void
+  onClearFolderNewlyAdded?: (folderId: string) => void
+  onMoveFile?: (fileId: string, folderId: string) => void
+  onMoveFolder?: (folderId: string, parentId: string) => void
+  onExternalDrop?: (event: DragEvent, folderId: string) => void
+  uploadingFolderIds?: Set<string>
+  selectedFolderIds: Set<string>
+}
+
+function FolderNode({
+  folder,
+  previewUrls,
+  selectedFileIds,
+  newlyAddedFileIds,
+  newlyAddedFolderIds,
+  editingFileId,
+  editingName,
+  pendingFileId,
+  error,
+  movingFileIds,
+  movingFolderIds,
+  variant,
+  onDelete,
+  onDownload,
+  onClone,
+  onEditingNameChange,
+  onRename,
+  onPermanentDelete,
+  onRestore,
+  onShare,
+  onClearNewlyAdded,
+  onStartEditing,
+  onStopEditing,
+  onToggleSelection,
+  onToggleFolderSelection,
+  onToggleFolderSelect,
+  onDeleteFolder,
+  onClearFolderNewlyAdded,
+  onMoveFile,
+  onMoveFolder,
+  onExternalDrop,
+  uploadingFolderIds,
+  selectedFolderIds,
+}: FolderNodeProps) {
+  const fileCount = countFolderFiles(folder)
+  const fileIds = collectFolderFileIds(folder)
+
+  const handleExternalDrop = useCallback(
+    (event: DragEvent) => {
+      onExternalDrop?.(event, folder.id)
+    },
+    [folder.id, onExternalDrop]
+  )
+
+  const handleFileDrop = useCallback(
+    (fileId: string, targetFolderId: string) => {
+      if (targetFolderId === folder.id) {
+        onMoveFile?.(fileId, folder.id)
+      }
+    },
+    [folder.id, onMoveFile]
+  )
+
+  const handleFolderDrop = useCallback(
+    (droppedFolderId: string, targetFolderId: string) => {
+      if (targetFolderId === folder.id) {
+        onMoveFolder?.(droppedFolderId, folder.id)
+      }
+    },
+    [folder.id, onMoveFolder]
+  )
+
+  const handleToggleFolderSelect = useCallback(() => {
+    onToggleFolderSelect?.(folder.id)
+  }, [folder.id, onToggleFolderSelect])
+
+  const handleDeleteFolder = useCallback(() => {
+    onDeleteFolder?.(folder.id)
+  }, [folder.id, onDeleteFolder])
+
+  const handleToggleOpen = useCallback(() => {
+    if (newlyAddedFolderIds.has(folder.id)) {
+      onClearFolderNewlyAdded?.(folder.id)
+    }
+  }, [folder.id, newlyAddedFolderIds, onClearFolderNewlyAdded])
+
+  return (
+    <Folder
+      name={folder.name}
+      fileCount={fileCount}
+      folderFileIds={fileIds}
+      folderId={folder.id}
+      selectedFileIds={selectedFileIds}
+      movingFileIds={movingFileIds}
+      onToggleFolderSelection={onToggleFolderSelection ?? (() => {})}
+      onFileDrop={variant === "default" && onMoveFile ? handleFileDrop : undefined}
+      onFolderDrop={variant === "default" && onMoveFolder ? handleFolderDrop : undefined}
+      onExternalDrop={onExternalDrop ? handleExternalDrop : undefined}
+      isNew={newlyAddedFolderIds.has(folder.id)}
+      autoOpen={!!(uploadingFolderIds && uploadingFolderIds.has(folder.id))}
+      isSelected={selectedFolderIds.has(folder.id)}
+      onToggleFolderSelect={variant === "default" && onToggleFolderSelect ? handleToggleFolderSelect : undefined}
+      onDeleteFolder={variant === "default" && onDeleteFolder ? handleDeleteFolder : undefined}
+      onToggleOpen={handleToggleOpen}
+      movingFolderIds={movingFolderIds}
+    >
+      {folder.children?.map((child) => (
+        <FolderNode
+          key={child.id}
+          folder={child}
+          previewUrls={previewUrls}
+          selectedFileIds={selectedFileIds}
+          newlyAddedFileIds={newlyAddedFileIds}
+          newlyAddedFolderIds={newlyAddedFolderIds}
+          editingFileId={editingFileId}
+          editingName={editingName}
+          pendingFileId={pendingFileId}
+          error={error}
+          movingFileIds={movingFileIds}
+          variant={variant}
+          onDelete={onDelete}
+          onDownload={onDownload}
+          onClone={onClone}
+          onEditingNameChange={onEditingNameChange}
+          onRename={onRename}
+          onPermanentDelete={onPermanentDelete}
+          onRestore={onRestore}
+          onShare={onShare}
+          onClearNewlyAdded={onClearNewlyAdded}
+          onStartEditing={onStartEditing}
+          onStopEditing={onStopEditing}
+          onToggleSelection={onToggleSelection}
+          onToggleFolderSelection={onToggleFolderSelection}
+          onToggleFolderSelect={onToggleFolderSelect}
+          onDeleteFolder={onDeleteFolder}
+          onClearFolderNewlyAdded={onClearFolderNewlyAdded}
+          onMoveFile={onMoveFile}
+          onMoveFolder={onMoveFolder}
+          onExternalDrop={onExternalDrop}
+          uploadingFolderIds={uploadingFolderIds}
+          selectedFolderIds={selectedFolderIds}
+          movingFolderIds={movingFolderIds}
+        />
+      ))}
+      <div className="file-list-grid">
+        {folder.files.map((file) => (
+          <FileListItem
+            key={file.id}
+            file={file}
+            previewUrl={previewUrls[file.id]}
+            isSelected={selectedFileIds.has(file.id)}
+            isNewlyAdded={newlyAddedFileIds.has(file.id)}
+            isMoving={movingFileIds?.has(file.id)}
+            editingFileId={editingFileId}
+            editingName={editingName}
+            pendingFileId={pendingFileId}
+            error={error}
+            onDelete={onDelete}
+            onDownload={onDownload}
+            onClone={onClone}
+            onEditingNameChange={onEditingNameChange}
+            onRename={onRename}
+            onPermanentDelete={onPermanentDelete}
+            onRestore={onRestore}
+            onShare={onShare}
+            onClearNewlyAdded={onClearNewlyAdded}
+            onStartEditing={onStartEditing}
+            onStopEditing={onStopEditing}
+            onToggleSelection={onToggleSelection}
+            variant={variant}
+          />
+        ))}
+      </div>
+    </Folder>
+  )
+}
+
 export function FileList({
   variant = "default",
   title,
@@ -186,6 +421,8 @@ export function FileList({
   previewUrls = {},
   selectedFileIds = new Set(),
   newlyAddedFileIds = new Set(),
+  newlyAddedFolderIds = new Set(),
+  selectedFolderIds = new Set(),
   editingFileId = null,
   editingName = "",
   pendingFileId,
@@ -220,10 +457,18 @@ export function FileList({
   onStopEditing,
   onToggleSelection,
   onToggleFolderSelection,
+  onToggleFolderSelect,
+  onDeleteFolder,
+  onClearFolderNewlyAdded,
   onCreateFolder,
   onMoveFile,
   onReorderFiles,
+  onMoveFolder,
+  onBrowseFolder,
+  onExternalDrop,
+  uploadingFolderIds,
   movingFileIds,
+  movingFolderIds,
   stretch = true,
   folders,
 }: FileListProps) {
@@ -258,22 +503,35 @@ export function FileList({
   const [selectedOrphanIds, setSelectedOrphanIds] = useState<Set<string>>(
     new Set()
   )
+  const [folderNameError, setFolderNameError] = useState<string | null>(null)
+  const handleFolderNameChange = useCallback((name: string) => {
+    setNewFolderName(name)
+    if (folderNameError && name.trim()) {
+      setFolderNameError(null)
+    }
+  }, [folderNameError])
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const [isCardDragOver, setIsCardDragOver] = useState(false)
 
   const handleCreateFolderOpen = useCallback(() => {
     setNewFolderName("")
     setSelectedOrphanIds(new Set())
+    setFolderNameError(null)
     setShowCreateFolder(true)
   }, [])
 
   const handleCreateFolderSubmit = useCallback(() => {
-    if (!newFolderName.trim() || !onCreateFolder) return
+    if (!newFolderName.trim()) {
+      setFolderNameError(t("files.error.nameBlankFolder"))
+      return
+    }
+    if (!onCreateFolder) return
+    setFolderNameError(null)
     onCreateFolder(newFolderName.trim(), Array.from(selectedOrphanIds))
     setShowCreateFolder(false)
     setNewFolderName("")
     setSelectedOrphanIds(new Set())
-  }, [newFolderName, selectedOrphanIds, onCreateFolder])
+  }, [newFolderName, selectedOrphanIds, onCreateFolder, t])
 
   const toggleOrphanSelection = useCallback((fileId: string) => {
     setSelectedOrphanIds((prev) => {
@@ -326,12 +584,19 @@ export function FileList({
   const handleOrphanZoneDrop = useCallback(
     (event: DragEvent) => {
       event.preventDefault()
+
+      const droppedFolderId = event.dataTransfer.getData("folder")
+      if (droppedFolderId && onMoveFolder) {
+        onMoveFolder(droppedFolderId, null)
+        return
+      }
+
       const fileId = event.dataTransfer.getData("text/plain")
       if (fileId && onMoveFile) {
         onMoveFile(fileId, null)
       }
     },
-    [onMoveFile]
+    [onMoveFile, onMoveFolder]
   )
 
   const handleCardDragOver = useCallback((event: DragEvent) => {
@@ -349,18 +614,24 @@ export function FileList({
       event.preventDefault()
       event.stopPropagation()
       setIsCardDragOver(false)
+
+      const droppedFolderId = event.dataTransfer.getData("folder")
+      if (droppedFolderId && onMoveFolder) {
+        onMoveFolder(droppedFolderId, null)
+        return
+      }
+
       const fileId = event.dataTransfer.getData("text/plain")
       if (fileId && onMoveFile) {
         onMoveFile(fileId, null)
       }
     },
-    [onMoveFile]
+    [onMoveFile, onMoveFolder]
   )
 
-  const safeMoveFile = useCallback(
-    (fileId: string, folderId: string | null) => onMoveFile?.(fileId, folderId),
-    [onMoveFile]
-  )
+  const handleCardDragEnd = useCallback(() => {
+    setIsCardDragOver(false)
+  }, [])
 
   function handleSelectionToggle() {
     if (hasSelectedFiles) {
@@ -490,6 +761,9 @@ export function FileList({
       }
       onDrop={
         variant === "default" ? handleCardDrop : undefined
+      }
+      onDragEnd={
+        variant === "default" ? handleCardDragEnd : undefined
       }
     >
       <CardHeader className="flex flex-col gap-3">
@@ -662,47 +936,42 @@ export function FileList({
                   )}
                 >
                   {folders.map((folder) => (
-                    <Folder
+                    <FolderNode
                       key={folder.id}
-                      name={folder.name}
-                      fileCount={folder.files.length}
-                      folderFileIds={folder.files.map((f) => f.id)}
-                      folderId={folder.id}
+                      folder={folder}
+                      previewUrls={previewUrls}
                       selectedFileIds={selectedFileIds}
+                      newlyAddedFileIds={newlyAddedFileIds}
+                      newlyAddedFolderIds={newlyAddedFolderIds}
+                      editingFileId={editingFileId}
+                      editingName={editingName}
+                      pendingFileId={pendingFileId}
+                      error={error}
                       movingFileIds={movingFileIds}
+                      variant={variant}
+                      onDelete={onDelete}
+                      onDownload={onDownload}
+                      onClone={onClone}
+                      onEditingNameChange={onEditingNameChange}
+                      onRename={onRename}
+                      onPermanentDelete={onPermanentDelete}
+                      onRestore={onRestore}
+                      onShare={onShare}
+                      onClearNewlyAdded={onClearNewlyAdded}
+                      onStartEditing={onStartEditing}
+                      onStopEditing={onStopEditing}
+                      onToggleSelection={onToggleSelection}
                       onToggleFolderSelection={safeToggleFolderSelection}
-                      onFileDrop={variant === "default" ? safeMoveFile : undefined}
-                    >
-                      <div className="file-list-grid">
-                        {folder.files.map((file) => (
-                          <FileListItem
-                            key={file.id}
-                            file={file}
-                            previewUrl={previewUrls[file.id]}
-                            isSelected={selectedFileIds.has(file.id)}
-                            isNewlyAdded={newlyAddedFileIds.has(file.id)}
-                            isMoving={movingFileIds?.has(file.id)}
-                            editingFileId={editingFileId}
-                            editingName={editingName}
-                            pendingFileId={pendingFileId}
-                            error={error}
-                            onDelete={onDelete}
-                            onDownload={onDownload}
-                            onClone={onClone}
-                            onEditingNameChange={onEditingNameChange}
-                            onRename={onRename}
-                            onPermanentDelete={onPermanentDelete}
-                            onRestore={onRestore}
-                            onShare={onShare}
-                            onClearNewlyAdded={onClearNewlyAdded}
-                            onStartEditing={onStartEditing}
-                            onStopEditing={onStopEditing}
-                            onToggleSelection={onToggleSelection}
-                            variant={variant}
-                          />
-                        ))}
-                      </div>
-                    </Folder>
+                      onToggleFolderSelect={onToggleFolderSelect}
+                      onDeleteFolder={onDeleteFolder}
+                      onClearFolderNewlyAdded={onClearFolderNewlyAdded}
+                      onMoveFile={onMoveFile}
+                      onMoveFolder={onMoveFolder}
+                      onExternalDrop={onExternalDrop}
+                      uploadingFolderIds={uploadingFolderIds}
+                      selectedFolderIds={selectedFolderIds}
+                      movingFolderIds={movingFolderIds}
+                    />
                   ))}
                 </div>
               ) : null}
@@ -795,12 +1064,14 @@ export function FileList({
         open={showCreateFolder}
         onOpenChange={setShowCreateFolder}
         folderName={newFolderName}
-        onFolderNameChange={setNewFolderName}
+        onFolderNameChange={handleFolderNameChange}
         orphanedFiles={files}
         selectedOrphanIds={selectedOrphanIds}
         onToggleOrphan={toggleOrphanSelection}
         onSubmit={handleCreateFolderSubmit}
+        onBrowseFolder={onBrowseFolder}
         isPending={false}
+        folderNameError={folderNameError}
       />
     </Card>
   )
@@ -813,10 +1084,124 @@ function ScrollableList({
   children: ReactNode
   stretch: boolean
 }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const scrollRafRef = useRef<number>(0)
+  const dragPosRef = useRef({ x: 0, y: 0 })
+  const isDraggingRef = useRef(false)
+  const scrollTargetRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    if (!stretch) return
+
+    const container = containerRef.current
+    if (!container) return
+
+    const THRESHOLD = 120
+    const SPEED = 20
+
+    const findScrollTarget = (el: HTMLElement): HTMLElement => {
+      let current: HTMLElement | null = el
+      while (current) {
+        const style = window.getComputedStyle(current)
+        const overflowY = style.overflowY
+        if (
+          (overflowY === "auto" || overflowY === "scroll") &&
+          current.scrollHeight > current.clientHeight
+        ) {
+          return current
+        }
+        current = current.parentElement
+      }
+      return document.documentElement
+    }
+
+    scrollTargetRef.current = findScrollTarget(container)
+
+    const getScrollAmount = (clientY: number): number => {
+      const scrollTarget = scrollTargetRef.current
+      if (!scrollTarget) return 0
+
+      const rect = scrollTarget.getBoundingClientRect()
+      if (clientY < rect.top || clientY > rect.bottom) return 0
+
+      const distFromTop = clientY - rect.top
+      const distFromBottom = rect.bottom - clientY
+
+      if (distFromTop < THRESHOLD) {
+        const intensity = 1 - distFromTop / THRESHOLD
+        return -SPEED * intensity
+      }
+      if (distFromBottom < THRESHOLD) {
+        const intensity = 1 - distFromBottom / THRESHOLD
+        return SPEED * intensity
+      }
+      return 0
+    }
+
+    const step = () => {
+      const scrollTarget = scrollTargetRef.current
+      if (!scrollTarget) {
+        scrollRafRef.current = 0
+        return
+      }
+      const amount = getScrollAmount(dragPosRef.current.y)
+      if (amount !== 0) {
+        scrollTarget.scrollTop += amount
+        scrollRafRef.current = requestAnimationFrame(step)
+      } else {
+        scrollRafRef.current = 0
+      }
+    }
+
+    const onDragOver = (e: DragEvent) => {
+      dragPosRef.current = { x: e.clientX, y: e.clientY }
+      isDraggingRef.current = true
+      if (scrollRafRef.current === 0) {
+        scrollRafRef.current = requestAnimationFrame(step)
+      }
+    }
+
+    const onDragEnd = () => {
+      isDraggingRef.current = false
+      if (scrollRafRef.current) {
+        cancelAnimationFrame(scrollRafRef.current)
+        scrollRafRef.current = 0
+      }
+    }
+
+    const onWheel = (e: WheelEvent) => {
+      if (!isDraggingRef.current) return
+      const scrollTarget = scrollTargetRef.current
+      if (!scrollTarget) return
+      e.preventDefault()
+      scrollTarget.scrollTop += e.deltaY * 0.5
+    }
+
+    document.addEventListener("dragover", onDragOver)
+    document.addEventListener("dragend", onDragEnd)
+    document.addEventListener("drop", onDragEnd)
+    document.addEventListener("wheel", onWheel, { passive: false })
+
+    return () => {
+      document.removeEventListener("dragover", onDragOver)
+      document.removeEventListener("dragend", onDragEnd)
+      document.removeEventListener("drop", onDragEnd)
+      document.removeEventListener("wheel", onWheel)
+      if (scrollRafRef.current) {
+        cancelAnimationFrame(scrollRafRef.current)
+      }
+    }
+  }, [stretch])
+
   if (!stretch) return <>{children}</>
 
   return (
-    <div className="scrollable-list-container flex flex-col">{children}</div>
+    <div
+      ref={containerRef}
+      className="scrollable-list-container flex flex-col"
+    >
+      {children}
+    </div>
   )
 }
 
@@ -1078,7 +1463,6 @@ const FileListItem = memo(function FileListItem({
             )}
           </FileIconContainer>
         </div>
-
         <div className="file-card-bottom">
           <FileInfoButton
             file={file}
@@ -1324,7 +1708,9 @@ type CreateFolderDialogProps = {
   selectedOrphanIds: Set<string>
   onToggleOrphan: (fileId: string) => void
   onSubmit: () => void
+  onBrowseFolder?: () => void
   isPending: boolean
+  folderNameError?: string | null
 }
 
 function CreateFolderDialog({
@@ -1336,7 +1722,9 @@ function CreateFolderDialog({
   selectedOrphanIds,
   onToggleOrphan,
   onSubmit,
+  onBrowseFolder,
   isPending,
+  folderNameError,
 }: CreateFolderDialogProps) {
   const { t } = useTranslation()
 
@@ -1364,6 +1752,9 @@ function CreateFolderDialog({
               />
             </Field>
           </FieldGroup>
+          {folderNameError ? (
+            <p className="text-sm text-destructive">{folderNameError}</p>
+          ) : null}
           {orphanedFiles.length > 0 ? (
             <div className="flex flex-col gap-2">
               <span className="text-sm font-medium">
@@ -1394,6 +1785,26 @@ function CreateFolderDialog({
               {t("files.createFolderNoOrphans")}
             </p>
           )}
+          {onBrowseFolder ? (
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-medium">
+                {t("files.uploadFolderTitle")}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onOpenChange(false)
+                  onBrowseFolder()
+                }}
+                disabled={isPending}
+              >
+                <UploadIcon data-icon="inline-start" />
+                {t("files.uploadFolder")}
+              </Button>
+            </div>
+          ) : null}
         </div>
         <DialogFooter>
           <Button
@@ -1407,7 +1818,7 @@ function CreateFolderDialog({
           <LoadingButton
             type="button"
             onClick={onSubmit}
-            disabled={!folderName.trim() || isPending}
+            disabled={isPending}
             isLoading={isPending}
             idleIcon={<FolderPlusIcon data-icon="inline-start" />}
           >

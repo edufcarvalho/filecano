@@ -209,7 +209,9 @@ export async function updateUser(
 export type FolderResponse = {
   id: string
   name: string
+  parent_id?: string | null
   files: FileResponse[]
+  children?: FolderResponse[] | null
 }
 
 export type FolderListResponse = {
@@ -277,7 +279,8 @@ export async function listFolderedFiles(
 
 export async function createFolder(
   accessToken: string,
-  name: string
+  name: string,
+  parentId?: string
 ): Promise<FolderResponse> {
   const response = await authFetch(
     `${API_URL}/v1/folders`,
@@ -287,7 +290,7 @@ export async function createFolder(
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, parent_id: parentId ?? null }),
     }
   )
 
@@ -295,6 +298,43 @@ export async function createFolder(
     await readError(response, translate("files.error.createFolder"))
 
   return response.json()
+}
+
+export async function updateFolder(
+  accessToken: string,
+  folderId: string,
+  params: { name?: string; parent_id?: string | null }
+): Promise<FolderResponse> {
+  const response = await authFetch(
+    `${API_URL}/v1/folders/${folderId}`,
+    accessToken,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(params),
+    }
+  )
+
+  if (!response.ok)
+    await readError(response, translate("files.error.updateFolder"))
+
+  return response.json()
+}
+
+export async function deleteFolder(
+  accessToken: string,
+  folderId: string
+): Promise<void> {
+  const response = await authFetch(
+    `${API_URL}/v1/folders/${folderId}`,
+    accessToken,
+    { method: "DELETE" }
+  )
+
+  if (!response.ok)
+    await readError(response, translate("files.error.createFolder"))
 }
 
 export function listDeletedFiles(accessToken: string): Promise<FileResponse[]> {
@@ -596,21 +636,26 @@ export async function cloneSharedFiles(
 export async function uploadFile(
   accessToken: string,
   file: File,
-  onProgress?: (percent: number) => void
+  onProgress?: (percent: number) => void,
+  folderId?: string
 ): Promise<FileResponse> {
-  return uploadFileWithToken(accessToken, file, onProgress)
+  return uploadFileWithToken(accessToken, file, onProgress, true, folderId)
 }
 
 function uploadFileWithToken(
   accessToken: string,
   file: File,
   onProgress: ((percent: number) => void) | undefined,
-  allowRefresh = true
+  allowRefresh = true,
+  folderId?: string
 ): Promise<FileResponse> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
     const formData = new FormData()
     formData.append("file", file)
+    if (folderId) {
+      formData.append("folder_id", folderId)
+    }
 
     xhr.upload.addEventListener("progress", (event) => {
       if (event.lengthComputable && onProgress) {
@@ -634,7 +679,8 @@ function uploadFileWithToken(
                 refreshedToken,
                 file,
                 onProgress,
-                false
+                false,
+                folderId
               )
                 .then(resolve)
                 .catch(reject)

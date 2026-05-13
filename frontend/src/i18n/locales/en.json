@@ -190,6 +190,8 @@
       "fileDeletedByOwner": "This file was deleted by the owner",
       "someDownloadFailed": "Some files failed to download",
       "createFolder": "Unable to create folder",
+      "updateFolder": "Unable to update folder",
+      "nameBlankFolder": "Folder name must not be blank",
       "moveFile": "Unable to move file"
     },
     "cloneSuccess": "Successfully cloned",
@@ -199,7 +201,9 @@
     "createFolderNamePlaceholder": "Enter folder name",
     "createFolderSelectFiles": "Add orphaned files",
     "createFolderNoOrphans": "No orphaned files available",
-    "createFolderSubmit": "Create folder"
+    "createFolderSubmit": "Create folder",
+    "uploadFolder": "Upload folder",
+    "uploadFolderTitle": "Or upload from your computer"
   },
   "links": {
     "myLinks": "My Links",

@@ -8,8 +8,8 @@ import {
   MinusIcon,
 } from "lucide-react"
 import type { DragEvent, ReactNode } from "react"
-import { useCallback, useMemo, useState } from "react"
-import { useTranslation } from "react-i18next"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { useTranslation } from "@/i18n"
 
 import { Button } from "@ui/button"
 import { cn } from "@/lib/utils"
@@ -20,9 +20,17 @@ type FolderProps = {
   children: ReactNode
   folderFileIds: string[]
   selectedFileIds: Set<string>
+  isSelected?: boolean
+  isNew?: boolean
+  autoOpen?: boolean
   movingFileIds?: Set<string>
+  movingFolderIds?: Set<string>
   onToggleFolderSelection: (fileIds: string[]) => void
+  onToggleFolderSelect?: () => void
+  onToggleOpen?: () => void
   onFileDrop?: (fileId: string, folderId: string) => void
+  onFolderDrop?: (folderId: string, parentId: string) => void
+  onExternalDrop?: (event: DragEvent) => void
   folderId?: string
 }
 
@@ -32,18 +40,32 @@ export function Folder({
   children,
   folderFileIds,
   selectedFileIds,
+  isSelected,
+  isNew,
+  autoOpen = false,
   movingFileIds = new Set(),
+  movingFolderIds,
   onToggleFolderSelection,
+  onToggleFolderSelect,
+  onToggleOpen,
   onFileDrop,
+  onFolderDrop,
+  onExternalDrop,
   folderId,
 }: FolderProps) {
   const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
 
+  useEffect(() => {
+    if (autoOpen) queueMicrotask(() => setIsOpen(true))
+  }, [autoOpen])
+
   const isReceiving = useMemo(
-    () => folderFileIds.some((id) => movingFileIds.has(id)),
-    [folderFileIds, movingFileIds]
+    () =>
+      folderFileIds.some((id) => movingFileIds.has(id)) ||
+      (movingFolderIds && movingFolderIds.has(folderId ?? "")),
+    [folderFileIds, movingFileIds, movingFolderIds, folderId]
   )
 
   const allSelected =
@@ -64,29 +86,52 @@ export function Folder({
     setIsDragOver(false)
   }, [])
 
+  const handleDragStart = useCallback(
+    (event: DragEvent) => {
+      event.dataTransfer.setData("folder", folderId ?? "")
+      event.dataTransfer.effectAllowed = "move"
+    },
+    [folderId]
+  )
+
   const handleDrop = useCallback(
     (event: DragEvent) => {
       event.preventDefault()
+      event.stopPropagation()
       setIsDragOver(false)
+
+      const droppedFolderId = event.dataTransfer.getData("folder")
+      if (droppedFolderId) {
+        if (folderId && onFolderDrop) {
+          onFolderDrop(droppedFolderId, folderId)
+        }
+        return
+      }
 
       const fileId = event.dataTransfer.getData("text/plain")
       if (fileId && folderId && onFileDrop) {
         onFileDrop(fileId, folderId)
+        return
+      }
+
+      if (onExternalDrop && event.dataTransfer.files.length > 0) {
+        onExternalDrop(event)
       }
     },
-    [folderId, onFileDrop]
+    [folderId, onFileDrop, onFolderDrop, onExternalDrop]
   )
 
   return (
     <div
       className={cn(
         "folder-panel",
-        allSelected && "folder-panel-selected",
+        isNew && "folder-panel-new",
+        isSelected && "folder-panel-selected",
         isDragOver && "border-primary/40 bg-primary/10 relative z-10"
       )}
-      onDragOver={onFileDrop ? handleDragOver : undefined}
-      onDragLeave={onFileDrop ? handleDragLeave : undefined}
-      onDrop={onFileDrop ? handleDrop : undefined}
+      onDragOver={onFileDrop || onFolderDrop || onExternalDrop ? handleDragOver : undefined}
+      onDragLeave={onFileDrop || onFolderDrop || onExternalDrop ? handleDragLeave : undefined}
+      onDrop={onFileDrop || onFolderDrop || onExternalDrop ? handleDrop : undefined}
     >
       <div className="folder-panel-header">
         <Button
@@ -94,18 +139,28 @@ export function Folder({
           variant="outline"
           size="icon-xs"
           aria-label={
-            allSelected
-              ? "Deselect all files in folder"
-              : "Select all files in folder"
+            isSelected
+              ? "Deselect folder"
+              : allSelected
+                ? "Select folder for deletion"
+                : "Select all files in folder"
           }
-          aria-pressed={allSelected}
-          onClick={() => onToggleFolderSelection(folderFileIds)}
+          aria-pressed={allSelected || isSelected}
+          onClick={() => {
+            if (isSelected) {
+              onToggleFolderSelect?.()
+            } else if (allSelected) {
+              onToggleFolderSelect?.()
+            } else {
+              onToggleFolderSelection(folderFileIds)
+            }
+          }}
           className={cn(
             "file-selection-toggle",
-            (allSelected || someSelected) && "file-selection-toggle-active"
+            (allSelected || someSelected || isSelected) && "file-selection-toggle-active"
           )}
         >
-          {allSelected ? (
+          {allSelected || isSelected ? (
             <CheckIcon strokeWidth={7} />
           ) : someSelected ? (
             <MinusIcon strokeWidth={7} />
@@ -113,8 +168,13 @@ export function Folder({
         </Button>
         <button
           type="button"
-          onClick={() => setIsOpen((prev) => !prev)}
+          onClick={() => {
+            setIsOpen((prev) => !prev)
+            onToggleOpen?.()
+          }}
           className="folder-toggle-button"
+          draggable={!!onFolderDrop}
+          onDragStart={onFolderDrop ? handleDragStart : undefined}
         >
           {isOpen ? (
             <FolderOpenIcon className="size-5 shrink-0 text-muted-foreground" />
@@ -134,7 +194,7 @@ export function Folder({
         </button>
       </div>
       {isOpen ? (
-        <div className="border-t px-3 pt-2 pb-3">
+        <div className="border-t p-3 flex flex-col gap-2">
           {fileCount > 0 ? (
             children
           ) : (

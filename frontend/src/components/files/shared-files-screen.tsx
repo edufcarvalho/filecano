@@ -16,6 +16,7 @@ import {
   fetchSharedFilePreviewAsDataUrl,
   getSharedFiles,
   type FileResponse,
+  type FolderResponse,
 } from "@/lib/api"
 import { isPreviewSupportedFile } from "@/lib/file-display"
 import { useTranslation } from "@/i18n"
@@ -27,6 +28,37 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 function isAvailableFile(file: FileResponse) {
   return file.deleted_at === null
+}
+
+function groupFilesByFolder(
+  rawFiles: FileResponse[],
+  folderData?: Record<string, { name: string }>
+): { orphanFiles: FileResponse[]; folders: FolderResponse[] } {
+  const grouped = new Map<string, FileResponse[]>()
+
+  for (const file of rawFiles) {
+    if (file.folder_id) {
+      const list = grouped.get(file.folder_id) ?? []
+      list.push(file)
+      grouped.set(file.folder_id, list)
+    }
+  }
+
+  const folders: FolderResponse[] = []
+  for (const [folderId, folderFiles] of grouped) {
+    folders.push({
+      id: folderId,
+      name: folderData?.[folderId]?.name ?? folderId,
+      files: folderFiles,
+    })
+  }
+
+  const folderFileIds = new Set(folders.flatMap((f) => f.files.map((file) => file.id)))
+  const orphanFiles = rawFiles.filter(
+    (file) => !file.folder_id && !folderFileIds.has(file.id)
+  )
+
+  return { orphanFiles, folders }
 }
 
 type SharedFilesScreenUser = {
@@ -50,6 +82,7 @@ export function SharedFilesScreen({
   const { t } = useTranslation()
   const { shareToken } = useParams()
   const [files, setFiles] = useState<FileResponse[]>([])
+  const [folders, setFolders] = useState<FolderResponse[]>([])
   const [linkId, setLinkId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -101,7 +134,9 @@ export function SharedFilesScreen({
       .then((sharedLink) => {
         if (!isCurrentRef.current) return
         setLinkId(sharedLink.id)
-        setFiles(sharedLink.files)
+        const grouped = groupFilesByFolder(sharedLink.files)
+        setFiles(grouped.orphanFiles)
+        setFolders(grouped.folders)
         setSelectedFileIds(
           (currentSelection) =>
             new Set(
@@ -167,7 +202,11 @@ export function SharedFilesScreen({
     setError(null)
     setPendingFileId("bulk-download")
 
-    const filesToDownload = files.filter(
+    const allFiles = [
+      ...files,
+      ...folders.flatMap((f) => f.files),
+    ]
+    const filesToDownload = allFiles.filter(
       (file) => isAvailableFile(file) && selectedFileIds.has(file.id)
     )
 
@@ -182,7 +221,7 @@ export function SharedFilesScreen({
     } finally {
       setPendingFileId(null)
     }
-  }, [files, selectedFileIds, shareToken, t])
+  }, [files, folders, selectedFileIds, shareToken, t])
 
   const handleClone = useCallback(
     async (file: FileResponse) => {
@@ -243,10 +282,27 @@ export function SharedFilesScreen({
   }, [])
 
   const selectAllFiles = useCallback(() => {
+    const allFiles = [
+      ...files,
+      ...folders.flatMap((f) => f.files),
+    ]
     setSelectedFileIds(
-      new Set(files.filter(isAvailableFile).map((file) => file.id))
+      new Set(allFiles.filter(isAvailableFile).map((file) => file.id))
     )
-  }, [files])
+  }, [files, folders])
+
+  const toggleFolderSelection = useCallback((fileIds: string[]) => {
+    setSelectedFileIds((currentSelection) => {
+      const allSelected = fileIds.every((id) => currentSelection.has(id))
+      const nextSelection = new Set(currentSelection)
+      if (allSelected) {
+        fileIds.forEach((id) => nextSelection.delete(id))
+      } else {
+        fileIds.forEach((id) => nextSelection.add(id))
+      }
+      return nextSelection
+    })
+  }, [])
 
   const clearFileSelection = useCallback(() => {
     setSelectedFileIds(new Set())
@@ -270,6 +326,7 @@ export function SharedFilesScreen({
         <FileList
           variant="shared"
           files={files}
+          folders={folders.length > 0 ? folders : undefined}
           previewUrls={previewUrls}
           selectedFileIds={selectedFileIds}
           pendingFileId={pendingFileId}
@@ -283,6 +340,7 @@ export function SharedFilesScreen({
           onClearSelection={clearFileSelection}
           onSelectAll={selectAllFiles}
           onToggleSelection={toggleFileSelection}
+          onToggleFolderSelection={toggleFolderSelection}
         />
       </PageWrapper>
     </div>

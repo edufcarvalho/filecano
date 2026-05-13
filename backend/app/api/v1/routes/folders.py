@@ -6,7 +6,7 @@ from fastapi import APIRouter, Body, Depends, status
 from app.api.dependencies.auth import get_current_user
 from app.api.dependencies.services import get_folder_service
 from app.models import User
-from app.schemas import FolderParams, FolderResponse
+from app.schemas import FolderParams, FolderResponse, FolderUpdateParams
 from app.services.folder_service import FolderService
 
 router = APIRouter(prefix="/folders", tags=["folders"])
@@ -18,7 +18,7 @@ def create_folder(
   current_user: User = Depends(get_current_user),
   service: FolderService = Depends(get_folder_service),
 ):
-  folder = service.create_folder(current_user, params.name)
+  folder = service.create_folder(current_user, params)
 
   return folder
 
@@ -33,10 +33,12 @@ def list_folders(
   return folders
 
 
-@router.put("/{folder_id}", response_model=FolderResponse, status_code=status.HTTP_200_OK)
+@router.put(
+  "/{folder_id}", response_model=FolderResponse, status_code=status.HTTP_200_OK
+)
 def update_folder(
   folder_id: UUID,
-  params: Annotated[FolderParams, Body()],
+  params: Annotated[FolderUpdateParams, Body()],
   current_user: User = Depends(get_current_user),
   service: FolderService = Depends(get_folder_service),
 ):

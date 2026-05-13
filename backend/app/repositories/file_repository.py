@@ -124,18 +124,15 @@ class FileRepository:
     return self.session.exec(query).all()
 
   def filename_stored_by_user_count(self, original_name: str, user_id: UUID) -> int:
-    pattern = rf'^{original_name} \([0-9]+\)$'
+    pattern = rf"^{original_name} \([0-9]+\)$"
 
-    query = (
-      select(func.count())
-      .where(
-        File.deleted_at.is_(None),
-        File.user_id == user_id,
-        or_(
-          File.original_name == original_name,
-          File.display_name.op("~")(pattern),
-        ),
-      )
+    query = select(func.count()).where(
+      File.deleted_at.is_(None),
+      File.user_id == user_id,
+      or_(
+        File.original_name == original_name,
+        File.display_name.op("~")(pattern),
+      ),
     )
 
     return self.session.exec(query).one()

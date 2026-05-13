@@ -20,7 +20,9 @@ class FolderResponse(BaseModel):
   id: UUID
   user_id: UUID
   name: str
+  parent_id: Optional[UUID] = None
   files: Optional[list[FileResponse]] = None
+  children: Optional[list[FolderResponse]] = None
   created_at: datetime
   deleted_at: Optional[datetime] = None
 

@@ -1,9 +1,10 @@
 from typing import Optional
 from uuid import UUID
 
-from sqlmodel import Session, select
+from sqlmodel import Session, func, or_, select, update
 
 from app.models import Folder
+from app.utils.time import current_datetime
 
 
 class FolderRepository:
@@ -45,8 +46,40 @@ class FolderRepository:
   def list_by_user(self, user_id: UUID) -> list[Folder]:
     query = (
       select(Folder)
-      .where(Folder.user_id == user_id, Folder.deleted_at.is_(None))
+      .where(
+        Folder.user_id == user_id,
+        Folder.deleted_at.is_(None),
+        Folder.parent_id.is_(None),
+      )
       .order_by(Folder.id.desc())
     )
 
     return self.session.exec(query).all()
+
+  def delete_children(self, parent_id: UUID) -> None:
+    query = (
+      update(Folder)
+      .where(Folder.parent_id == parent_id)
+      .values(deleted_at=current_datetime())
+    )
+
+    self.session.exec(query)
+    self.session.commit()
+
+
+  def foldername_stored_by_user_count(self, name: str, user_id: UUID) -> int:
+    pattern = rf"^{name} \([0-9]+\)$"
+
+    query = (
+      select(func.count())
+      .where(
+        Folder.deleted_at.is_(None),
+        Folder.user_id == user_id,
+        or_(
+          Folder.name == name,
+          Folder.name.op("~")(pattern),
+        ),
+      )
+    )
+
+    return self.session.exec(query).one()

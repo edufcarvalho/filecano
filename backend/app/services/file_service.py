@@ -172,11 +172,12 @@ class FileService(BaseService):
       file.original_name = params.original_name
       file.display_name = self._get_unique_filename(user.id, params.original_name)
 
-    if params.folder_id is not None:
-      folder = self.folder_repository.get_by_id(params.folder_id)
+    if "folder_id" in params.model_fields_set:
+      if params.folder_id is not None:
+        folder = self.folder_repository.get_by_id(params.folder_id)
 
-      if not folder or folder.user_id != user.id or folder.deleted_at is not None:
-        raise NotFoundError("Folder not found")
+        if not folder or folder.user_id != user.id or folder.deleted_at is not None:
+          raise NotFoundError("Folder not found")
 
       file.folder_id = params.folder_id
 

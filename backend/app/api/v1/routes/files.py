@@ -1,7 +1,7 @@
-from typing import Annotated, Union
+from typing import Annotated, Optional, Union
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, File, UploadFile, status
+from fastapi import APIRouter, Body, Depends, File, Form, UploadFile, status
 from fastapi.responses import StreamingResponse
 
 from app.api.dependencies import get_current_user, get_file_service
@@ -21,10 +21,11 @@ router = APIRouter(prefix="/files", tags=["files"])
 @router.post("", response_model=FileResponse, status_code=status.HTTP_201_CREATED)
 def upload_file(
   file: Annotated[UploadFile, File()],
+  folder_id: Annotated[Optional[UUID], Form()] = None,
   current_user: User = Depends(get_current_user),
   service: Service = Depends(get_file_service),
 ) -> FileResponse:
-  return service.create_file(current_user, file)
+  return service.create_file(current_user, file, folder_id)
 
 
 @router.get("", response_model=Union[list[FileResponse], FolderWithFilesResponse])
