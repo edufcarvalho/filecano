@@ -672,7 +672,7 @@
   }
 
   .folder-panel {
-    @apply rounded-lg border transition-colors;
+    @apply rounded-lg border bg-card transition-colors;
   }
 
   .folder-panel-selected {

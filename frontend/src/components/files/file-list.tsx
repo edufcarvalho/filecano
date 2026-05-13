@@ -259,6 +259,7 @@ export function FileList({
     new Set()
   )
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  const [isCardDragOver, setIsCardDragOver] = useState(false)
 
   const handleCreateFolderOpen = useCallback(() => {
     setNewFolderName("")
@@ -325,6 +326,29 @@ export function FileList({
   const handleOrphanZoneDrop = useCallback(
     (event: DragEvent) => {
       event.preventDefault()
+      const fileId = event.dataTransfer.getData("text/plain")
+      if (fileId && onMoveFile) {
+        onMoveFile(fileId, null)
+      }
+    },
+    [onMoveFile]
+  )
+
+  const handleCardDragOver = useCallback((event: DragEvent) => {
+    event.preventDefault()
+    event.dataTransfer.dropEffect = "move"
+    setIsCardDragOver(true)
+  }, [])
+
+  const handleCardDragLeave = useCallback(() => {
+    setIsCardDragOver(false)
+  }, [])
+
+  const handleCardDrop = useCallback(
+    (event: DragEvent) => {
+      event.preventDefault()
+      event.stopPropagation()
+      setIsCardDragOver(false)
       const fileId = event.dataTransfer.getData("text/plain")
       if (fileId && onMoveFile) {
         onMoveFile(fileId, null)
@@ -454,9 +478,19 @@ export function FileList({
   return (
     <Card
       className={cn(
-        "flex min-h-0 w-full flex-col gap-3 pb-3",
-        stretch && "flex-1"
+        "flex min-h-0 w-full flex-col gap-3 pb-3 transition-colors",
+        stretch && "flex-1",
+        isCardDragOver && "border-dashed border-primary/40 bg-primary/5"
       )}
+      onDragOver={
+        variant === "default" ? handleCardDragOver : undefined
+      }
+      onDragLeave={
+        variant === "default" ? handleCardDragLeave : undefined
+      }
+      onDrop={
+        variant === "default" ? handleCardDrop : undefined
+      }
     >
       <CardHeader className="flex flex-col gap-3">
         <div className="flex w-full min-w-0 items-center gap-1">

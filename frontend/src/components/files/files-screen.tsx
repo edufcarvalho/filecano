@@ -751,6 +751,15 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         files.find((f) => f.id === fileId) ??
         folders.flatMap((f) => f.files).find((f) => f.id === fileId)
 
+      if (movedFile?.folder_id === folderId) {
+        setMovingFileIds((prev) => {
+          const next = new Set(prev)
+          next.delete(fileId)
+          return next
+        })
+        return
+      }
+
       if (folderId) {
         setFiles((current) => current.filter((f) => f.id !== fileId))
         setFolders((current) =>

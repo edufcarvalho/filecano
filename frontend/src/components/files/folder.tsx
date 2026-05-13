@@ -53,12 +53,14 @@ export function Folder({
 
   const handleDragOver = useCallback((event: DragEvent) => {
     event.preventDefault()
+    event.stopPropagation()
     event.dataTransfer.dropEffect = "move"
     setIsDragOver(true)
   }, [])
 
   const handleDragLeave = useCallback((event: DragEvent) => {
     event.preventDefault()
+    event.stopPropagation()
     setIsDragOver(false)
   }, [])
 
@@ -80,7 +82,7 @@ export function Folder({
       className={cn(
         "folder-panel",
         allSelected && "folder-panel-selected",
-        isDragOver && "ring-2 ring-primary"
+        isDragOver && "border-primary/40 bg-primary/10 relative z-10"
       )}
       onDragOver={onFileDrop ? handleDragOver : undefined}
       onDragLeave={onFileDrop ? handleDragLeave : undefined}
