@@ -207,12 +207,12 @@ export function LinkExpirationDialog({
                       <Calendar
                         mode="single"
                         selected={parseLocalDate(exactDate) ?? undefined}
-                        onSelect={(date) => {
+                        onSelect={(date: Date | undefined) => {
                           if (date) {
                             setExactDate(formatLocalDate(date))
                           }
                         }}
-                        disabled={(date) => {
+                        disabled={(date: Date) => {
                           const today = parseLocalDate(todayStr())
                           return today ? date < today : false
                         }}
