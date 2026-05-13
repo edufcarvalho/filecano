@@ -1472,7 +1472,6 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
           onDeleteFolder={deleteSingleFolder}
           onCreateFolder={handleCreateFolder}
           onBrowseFolder={handleBrowseFolder}
-          onDeleteFolder={deleteSingleFolder}
           onClearFolderNewlyAdded={clearFolderNewlyAdded}
           onMoveFile={handleMoveFile}
           onMoveFolder={handleMoveFolder}

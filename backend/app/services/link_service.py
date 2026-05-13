@@ -13,7 +13,7 @@ from app.core import (
   Settings,
 )
 from app.models import File, Link, User
-from app.repositories import FileRepository, LinkRepository
+from app.repositories import FileRepository, LinkRepository, FolderRepository
 from app.schemas import LinkCreateParams, LinkRestoreParams
 from app.services.base_service import BaseService
 from app.services.file_service import FileService
@@ -26,24 +26,27 @@ class LinkService(BaseService):
     self,
     repository: LinkRepository,
     file_repository: FileRepository,
+    folder_repository: FolderRepository,
     file_service: FileService,
     storage_service: FileStorageService,
     settings: Settings,
   ):
     self.repository = repository
     self.file_repository = file_repository
+    self.folder_repository = folder_repository
     self.file_service = file_service
     self.storage = storage_service
     self.settings = settings
 
   def create_link(self, user: User, params: LinkCreateParams) -> dict[str, object]:
     files = self.file_repository.list_by_multiple_ids_and_user(params.files, user.id)
-
+    folders = self.folder_repository.list_by_multiple_ids_and_user(params.folders, user.id)
     expires_at = self._resolve_expires_at(params.expires_at)
 
     link = Link(
       expires_at=expires_at,
       files=files,
+      folders=folders,
       user=user,
     )
 

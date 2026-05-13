@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
 class LinkUpdateParams(BaseModel):
@@ -12,8 +12,16 @@ class LinkUpdateParams(BaseModel):
 
 
 class LinkCreateParams(BaseModel):
-  files: list[UUID]
+  files: Optional[list[UUID]] = None
+  folders: Optional[list[UUID]] = None
   expires_at: Optional[datetime] = None
+
+  @model_validator(mode='after')
+  def should_have_folders_or_files(self) -> LinkCreateParams:
+    if not self.files and not self.folders:
+      raise ValueError("At least one file or folder must be provided.")
+
+    return self
 
   model_config = ConfigDict(from_attributes=True)
 

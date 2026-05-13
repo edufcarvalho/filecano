@@ -148,18 +148,24 @@ class FileService(BaseService):
   def list_files(
     self, user: User, params: FileListParams
   ) -> list[File] | FolderWithFilesResponse:
-    if params.deleted:
-      return self.repository.list_deleted_by_user(user.id)
-
     if not params.by_folder:
-      return self.repository.list_by_user(user.id)
+      return self.repository.list_by_user(user.id, params.deleted)
 
-    folders = self.folder_repository.list_by_user(user.id)
-    orphans = self.repository.list_folder_orphans_by_user(user.id)
+    folders = self.folder_repository.list_by_user(user.id, params.deleted)
+    orphans = self.repository.list_folder_orphans_by_user(user.id, params.deleted)
 
     return FolderWithFilesResponse(
       folders=folders,
       other_files=orphans,
+    )
+
+  def _list_deleted_files_by_folder(self, user: User) -> FolderWithFilesResponse:
+    orphan_files = self.repository.list_by_user(user.id, deleted=True)
+    folders = self.folder_repository.list_by_user(user.id, deleted=True)
+
+    return FolderWithFilesResponse(
+      folders=folders,
+      other_files=orphan_files,
     )
 
   def update_file(self, user: User, file_id: UUID, params: FileUpdateParams) -> File:
@@ -221,9 +227,11 @@ class FileService(BaseService):
 
   def _delete_file_permanently(self, file: File) -> None:
     self.storage.delete_all_versions(file.object_key)
+
     if file.preview_object_key:
       self.storage.delete_all_versions(file.preview_object_key)
-    self.repository.delete(file)
+
+    self.repository.delete_permanently(file)
     self.repository.commit()
 
   def _get_user_file(self, user: User, file_id: UUID) -> File:

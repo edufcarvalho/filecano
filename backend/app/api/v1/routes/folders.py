@@ -25,10 +25,11 @@ def create_folder(
 
 @router.get("", response_model=list[FolderResponse], status_code=status.HTTP_200_OK)
 def list_folders(
+  deleted: bool = False,
   current_user: User = Depends(get_current_user),
   service: FolderService = Depends(get_folder_service),
 ):
-  folders = service.list_folders(current_user)
+  folders = service.list_folders(current_user, deleted=deleted)
 
   return folders
 
@@ -50,7 +51,17 @@ def update_folder(
 @router.delete("/{folder_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_folder(
   folder_id: UUID,
+  permanent: bool = False,
   current_user: User = Depends(get_current_user),
   service: FolderService = Depends(get_folder_service),
 ):
-  service.delete_folder(current_user, folder_id)
+  service.delete_folder(current_user, folder_id, permanent)
+
+
+@router.post("/{folder_id}/restore", response_model=FolderResponse)
+def restore_folder(
+  folder_id: UUID,
+  current_user: User = Depends(get_current_user),
+  service: FolderService = Depends(get_folder_service),
+) -> FolderResponse:
+  return service.restore_folder(current_user, folder_id)

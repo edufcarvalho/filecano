@@ -1,9 +1,9 @@
 from typing import Optional
 from uuid import UUID
 
-from sqlmodel import Session, func, or_, select, update
+from sqlmodel import Session, func, or_, select, update, delete
 
-from app.models import Folder
+from app.models import Folder, File
 from app.utils.time import current_datetime
 
 
@@ -25,6 +25,9 @@ class FolderRepository:
   def refresh(self, folder: Folder) -> None:
     self.session.refresh(folder)
 
+  def hard_delete(self, folder: Folder) -> None:
+    self.session.delete(folder)
+
   def rollback(self) -> None:
     self.session.rollback()
 
@@ -43,16 +46,16 @@ class FolderRepository:
   def get_by_id(self, folder_id: UUID) -> Optional[Folder]:
     return self.session.get(Folder, folder_id)
 
-  def list_by_user(self, user_id: UUID) -> list[Folder]:
-    query = (
-      select(Folder)
-      .where(
-        Folder.user_id == user_id,
+  def list_by_user(self, user_id: UUID, deleted: bool = False) -> list[Folder]:
+    query = select(Folder).where(Folder.user_id == user_id).order_by(Folder.id.desc())
+
+    if deleted:
+      query = query.where(Folder.deleted_at.is_not(None))
+    else:
+      query = query.where(
         Folder.deleted_at.is_(None),
         Folder.parent_id.is_(None),
       )
-      .order_by(Folder.id.desc())
-    )
 
     return self.session.exec(query).all()
 
@@ -66,6 +69,33 @@ class FolderRepository:
     self.session.exec(query)
     self.session.commit()
 
+  def delete_by_id(self, folder_id: UUID) -> None:
+    folder = self.session.get(Folder, folder_id)
+    if folder:
+      self.session.delete(folder)
+
+  def get_all_descendant_ids(self, folder_id: UUID) -> list[UUID]:
+    descendants: list[UUID] = {folder_id}
+    pending: list[UUID] = [folder_id]
+
+    while pending:
+      current = pending.pop()
+
+      children = self.session.exec(
+        select(Folder.id).where(Folder.parent_id == current)
+      ).all()
+
+      new_child_ids = [child_id for child_id in children if child_id not in descendants]
+
+      descendants.update(new_child_ids)
+      pending.extend(new_child_ids)
+  
+    return descendants
+
+  def get_files_by_folder_ids(self, folder_ids: list[UUID]) -> list[File]:
+    query = select(File).where(File.folder_id.in_(folder_ids))
+
+    return self.session.exec(query).all()
 
   def foldername_stored_by_user_count(self, name: str, user_id: UUID) -> int:
     pattern = rf"^{name} \([0-9]+\)$"
@@ -83,3 +113,26 @@ class FolderRepository:
     )
 
     return self.session.exec(query).one()
+
+  def list_by_multiple_ids_and_user(
+    self, folder_ids: Optional[list[UUID]], user_id: UUID
+  ) -> list[Folder]:
+    if not folder_ids:
+      return []
+
+    query = select(Folder).where(
+      Folder.id.in_(folder_ids),
+      Folder.user_id == user_id,
+      Folder.deleted_at.is_(None),
+    )
+
+    return self.session.exec(query).all()
+
+  def delete_permanently(self, folder_id: UUID) -> None:
+    query = (
+      delete(Folder)
+      .where(Folder.id == folder_id)
+    )
+
+    self.session.exec(query)
+    self.session.commit()

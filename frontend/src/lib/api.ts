@@ -212,6 +212,9 @@ export type FolderResponse = {
   parent_id?: string | null
   files: FileResponse[]
   children?: FolderResponse[] | null
+  user_id?: string
+  created_at?: string
+  deleted_at?: string | null
 }
 
 export type FolderListResponse = {
@@ -255,10 +258,11 @@ export async function listFiles(
 }
 
 export async function listFolderedFiles(
-  accessToken: string
+  accessToken: string,
+  filters: ListFilesFilters = {}
 ): Promise<FolderListResponse> {
   const response = await authFetch(
-    `${API_URL}/v1/files?by_folder=true`,
+    `${API_URL}/v1/files${toQueryString({ ...filters, by_folder: true })}`,
     accessToken
   )
 
@@ -282,17 +286,13 @@ export async function createFolder(
   name: string,
   parentId?: string
 ): Promise<FolderResponse> {
-  const response = await authFetch(
-    `${API_URL}/v1/folders`,
-    accessToken,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ name, parent_id: parentId ?? null }),
-    }
-  )
+  const response = await authFetch(`${API_URL}/v1/folders`, accessToken, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ name, parent_id: parentId ?? null }),
+  })
 
   if (!response.ok)
     await readError(response, translate("files.error.createFolder"))
@@ -323,18 +323,53 @@ export async function updateFolder(
   return response.json()
 }
 
+type DeleteFolderFilters = {
+  permanent?: boolean
+}
+
 export async function deleteFolder(
   accessToken: string,
-  folderId: string
+  folderId: string,
+  filters: DeleteFolderFilters = {}
 ): Promise<void> {
   const response = await authFetch(
-    `${API_URL}/v1/folders/${folderId}`,
+    `${API_URL}/v1/folders/${folderId}${toQueryString(filters)}`,
     accessToken,
     { method: "DELETE" }
   )
 
   if (!response.ok)
-    await readError(response, translate("files.error.createFolder"))
+    await readError(response, translate("files.error.deleteFolder"))
+}
+
+export async function listDeletedFolders(
+  accessToken: string
+): Promise<FolderResponse[]> {
+  const response = await authFetch(
+    `${API_URL}/v1/folders?deleted=true`,
+    accessToken
+  )
+
+  if (!response.ok)
+    await readError(response, translate("files.error.loadDeletedFolders"))
+
+  return response.json()
+}
+
+export async function restoreFolder(
+  accessToken: string,
+  folderId: string
+): Promise<FolderResponse> {
+  const response = await authFetch(
+    `${API_URL}/v1/folders/${folderId}/restore`,
+    accessToken,
+    { method: "POST" }
+  )
+
+  if (!response.ok)
+    await readError(response, translate("files.error.restoreFolder"))
+
+  return response.json()
 }
 
 export function listDeletedFiles(accessToken: string): Promise<FileResponse[]> {

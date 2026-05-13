@@ -105,12 +105,20 @@ class FileRepository:
 
     return self.session.exec(query).all()
 
-  def list_by_user(self, user_id: UUID) -> list[File]:
+  def list_by_user(self, user_id: UUID, deleted: bool = False) -> list[File]:
     query = (
       select(File)
-      .where(File.user_id == user_id, File.deleted_at.is_(None))
+      .where(
+        File.user_id == user_id,
+        File.folder_id._is(None)
+      )
       .order_by(File.id.desc())
     )
+
+    if not deleted:
+      query = query.where(File.deleted_at.is_(None))
+    else:
+      query = query.where(File.deleted_at.is_not(None))
 
     return self.session.exec(query).all()
 
@@ -137,7 +145,7 @@ class FileRepository:
 
     return self.session.exec(query).one()
 
-  def delete(self, file: File) -> None:
+  def hard_delete(self, file: File) -> None:
     self.session.delete(file)
 
   def delete_by_folder(self, folder_id: UUID) -> None:
@@ -162,16 +170,20 @@ class FileRepository:
 
     return self.session.exec(query).first()
 
-  def list_folder_orphans_by_user(self, user_id: UUID) -> list[File]:
+  def list_folder_orphans_by_user(self, user_id: UUID, deleted: bool = False) -> list[File]:
     query = (
       select(File)
       .where(
         File.user_id == user_id,
         File.folder_id.is_(None),
-        File.deleted_at.is_(None),
       )
       .order_by(File.id.desc())
     )
+
+    if deleted:
+      query = query.where(File.deleted_at.is_not(None))
+    else:
+      query = query.where(File.deleted_at.is_(None))
 
     return self.session.exec(query).all()
 
@@ -184,3 +196,13 @@ class FileRepository:
     self.session.refresh(file)
 
     return file
+
+  def restore_by_folder(self, folder_id: UUID) -> None:
+    query = (
+      update(File)
+      .where(File.folder_id == folder_id)
+      .values(deleted_at=None)
+    )
+
+    self.session.exec(query)
+    self.session.commit()

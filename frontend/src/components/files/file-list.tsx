@@ -104,6 +104,8 @@ type FileListProps = {
   onRename?: (file: FileResponse) => void
   onPermanentDelete?: (file: FileResponse) => void
   onRestore?: (file: FileResponse) => void
+  onRestoreFolder?: (folder: FolderResponse) => void
+  onPermanentDeleteFolder?: (folder: FolderResponse) => void
   onShare?: (file: FileResponse) => void
   onSelectAll?: () => void
   onClearNewlyAdded?: (fileId: string) => void
@@ -191,7 +193,9 @@ export function FileTypeIcon({ contentType }: { contentType: string | null }) {
 }
 
 function countFolderFiles(folder: FolderResponse): number {
-  let count = folder.files.length
+  if (!folder ) return 0
+  
+  let count = folder?.files?.length || 0
   if (folder.children) {
     for (const child of folder.children) {
       count += countFolderFiles(child)
@@ -201,7 +205,8 @@ function countFolderFiles(folder: FolderResponse): number {
 }
 
 function collectFolderFileIds(folder: FolderResponse): string[] {
-  const ids = folder.files.map((f) => f.id)
+  const ids = folder.files?.map((f) => f.id) || []
+
   if (folder.children) {
     for (const child of folder.children) {
       ids.push(...collectFolderFileIds(child))
@@ -230,6 +235,8 @@ type FolderNodeProps = {
   onRename?: (file: FileResponse) => void
   onPermanentDelete?: (file: FileResponse) => void
   onRestore?: (file: FileResponse) => void
+  onRestoreFolder?: (folder: FolderResponse) => void
+  onPermanentDeleteFolder?: (folder: FolderResponse) => void
   onShare?: (file: FileResponse) => void
   onClearNewlyAdded?: (fileId: string) => void
   onStartEditing?: (file: FileResponse) => void
@@ -266,6 +273,8 @@ function FolderNode({
   onRename,
   onPermanentDelete,
   onRestore,
+  onRestoreFolder,
+  onPermanentDeleteFolder,
   onShare,
   onClearNewlyAdded,
   onStartEditing,
@@ -317,6 +326,14 @@ function FolderNode({
     onDeleteFolder?.(folder.id)
   }, [folder.id, onDeleteFolder])
 
+  const handleRestoreFolder = useCallback(() => {
+    onRestoreFolder?.(folder)
+  }, [folder, onRestoreFolder])
+
+  const handlePermanentDeleteFolder = useCallback(() => {
+    onPermanentDeleteFolder?.(folder)
+  }, [folder, onPermanentDeleteFolder])
+
   const handleToggleOpen = useCallback(() => {
     if (newlyAddedFolderIds.has(folder.id)) {
       onClearFolderNewlyAdded?.(folder.id)
@@ -331,6 +348,8 @@ function FolderNode({
       folderId={folder.id}
       selectedFileIds={selectedFileIds}
       movingFileIds={movingFileIds}
+      variant={variant}
+      pendingFolderId={pendingFileId}
       onToggleFolderSelection={onToggleFolderSelection ?? (() => {})}
       onFileDrop={variant === "default" && onMoveFile ? handleFileDrop : undefined}
       onFolderDrop={variant === "default" && onMoveFolder ? handleFolderDrop : undefined}
@@ -338,8 +357,10 @@ function FolderNode({
       isNew={newlyAddedFolderIds.has(folder.id)}
       autoOpen={!!(uploadingFolderIds && uploadingFolderIds.has(folder.id))}
       isSelected={selectedFolderIds.has(folder.id)}
-      onToggleFolderSelect={variant === "default" && onToggleFolderSelect ? handleToggleFolderSelect : undefined}
+      onToggleFolderSelect={variant === "trash" || (variant === "default" && onToggleFolderSelect) ? handleToggleFolderSelect : undefined}
       onDeleteFolder={variant === "default" && onDeleteFolder ? handleDeleteFolder : undefined}
+      onRestoreFolder={variant === "trash" && onRestoreFolder ? handleRestoreFolder : undefined}
+      onPermanentDeleteFolder={variant === "trash" && onPermanentDeleteFolder ? handlePermanentDeleteFolder : undefined}
       onToggleOpen={handleToggleOpen}
       movingFolderIds={movingFolderIds}
     >
@@ -364,6 +385,8 @@ function FolderNode({
           onRename={onRename}
           onPermanentDelete={onPermanentDelete}
           onRestore={onRestore}
+          onRestoreFolder={onRestoreFolder}
+          onPermanentDeleteFolder={onPermanentDeleteFolder}
           onShare={onShare}
           onClearNewlyAdded={onClearNewlyAdded}
           onStartEditing={onStartEditing}
@@ -382,7 +405,7 @@ function FolderNode({
         />
       ))}
       <div className="file-list-grid">
-        {folder.files.map((file) => (
+        {folder.files?.map((file) => (
           <FileListItem
             key={file.id}
             file={file}
@@ -448,6 +471,8 @@ export function FileList({
   onRename,
   onPermanentDelete,
   onRestore,
+  onRestoreFolder,
+  onPermanentDeleteFolder,
   onShare,
   onSelectAll,
   onClearNewlyAdded,
@@ -477,15 +502,20 @@ export function FileList({
     () => folders?.flatMap((f) => f.files) ?? [],
     [folders]
   )
+  const trashFolderCount = useMemo(
+    () => (variant === "trash" ? (folders?.length ?? 0) : 0),
+    [variant, folders]
+  )
   const allFiles = useMemo(
     () => [...files, ...folderFiles],
     [files, folderFiles]
   )
-  const selectedCount = selectedFileIds.size
-  const totalFileCount = allFiles.length
+  const selectedCount = selectedFileIds.size + selectedFolderIds.size
+  const totalFileCount = allFiles.length + trashFolderCount
+  const totalItemCount = allFiles.length + trashFolderCount
   const hasSelectedFiles = selectedCount > 0
-  const allFilesSelected =
-    allFiles.length > 0 && selectedFileIds.size === allFiles.length
+  const allSelected =
+    totalItemCount > 0 && selectedFileIds.size === allFiles.length && selectedFolderIds.size === trashFolderCount
   const fileCountLabel = hasSelectedFiles ? selectedCount : totalFileCount
 
   const handleSearch = useCallback(
@@ -652,6 +682,18 @@ export function FileList({
       ),
     [files, normalizedSearchQuery]
   )
+
+  const filteredTrashFolders = useMemo(
+    () =>
+      variant === "trash"
+        ? (folders ?? []).filter(
+            (folder) =>
+              !normalizedSearchQuery ||
+              folder.name.toLowerCase().includes(normalizedSearchQuery)
+          )
+        : [],
+    [variant, folders, normalizedSearchQuery]
+  )
   const bulkActions = (
     <>
       {variant === "shared" ? (
@@ -779,14 +821,14 @@ export function FileList({
                   : t("files.selectAll")
               }
               aria-pressed={hasSelectedFiles}
-              disabled={allFiles.length === 0}
+              disabled={totalItemCount === 0}
               onClick={handleSelectionToggle}
               className={cn(
                 "file-selection-toggle",
                 hasSelectedFiles && "file-selection-toggle-active"
               )}
             >
-              {allFilesSelected ? (
+              {allSelected ? (
                 <CheckIcon strokeWidth={7} />
               ) : hasSelectedFiles ? (
                 <MinusIcon strokeWidth={7} />
@@ -899,7 +941,8 @@ export function FileList({
                     : t("files.loadingFiles"))}
             </div>
           ) : filteredFiles.length === 0 &&
-            (!folders || folders.length === 0) ? (
+            filteredTrashFolders.length === 0 &&
+            (!folders || variant === "trash" || folders.length === 0) ? (
             <div
               className={cn(
                 "empty-state-base",
@@ -928,7 +971,56 @@ export function FileList({
             </div>
           ) : (
             <ScrollableList stretch={stretch}>
-              {folders && folders.length > 0 ? (
+              {variant === "trash" && filteredTrashFolders.length > 0 ? (
+                <div
+                  className={cn(
+                    "grid gap-2",
+                    filteredFiles.length > 0 && "mb-3"
+                  )}
+                >
+                  {filteredTrashFolders.map((folder) => (
+                    <FolderNode
+                      key={folder.id}
+                      folder={folder}
+                      previewUrls={previewUrls}
+                      selectedFileIds={selectedFileIds}
+                      newlyAddedFileIds={newlyAddedFileIds}
+                      newlyAddedFolderIds={newlyAddedFolderIds}
+                      editingFileId={editingFileId}
+                      editingName={editingName}
+                      pendingFileId={pendingFileId}
+                      error={error}
+                      movingFileIds={movingFileIds}
+                      variant={variant}
+                      onDelete={onDelete}
+                      onDownload={onDownload}
+                      onClone={onClone}
+                      onEditingNameChange={onEditingNameChange}
+                      onRename={onRename}
+                      onPermanentDelete={onPermanentDelete}
+                      onRestore={onRestore}
+                      onRestoreFolder={onRestoreFolder}
+                      onPermanentDeleteFolder={onPermanentDeleteFolder}
+                      onShare={onShare}
+                      onClearNewlyAdded={onClearNewlyAdded}
+                      onStartEditing={onStartEditing}
+                      onStopEditing={onStopEditing}
+                      onToggleSelection={onToggleSelection}
+                      onToggleFolderSelection={safeToggleFolderSelection}
+                      onToggleFolderSelect={onToggleFolderSelect}
+                      onDeleteFolder={onDeleteFolder}
+                      onClearFolderNewlyAdded={onClearFolderNewlyAdded}
+                      onMoveFile={onMoveFile}
+                      onMoveFolder={onMoveFolder}
+                      onExternalDrop={onExternalDrop}
+                      uploadingFolderIds={uploadingFolderIds}
+                      selectedFolderIds={selectedFolderIds}
+                      movingFolderIds={movingFolderIds}
+                    />
+                  ))}
+                </div>
+              ) : null}
+              {variant !== "trash" && folders && folders.length > 0 ? (
                 <div
                   className={cn(
                     "grid gap-2",
@@ -956,6 +1048,8 @@ export function FileList({
                       onRename={onRename}
                       onPermanentDelete={onPermanentDelete}
                       onRestore={onRestore}
+                      onRestoreFolder={onRestoreFolder}
+                      onPermanentDeleteFolder={onPermanentDeleteFolder}
                       onShare={onShare}
                       onClearNewlyAdded={onClearNewlyAdded}
                       onStartEditing={onStartEditing}
@@ -975,7 +1069,7 @@ export function FileList({
                   ))}
                 </div>
               ) : null}
-              {folders && folders.length > 0 && filteredFiles.length === 0 && (
+              {variant !== "trash" && folders && folders.length > 0 && filteredFiles.length === 0 && (
                 <div className="flex min-h-0 flex-1 items-center justify-center">
                   <div className="empty-state-base">
                     <FileSearchIcon
@@ -986,9 +1080,7 @@ export function FileList({
                       {emptyLabel ??
                         (variant === "shared"
                           ? t("files.emptyShared")
-                          : variant === "trash"
-                            ? t("files.emptyTrash")
-                            : t("files.emptyDefault"))}
+                          : t("files.emptyDefault"))}
                     </p>
                   </div>
                 </div>
@@ -1153,7 +1245,7 @@ function ScrollableList({
       }
     }
 
-    const onDragOver = (e: DragEvent) => {
+    const onDragOver = (e: globalThis.DragEvent) => {
       dragPosRef.current = { x: e.clientX, y: e.clientY }
       isDraggingRef.current = true
       if (scrollRafRef.current === 0) {
