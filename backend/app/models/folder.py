@@ -12,7 +12,7 @@ from app.models.folder_link_relation import FolderLinkRelation
 if TYPE_CHECKING:
   from app.models.file import File
   from app.models.user import User
-  from backend.app.models.link import Link
+  from app.models.link import Link
 
 
 class Folder(SQLModel, table=True):
