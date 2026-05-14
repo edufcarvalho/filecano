@@ -30,7 +30,7 @@ export function LoginForm({ className, onLogin, ...props }: LoginFormProps) {
     event.preventDefault()
 
     const formData = new FormData(event.currentTarget)
-    const email = String(formData.get("email") ?? "")
+    const email = String(formData.get("email") ?? "").trim()
 
     if (passwordState.errors.length > 0) {
       setError(t("auth.login.invalidCredentials"))

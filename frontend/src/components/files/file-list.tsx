@@ -204,6 +204,17 @@ function countFolderFiles(folder: FolderResponse): number {
   return count
 }
 
+function flattenFolderFiles(folders: FolderResponse[]): FileResponse[] {
+  const result: FileResponse[] = []
+  for (const folder of folders) {
+    result.push(...(folder.files ?? []))
+    if (folder.children) {
+      result.push(...flattenFolderFiles(folder.children))
+    }
+  }
+  return result
+}
+
 function collectFolderFileIds(folder: FolderResponse): string[] {
   const ids = folder.files?.map((f) => f.id) || []
 
@@ -520,8 +531,8 @@ export function FileList({
   folders,
 }: FileListProps) {
   const { t } = useTranslation()
-  const folderFiles = useMemo(
-    () => folders?.flatMap((f) => f.files) ?? [],
+  const allFolderFiles = useMemo(
+    () => flattenFolderFiles(folders ?? []),
     [folders]
   )
   const trashFolderCount = useMemo(
@@ -529,8 +540,8 @@ export function FileList({
     [variant, folders]
   )
   const allFiles = useMemo(
-    () => [...files, ...folderFiles],
-    [files, folderFiles]
+    () => [...files, ...allFolderFiles],
+    [files, allFolderFiles]
   )
   const selectedCount = selectedFileIds.size + selectedFolderIds.size
   const totalFileCount = allFiles.length + trashFolderCount

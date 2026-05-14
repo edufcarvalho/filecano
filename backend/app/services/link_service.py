@@ -1,5 +1,5 @@
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
@@ -25,7 +25,7 @@ from app.services.base_service import BaseService
 from app.services.file_service import FileService
 from app.services.file_storage_service import FileStorageService
 from app.services.folder_service import FolderService
-from app.utils.time import current_datetime
+from app.utils.time import current_datetime, default_expires_at
 
 
 class LinkService(BaseService):
@@ -143,10 +143,7 @@ class LinkService(BaseService):
     if existing and existing.token != token:
       raise ConflictError("Link already taken")
 
-    link = self.repository.get_by_token(token)
-    if not link:
-      raise NotFoundError("Link not found")
-
+    link = self.authenticate_token(token)
     self._ensure_user_has_rights(user.id, link.user_id)
 
     link.custom_name = custom_name
@@ -155,11 +152,10 @@ class LinkService(BaseService):
   def restore_link(
     self, user: User, token: str, params: Optional[LinkRestoreParams] = None
   ) -> Link:
-    link = self.repository.get_by_token(token)
-    if not link:
-      raise NotFoundError("Link not found")
-
+    link = self._get_link(token)
     self._ensure_user_has_rights(user.id, link.user_id)
+
+    link.deleted_at = None
 
     if params:
       link.expires_at = self._resolve_expires_at(params.expires_at)
@@ -169,10 +165,7 @@ class LinkService(BaseService):
     return self.repository.update(link)
 
   def delete_link(self, user: User, token: str) -> None:
-    link = self.repository.get_by_token(token)
-    if not link:
-      raise NotFoundError("Link not found")
-
+    link = self._get_link(token)
     self._ensure_user_has_rights(user.id, link.user_id)
 
     self.repository.delete(link)
@@ -182,17 +175,8 @@ class LinkService(BaseService):
     user: User,
     link_id: UUID,
     params: CloningParams,
-  ) -> Link:
-    link = self.repository.get_by_id(link_id)
-
-    if not link:
-      raise NotFoundError("Link not found")
-
-    if link.deleted_at is not None:
-      raise NotFoundError("Link deleted by creator")
-
-    if link.expires_at <= current_datetime():
-      raise GoneError("Share link expired")
+  ) -> FolderWithFilesResponse:
+    self._authenticate_link_id(link_id)
 
     files = self.file_service.clone_files_by_id(user, params.files)
     folders = self.folder_service.clone_folders(user, params.folders)
@@ -213,6 +197,24 @@ class LinkService(BaseService):
       if expires_at < now:
         raise BadRequestError("Expiration date must be in the future")
       return expires_at
-    return current_datetime() + timedelta(
-      seconds=self.settings.shared_url_expire_seconds
-    )
+    return default_expires_at(self.settings.shared_url_expire_seconds)
+
+  def _get_link(self, token: str) -> Link:
+    link = self.repository.get_by_token(token)
+    if not link:
+      raise NotFoundError("Link not found")
+    return link
+
+  def _authenticate_link_id(self, link_id: UUID) -> Link:
+    link = self.repository.get_by_id(link_id)
+
+    if link is None:
+      raise NotFoundError("Share link not found")
+
+    if link.deleted_at is not None:
+      raise NotFoundError("Link deleted by creator")
+
+    if link.expires_at <= current_datetime():
+      raise GoneError("Share link expired")
+
+    return link

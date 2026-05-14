@@ -1,5 +1,4 @@
 import { ShieldAlertIcon } from "lucide-react"
-import { Link } from "react-router-dom"
 
 import { useTranslation } from "@/i18n"
 
@@ -32,10 +31,8 @@ export function UnauthorizedErrorScreen({
               {t("errors.unauthorized.description")}
             </p>
           </div>
-          <Button asChild variant="outline">
-            <Link to="/login" target="_blank" rel="noopener noreferrer" onClick={onSignIn}>
-              {t("errors.unauthorized.signIn")}
-            </Link>
+          <Button variant="outline" onClick={onSignIn}>
+            {t("errors.unauthorized.signIn")}
           </Button>
         </div>
       </CenteredPageWrapper>

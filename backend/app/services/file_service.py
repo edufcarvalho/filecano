@@ -234,7 +234,7 @@ class FileService(BaseService):
     if file.preview_object_key:
       self.storage.delete_all_versions(file.preview_object_key)
 
-    self.repository.delete_permanently(file)
+    self.repository.hard_delete(file)
     self.repository.commit()
 
   def _get_user_file(self, user: User, file_id: UUID) -> File:

@@ -83,7 +83,13 @@ export function LinkExpirationDialog({
     } else if (mode === "exact") {
       const date = resolveExactDateTime()
       if (!date || isDateInPast) return
-      onConfirm({ kind: "exact", date: date.toISOString().replace("Z", "") })
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, "0")
+      const day = String(date.getDate()).padStart(2, "0")
+      const hoursStr = String(date.getHours()).padStart(2, "0")
+      const minutesStr = String(date.getMinutes()).padStart(2, "0")
+      const secondsStr = String(date.getSeconds()).padStart(2, "0")
+      onConfirm({ kind: "exact", date: `${year}-${month}-${day}T${hoursStr}:${minutesStr}:${secondsStr}` })
     } else {
       onConfirm({ kind: "from-now", amount, unit })
     }

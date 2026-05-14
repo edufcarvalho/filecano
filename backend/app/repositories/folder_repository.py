@@ -1,35 +1,14 @@
 from typing import Optional
 from uuid import UUID
 
-from sqlmodel import Session, delete, func, or_, select, update
+from sqlmodel import delete, func, or_, select
 
 from app.models import File, Folder
-from app.utils.time import current_datetime
+from app.repositories.base_repository import BaseRepository
 
 
-class FolderRepository:
-  def __init__(self, session: Session):
-    self.session = session
-
-  def add(self, folder: Folder) -> Folder:
-    self.session.add(folder)
-
-    self.session.commit()
-    self.session.refresh(folder)
-
-    return folder
-
-  def commit(self) -> None:
-    self.session.commit()
-
-  def refresh(self, folder: Folder) -> None:
-    self.session.refresh(folder)
-
-  def hard_delete(self, folder: Folder) -> None:
-    self.session.delete(folder)
-
-  def rollback(self) -> None:
-    self.session.rollback()
+class FolderRepository(BaseRepository[Folder]):
+  model = Folder
 
   def get_by_ids(self, folder_ids: list[UUID], user_id: UUID) -> list[Folder]:
     if not folder_ids:
@@ -42,9 +21,6 @@ class FolderRepository:
     )
 
     return self.session.exec(query).all()
-
-  def get_by_id(self, folder_id: UUID) -> Optional[Folder]:
-    return self.session.get(Folder, folder_id)
 
   def list_by_user(self, user_id: UUID, deleted: bool = False) -> list[Folder]:
     query = select(Folder).where(Folder.user_id == user_id).order_by(Folder.id.desc())
@@ -60,14 +36,7 @@ class FolderRepository:
     return self.session.exec(query).all()
 
   def delete_children(self, parent_id: UUID) -> None:
-    query = (
-      update(Folder)
-      .where(Folder.parent_id == parent_id)
-      .values(deleted_at=current_datetime())
-    )
-
-    self.session.exec(query)
-    self.session.commit()
+    self.soft_delete_by_parent(Folder, "parent_id", parent_id)
 
   def delete_by_id(self, folder_id: UUID) -> None:
     folder = self.session.get(Folder, folder_id)

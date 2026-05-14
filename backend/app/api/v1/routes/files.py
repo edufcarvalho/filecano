@@ -103,7 +103,7 @@ def preview_file(
   )
 
 
-@router.delete("/{file_id}")
+@router.delete("/{file_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_file(
   file_id: UUID,
   permanent: bool = False,

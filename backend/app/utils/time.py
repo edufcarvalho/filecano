@@ -1,11 +1,9 @@
-from datetime import datetime, timedelta
-
-from app.core import Settings
+from datetime import datetime, timedelta, timezone
 
 
 def current_datetime() -> datetime:
-  return datetime.now().astimezone()
+  return datetime.now(timezone.utc)
 
 
-def default_expires_in(settings: Settings) -> timedelta:
-  return current_datetime() + timedelta(seconds=settings.shared_url_expire_seconds)
+def default_expires_at(expire_seconds: int) -> datetime:
+  return current_datetime() + timedelta(seconds=expire_seconds)

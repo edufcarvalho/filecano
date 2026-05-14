@@ -46,6 +46,7 @@ package = false
 [tool.ruff]
 line-length = 88
 indent-width = 2
+extend-exclude = ["migrations"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W"]

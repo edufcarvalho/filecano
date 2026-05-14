@@ -2,38 +2,15 @@ from typing import Optional
 from uuid import UUID
 
 from sqlalchemy.orm import selectinload
-from sqlmodel import Session, func, or_, select, update
+from sqlmodel import func, or_, select
 
 from app.models import File
 from app.models.file_link_relation import FileLinkRelation
-from app.utils.time import current_datetime
+from app.repositories.base_repository import BaseRepository
 
 
-class FileRepository:
-  def __init__(self, session: Session):
-    self.session = session
-
-  def add(self, file: File) -> File:
-    self.session.add(file)
-
-    return file
-
-  def add_all(self, files: list[File]) -> list[File]:
-    self.session.add_all(files)
-
-    return files
-
-  def commit(self) -> None:
-    self.session.commit()
-
-  def refresh(self, file: File) -> None:
-    self.session.refresh(file)
-
-  def rollback(self) -> None:
-    self.session.rollback()
-
-  def get_by_id(self, file_id: UUID) -> Optional[File]:
-    return self.session.get(File, file_id)
+class FileRepository(BaseRepository[File]):
+  model = File
 
   def list_by_multiple_ids_and_user(
     self, file_ids: list[UUID], user_id: UUID
@@ -157,18 +134,8 @@ class FileRepository:
 
     return self.session.exec(query).one()
 
-  def hard_delete(self, file: File) -> None:
-    self.session.delete(file)
-
   def delete_by_folder(self, folder_id: UUID) -> None:
-    query = (
-      update(File)
-      .where(File.folder_id == folder_id)
-      .values(deleted_at=current_datetime())
-    )
-
-    self.session.exec(query)
-    self.session.commit()
+    self.soft_delete_by_parent(File, "folder_id", folder_id)
 
   def get_deleted_file_by_checksum_and_user(
     self, checksum: str, display_name: str, user_id: UUID
@@ -205,14 +172,11 @@ class FileRepository:
     file.deleted_at = None
     file.folder_id = None
 
-    self.session.add(file)
-    self.session.commit()
-    self.session.refresh(file)
+    self.add(file)
+    self.commit()
+    self.refresh(file)
 
     return file
 
   def restore_by_folder(self, folder_id: UUID) -> None:
-    query = update(File).where(File.folder_id == folder_id).values(deleted_at=None)
-
-    self.session.exec(query)
-    self.session.commit()
+    self.restore_by_parent(File, "folder_id", folder_id)

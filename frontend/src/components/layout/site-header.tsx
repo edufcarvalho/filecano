@@ -104,7 +104,7 @@ export function SiteHeader({
         </Breadcrumb>
         <div className="min-w-2 flex-1" />
         {user ? (
-          <Suspense>
+          <Suspense fallback={null}>
             <MyLinksDropdown
               accessToken={token?.access_token}
               userId={token?.user?.id}

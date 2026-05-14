@@ -25,7 +25,7 @@ class Folder(SQLModel, table=True):
   __tablename__ = "folders"
 
   id: UUID = Field(default_factory=uuid7, primary_key=True)
-  name: str = Field(default_factory=uuid7, nullable=False)
+  name: str = Field(nullable=False)
   user_id: UUID = Field(nullable=False, foreign_key="users.id", ondelete="CASCADE")
   parent_id: Optional[UUID] = Field(
     default=None, foreign_key="folders.id", ondelete="CASCADE"
