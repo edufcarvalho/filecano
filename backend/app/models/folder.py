@@ -2,14 +2,16 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
+from sqlalchemy import and_, or_
+from sqlalchemy.orm import foreign, remote
 from sqlmodel import DateTime, Field, Relationship, SQLModel
 from uuid6 import uuid7
 
+from app.models.file import File
 from app.models.folder_link_relation import FolderLinkRelation
 from app.utils.time import current_datetime
 
 if TYPE_CHECKING:
-  from app.models.file import File
   from app.models.link import Link
   from app.models.user import User
 
@@ -34,7 +36,19 @@ class Folder(SQLModel, table=True):
     back_populates="folder",
     sa_relationship_kwargs={
       "lazy": "selectin",
-      "primaryjoin": "and_(Folder.id == File.folder_id, File.deleted_at == None)",
+      "primaryjoin": lambda: and_(
+        Folder.id == File.folder_id,
+        or_(
+          and_(
+            Folder.deleted_at.is_(None),
+            File.deleted_at.is_(None),
+          ),
+          and_(
+            Folder.deleted_at.is_not(None),
+            File.deleted_at.is_not(None),
+          ),
+        ),
+      ),
     },
   )
   parent: Optional[Folder] = Relationship(
@@ -44,7 +58,19 @@ class Folder(SQLModel, table=True):
     back_populates="parent",
     sa_relationship_kwargs={
       "lazy": "selectin",
-      "primaryjoin": "and_(Folder.parent_id == Folder.id, Folder.deleted_at == None)",
+      "primaryjoin": lambda: and_(
+        Folder.id == remote(foreign(Folder.parent_id)),
+        or_(
+          and_(
+            Folder.deleted_at.is_(None),
+            remote(foreign(Folder.deleted_at)).is_(None),
+          ),
+          and_(
+            Folder.deleted_at.is_not(None),
+            remote(foreign(Folder.deleted_at)).is_not(None),
+          ),
+        ),
+      ),
     },
   )
   links: list["Link"] = Relationship(
