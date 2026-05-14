@@ -1,13 +1,16 @@
 from typing import Optional
 from uuid import UUID
 
-from app.core.exceptions import ConflictError, NotFoundError
-from app.models import Folder, User
+from uuid6 import uuid7
+
+from app.core.exceptions import ConflictError, GoneError, NotFoundError
+from app.models import File, Folder, User
 from app.repositories.file_repository import FileRepository
 from app.repositories.folder_repository import FolderRepository
-from app.schemas import FolderParams, FolderUpdateParams
+from app.schemas import FolderParams, FolderUpdateParams, FolderWithFilesResponse
 from app.services.base_service import BaseService
 from app.services.file_storage_service import FileStorageService
+from app.services.file_service import FileService
 from app.utils.time import current_datetime
 
 
@@ -16,10 +19,12 @@ class FolderService(BaseService):
     self,
     repository: FolderRepository,
     file_repository: FileRepository,
+    file_service: FileService,
     storage: Optional[FileStorageService] = None,
   ):
     self.repository = repository
     self.file_repository = file_repository
+    self.file_service = file_service
     self.storage = storage
 
   def list_folders(self, user: User, deleted: bool = False) -> list[Folder]:
@@ -35,6 +40,44 @@ class FolderService(BaseService):
     folder = Folder(user=user, name=name, parent_id=params.parent_id)
 
     return self.repository.add(folder)
+
+  def clone_folder(self, user: User, folder: Folder) -> Folder:
+    if folder.deleted_at is not None:
+      raise GoneError("One or more folders you're trying to clone have been deleted")
+
+    clone = self._duplicate_folder(user, folder)
+
+    for child in folder.children:
+      self.clone_folder(user, child, clone)
+
+    self.repository.add(clone)
+    self.repository.commit()
+    self.repository.refresh(clone)
+
+    return clone
+
+  def _duplicate_folder(self, user: User, folder: Folder, parent: Optional[Folder] = None) -> Folder:
+    name = self._get_unique_foldername(user.id, folder.name)
+
+    clone = Folder.model_validate(
+      folder.model_dump()
+      | {
+        "id": uuid7(),
+        "user_id": user.id,
+        "name": name,
+        "parent_id": parent.id if parent else None,
+        "created_at": current_datetime(),
+      }
+    )
+
+    clone.files = self.file_service.clone_files(user, folder.files)
+
+    return clone
+
+  def clone_folders(self, user: User, folder_ids: list[UUID]) -> list[Folder]:
+    folders = self.repository.get_by_ids(folder_ids, user.id)
+
+    return list(map(lambda f: self.clone_folder(user, f), folders))
 
   def update_folder(self, user: User, folder_id: UUID, params: FolderUpdateParams) -> Folder:
     folder = self._get_folder(folder_id)
@@ -98,21 +141,25 @@ class FolderService(BaseService):
 
     self.repository.hard_delete(folder)
 
-  def restore_folder(self, user: User, folder_id: UUID) -> Folder:
+  def restore_folder(self, user: User, folder_id: UUID) -> FolderWithFilesResponse:
     folder = self._get_folder(folder_id)
 
-    if folder.deleted_at is None:
-      return folder
+    if folder.deleted_at is not None:
+      folder.deleted_at = None
 
-    folder.deleted_at = None
+      self.file_repository.restore_by_folder(folder.id)
 
-    self.file_repository.restore_by_folder(folder.id)
+      self.repository.add(folder)
+      self.repository.commit()
+      self.repository.refresh(folder)
 
-    self.repository.add(folder)
-    self.repository.commit()
-    self.repository.refresh(folder)
+    folders = self.repository.list_by_user(user.id, deleted=True)
+    files = self.file_repository.list_by_user(user.id, deleted=True)
 
-    return folder
+    return FolderWithFilesResponse(
+      folders=folders,
+      other_files=files,
+    )
 
   def _get_folder(self, folder_id: UUID) -> Folder:
     folder = self.repository.get_by_id(folder_id)

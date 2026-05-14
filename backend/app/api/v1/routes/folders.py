@@ -6,7 +6,12 @@ from fastapi import APIRouter, Body, Depends, status
 from app.api.dependencies.auth import get_current_user
 from app.api.dependencies.services import get_folder_service
 from app.models import User
-from app.schemas import FolderParams, FolderResponse, FolderUpdateParams
+from app.schemas import (
+  FolderParams,
+  FolderResponse,
+  FolderUpdateParams,
+  FolderWithFilesResponse,
+)
 from app.services.folder_service import FolderService
 
 router = APIRouter(prefix="/folders", tags=["folders"])
@@ -58,10 +63,10 @@ def delete_folder(
   service.delete_folder(current_user, folder_id, permanent)
 
 
-@router.post("/{folder_id}/restore", response_model=FolderResponse)
+@router.post("/{folder_id}/restore", response_model=FolderWithFilesResponse)
 def restore_folder(
   folder_id: UUID,
   current_user: User = Depends(get_current_user),
   service: FolderService = Depends(get_folder_service),
-) -> FolderResponse:
+) -> FolderWithFilesResponse:
   return service.restore_folder(current_user, folder_id)

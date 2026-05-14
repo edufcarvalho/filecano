@@ -215,6 +215,26 @@ function collectFolderFileIds(folder: FolderResponse): string[] {
   return ids
 }
 
+function isFolderAllDeleted(folder: FolderResponse): boolean {
+  const allFiles = folder.files || []
+  if (folder.children) {
+    for (const child of folder.children) {
+      allFiles.push(...isFolderAllDeletedFiles(child))
+    }
+  }
+  return allFiles.length > 0 && allFiles.every((f) => f.deleted_at !== null)
+}
+
+function isFolderAllDeletedFiles(folder: FolderResponse): FileResponse[] {
+  const files = (folder.files || []).slice()
+  if (folder.children) {
+    for (const child of folder.children) {
+      files.push(...isFolderAllDeletedFiles(child))
+    }
+  }
+  return files
+}
+
 type FolderNodeProps = {
   folder: FolderResponse
   previewUrls: Record<string, string>
@@ -292,6 +312,7 @@ function FolderNode({
 }: FolderNodeProps) {
   const fileCount = countFolderFiles(folder)
   const fileIds = collectFolderFileIds(folder)
+  const isAllDeleted = isFolderAllDeleted(folder)
 
   const handleExternalDrop = useCallback(
     (event: DragEvent) => {
@@ -355,9 +376,10 @@ function FolderNode({
       onFolderDrop={variant === "default" && onMoveFolder ? handleFolderDrop : undefined}
       onExternalDrop={onExternalDrop ? handleExternalDrop : undefined}
       isNew={newlyAddedFolderIds.has(folder.id)}
+      isDeleted={variant !== "trash" && isAllDeleted}
       autoOpen={!!(uploadingFolderIds && uploadingFolderIds.has(folder.id))}
       isSelected={selectedFolderIds.has(folder.id)}
-      onToggleFolderSelect={variant === "trash" || (variant === "default" && onToggleFolderSelect) ? handleToggleFolderSelect : undefined}
+      onToggleFolderSelect={onToggleFolderSelect ? handleToggleFolderSelect : undefined}
       onDeleteFolder={variant === "default" && onDeleteFolder ? handleDeleteFolder : undefined}
       onRestoreFolder={variant === "trash" && onRestoreFolder ? handleRestoreFolder : undefined}
       onPermanentDeleteFolder={variant === "trash" && onPermanentDeleteFolder ? handlePermanentDeleteFolder : undefined}
@@ -724,7 +746,7 @@ export function FileList({
           ) : null}
         </>
       ) : variant === "trash" ? (
-        <>
+        <div className="bulk-action-group">
           <BulkActionButton
             type="button"
             variant="share"
@@ -747,9 +769,9 @@ export function FileList({
           >
             {t("files.erase")}
           </BulkActionButton>
-        </>
+        </div>
       ) : (
-        <>
+        <div className="bulk-action-group">
           <BulkActionButton
             type="button"
             variant="download"
@@ -783,7 +805,7 @@ export function FileList({
           >
             {t("files.delete")}
           </BulkActionButton>
-        </>
+        </div>
       )}
     </>
   )

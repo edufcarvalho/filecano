@@ -128,6 +128,17 @@ class FileService(BaseService):
 
     return clones
 
+  def clone_files_by_id(self, user: User, file_ids: list[UUID]) -> list[File]:
+    files = self.repository.list_by_multiple_ids_and_user(file_ids, user.id)
+    clones = [self._duplicate_file(f, user.id) for f in files]
+
+    self.repository.add_all(clones)
+    self.repository.commit()
+
+    for clone in clones:
+      self.repository.refresh(clone)
+
+    return clones
   def get_download(self, user: User, file_id: UUID) -> tuple[File, BaseHTTPResponse]:
     file = self._get_user_file(user, file_id)
 
@@ -157,15 +168,6 @@ class FileService(BaseService):
     return FolderWithFilesResponse(
       folders=folders,
       other_files=orphans,
-    )
-
-  def _list_deleted_files_by_folder(self, user: User) -> FolderWithFilesResponse:
-    orphan_files = self.repository.list_by_user(user.id, deleted=True)
-    folders = self.folder_repository.list_by_user(user.id, deleted=True)
-
-    return FolderWithFilesResponse(
-      folders=folders,
-      other_files=orphan_files,
     )
 
   def update_file(self, user: User, file_id: UUID, params: FileUpdateParams) -> File:
@@ -324,6 +326,7 @@ class FileService(BaseService):
     clone_id = uuid7()
     object_key = f"users/{user_id}/files/{clone_id}"
     preview_object_key = None
+
     self.storage.copy_object(file.object_key, object_key)
 
     if file.preview_object_key:

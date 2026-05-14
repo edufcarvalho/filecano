@@ -30,3 +30,10 @@ class LinkRestoreParams(BaseModel):
   expires_at: Optional[datetime] = None
 
   model_config = ConfigDict(from_attributes=True)
+
+
+class CloningParams(BaseModel):
+  files: Optional[list[UUID]] = None
+  folders: Optional[list[UUID]] = None
+
+  model_config = ConfigDict(from_attributes=True)

@@ -360,7 +360,7 @@ export async function listDeletedFolders(
 export async function restoreFolder(
   accessToken: string,
   folderId: string
-): Promise<FolderResponse> {
+): Promise<FolderListResponse> {
   const response = await authFetch(
     `${API_URL}/v1/folders/${folderId}/restore`,
     accessToken,
@@ -657,12 +657,24 @@ export async function downloadSharedFile(
 
 export async function cloneSharedFiles(
   accessToken: string,
-  linkId: string
+  linkId: string,
+  fileIds?: string[],
+  folderIds?: string[]
 ): Promise<FileResponse[]> {
+  const body: Record<string, unknown> = {}
+  if (fileIds && fileIds.length > 0) body.files = fileIds
+  if (folderIds && folderIds.length > 0) body.folders = folderIds
+
   const response = await authFetch(
     `${API_URL}/v1/share/${linkId}/files/clone`,
     accessToken,
-    { method: "POST" }
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
+    }
   )
 
   if (!response.ok)

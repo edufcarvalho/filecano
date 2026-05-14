@@ -33,14 +33,6 @@ def get_folder_repository(session: Session = Depends(get_session)) -> FolderRepo
   return FolderRepository(session)
 
 
-def get_folder_service(
-  repository: FolderRepository = Depends(get_folder_repository),
-  file_repository: FileRepository = Depends(get_file_repository),
-  storage_service: FileStorageService = Depends(get_file_storage_service),
-) -> FolderService:
-  return FolderService(repository, file_repository, storage_service)
-
-
 def get_file_service(
   repository: FileRepository = Depends(get_file_repository),
   folder_repository: FolderRepository = Depends(get_folder_repository),
@@ -48,6 +40,15 @@ def get_file_service(
   settings: Settings = Depends(get_settings),
 ) -> FileService:
   return FileService(repository, folder_repository, storage_service, settings)
+
+
+def get_folder_service(
+  repository: FolderRepository = Depends(get_folder_repository),
+  file_repository: FileRepository = Depends(get_file_repository),
+  file_service: FileService = Depends(get_file_service),
+  storage_service: FileStorageService = Depends(get_file_storage_service),
+) -> FolderService:
+  return FolderService(repository, file_repository, file_service, storage_service)
 
 
 def get_link_repository(session: Session = Depends(get_session)) -> LinkRepository:
@@ -59,11 +60,12 @@ def get_link_service(
   file_repository: FileRepository = Depends(get_file_repository),
   folder_repository: FolderRepository = Depends(get_folder_repository),
   file_service: FileService = Depends(get_file_service),
+  folder_service: FolderService = Depends(get_folder_service),
   storage_service: FileStorageService = Depends(get_file_storage_service),
   settings: Settings = Depends(get_settings),
 ) -> LinkService:
   return LinkService(
-    repository, file_repository, folder_repository, file_service, storage_service, settings
+    repository, file_repository, folder_repository, file_service, folder_service, storage_service, settings
   )
 
 

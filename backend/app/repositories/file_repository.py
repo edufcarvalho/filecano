@@ -66,6 +66,19 @@ class FileRepository:
 
     return self.session.exec(query).first()
 
+  def get_by_multiple_ids_and_link(self, file_ids: list[UUID], link_id: UUID) -> list[File]:
+    query = (
+      select(File)
+      .join(FileLinkRelation, FileLinkRelation.file_id == File.id)
+      .where(
+        File.id._in(file_ids),
+        File.deleted_at.is_(None),
+        FileLinkRelation.link_id == link_id,
+      )
+    )
+
+    return self.session.exec(query).all()
+
   def list_by_link(
     self,
     link_id: UUID,

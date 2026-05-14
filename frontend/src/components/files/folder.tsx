@@ -32,6 +32,7 @@ type FolderProps = {
   selectedFileIds: Set<string>
   isSelected?: boolean
   isNew?: boolean
+  isDeleted?: boolean
   autoOpen?: boolean
   movingFileIds?: Set<string>
   movingFolderIds?: Set<string>
@@ -57,6 +58,7 @@ export function Folder({
   selectedFileIds,
   isSelected,
   isNew,
+  isDeleted,
   autoOpen = false,
   movingFileIds = new Set(),
   movingFolderIds,
@@ -152,6 +154,7 @@ export function Folder({
         "folder-panel",
         isNew && "folder-panel-new",
         isSelected && "folder-panel-selected",
+        isDeleted && "folder-panel-deleted",
         isDragOver && "border-primary/40 bg-primary/10 relative z-10"
       )}
       onDragOver={onFileDrop || onFolderDrop || onExternalDrop ? handleDragOver : undefined}

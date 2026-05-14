@@ -7,7 +7,8 @@ from fastapi.responses import StreamingResponse
 from app.api.dependencies import get_current_user, get_link_service
 from app.models import User
 from app.schemas import (
-  FileResponse,
+  CloningParams,
+  FolderWithFilesResponse,
   LinkCreateParams,
   LinkResponse,
   LinkRestoreParams,
@@ -65,7 +66,7 @@ def create_share_link(
 def get_files(
   token: str, service: LinkService = Depends(get_link_service)
 ) -> LinkResponse:
-  return service.authenticate_token(token)
+  return service.get_files(token)
 
 
 @router.delete("/{token}", status_code=status.HTTP_204_NO_CONTENT)
@@ -121,9 +122,10 @@ def download_shared_file(
 
 
 @router.post("/{link_id}/files/clone", status_code=status.HTTP_201_CREATED)
-def clone_files(
+def clone_shared_objects(
   link_id: UUID,
+  params: Annotated[CloningParams, Body()],
   current_user: User = Depends(get_current_user),
   service: LinkService = Depends(get_link_service),
-) -> list[FileResponse]:
-  return service.clone_files(current_user, link_id)
+) -> FolderWithFilesResponse:
+  return service.clone_shared_objects(current_user, link_id, params)

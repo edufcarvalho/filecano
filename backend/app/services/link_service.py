@@ -12,11 +12,18 @@ from app.core import (
   NotFoundError,
   Settings,
 )
-from app.models import File, Link, User
+from app.models import File, Link, User, Folder
 from app.repositories import FileRepository, LinkRepository, FolderRepository
-from app.schemas import LinkCreateParams, LinkRestoreParams
+from app.schemas import (
+  CloningParams,
+  LinkCreateParams,
+  LinkResponse,
+  LinkRestoreParams,
+  FolderWithFilesResponse,
+)
 from app.services.base_service import BaseService
 from app.services.file_service import FileService
+from app.services.folder_service import FolderService
 from app.services.file_storage_service import FileStorageService
 from app.utils.time import current_datetime
 
@@ -28,6 +35,7 @@ class LinkService(BaseService):
     file_repository: FileRepository,
     folder_repository: FolderRepository,
     file_service: FileService,
+    folder_service: FolderService,
     storage_service: FileStorageService,
     settings: Settings,
   ):
@@ -35,6 +43,7 @@ class LinkService(BaseService):
     self.file_repository = file_repository
     self.folder_repository = folder_repository
     self.file_service = file_service
+    self.folder_service = folder_service
     self.storage = storage_service
     self.settings = settings
 
@@ -74,15 +83,22 @@ class LinkService(BaseService):
 
     return link
 
-  def get_files(self, token: str, files_id: Optional[list[UUID]] = None) -> list[File]:
+  def get_files(self, token: str) -> LinkResponse:
     link = self.authenticate_token(token)
+
     files = self.file_repository.list_by_link(
       link.id,
-      files_id,
       include_deleted=True,
     )
 
-    return files
+    return LinkResponse(
+      id=link.id,
+      token=link.token,
+      custom_name=link.custom_name,
+      expires_at=link.expires_at,
+      files=files,
+      folders=link.folders,
+    )
 
   def get_file(self, token: str, file_id: UUID) -> Optional[File]:
     link = self.authenticate_token(token)
@@ -135,7 +151,7 @@ class LinkService(BaseService):
     return self.repository.update(link)
 
   def restore_link(
-    self, user: User, token: str, params: LinkRestoreParams | None = None
+    self, user: User, token: str, params: Optional[LinkRestoreParams] = None
   ) -> Link:
     link = self.repository.get_by_token(token)
     if not link:
@@ -159,7 +175,12 @@ class LinkService(BaseService):
 
     self.repository.delete(link)
 
-  def clone_files(self, user: User, link_id: UUID) -> list[File]:
+  def clone_shared_objects(
+    self,
+    user: User,
+    link_id: UUID,
+    params: CloningParams,
+  ) -> Link:
     link = self.repository.get_by_id(link_id)
 
     if not link:
@@ -171,7 +192,13 @@ class LinkService(BaseService):
     if link.expires_at <= current_datetime():
       raise GoneError("Share link expired")
 
-    return self.file_service.clone_files(user, link.files)
+    files = self.file_service.clone_files_by_id(user, params.files)
+    folders = self.folder_service.clone_folders(user, params.folders)
+
+    return FolderWithFilesResponse(
+      folders=folders,
+      other_files=files
+    )
 
   def _generate_token(self, link: Link) -> str:
     return hashlib.shake_256(str(link.id).encode()).hexdigest(
