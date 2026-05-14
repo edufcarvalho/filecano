@@ -139,6 +139,7 @@ class FileService(BaseService):
       self.repository.refresh(clone)
 
     return clones
+
   def get_download(self, user: User, file_id: UUID) -> tuple[File, BaseHTTPResponse]:
     file = self._get_user_file(user, file_id)
 

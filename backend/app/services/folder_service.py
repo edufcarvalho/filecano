@@ -4,13 +4,13 @@ from uuid import UUID
 from uuid6 import uuid7
 
 from app.core.exceptions import ConflictError, GoneError, NotFoundError
-from app.models import File, Folder, User
+from app.models import Folder, User
 from app.repositories.file_repository import FileRepository
 from app.repositories.folder_repository import FolderRepository
 from app.schemas import FolderParams, FolderUpdateParams, FolderWithFilesResponse
 from app.services.base_service import BaseService
-from app.services.file_storage_service import FileStorageService
 from app.services.file_service import FileService
+from app.services.file_storage_service import FileStorageService
 from app.utils.time import current_datetime
 
 
@@ -56,7 +56,9 @@ class FolderService(BaseService):
 
     return clone
 
-  def _duplicate_folder(self, user: User, folder: Folder, parent: Optional[Folder] = None) -> Folder:
+  def _duplicate_folder(
+    self, user: User, folder: Folder, parent: Optional[Folder] = None
+  ) -> Folder:
     name = self._get_unique_foldername(user.id, folder.name)
 
     clone = Folder.model_validate(
@@ -79,7 +81,9 @@ class FolderService(BaseService):
 
     return list(map(lambda f: self.clone_folder(user, f), folders))
 
-  def update_folder(self, user: User, folder_id: UUID, params: FolderUpdateParams) -> Folder:
+  def update_folder(
+    self, user: User, folder_id: UUID, params: FolderUpdateParams
+  ) -> Folder:
     folder = self._get_folder(folder_id)
 
     self._ensure_user_has_rights(user.id, folder.user_id)

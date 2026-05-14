@@ -16,7 +16,7 @@ class LinkCreateParams(BaseModel):
   folders: Optional[list[UUID]] = None
   expires_at: Optional[datetime] = None
 
-  @model_validator(mode='after')
+  @model_validator(mode="after")
   def should_have_folders_or_files(self) -> LinkCreateParams:
     if not self.files and not self.folders:
       raise ValueError("At least one file or folder must be provided.")

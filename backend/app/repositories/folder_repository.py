@@ -1,9 +1,9 @@
 from typing import Optional
 from uuid import UUID
 
-from sqlmodel import Session, func, or_, select, update, delete
+from sqlmodel import Session, delete, func, or_, select, update
 
-from app.models import Folder, File
+from app.models import File, Folder
 from app.utils.time import current_datetime
 
 
@@ -89,7 +89,7 @@ class FolderRepository:
 
       descendants.update(new_child_ids)
       pending.extend(new_child_ids)
-  
+
     return descendants
 
   def get_files_by_folder_ids(self, folder_ids: list[UUID]) -> list[File]:
@@ -100,16 +100,13 @@ class FolderRepository:
   def foldername_stored_by_user_count(self, name: str, user_id: UUID) -> int:
     pattern = rf"^{name} \([0-9]+\)$"
 
-    query = (
-      select(func.count())
-      .where(
-        Folder.deleted_at.is_(None),
-        Folder.user_id == user_id,
-        or_(
-          Folder.name == name,
-          Folder.name.op("~")(pattern),
-        ),
-      )
+    query = select(func.count()).where(
+      Folder.deleted_at.is_(None),
+      Folder.user_id == user_id,
+      or_(
+        Folder.name == name,
+        Folder.name.op("~")(pattern),
+      ),
     )
 
     return self.session.exec(query).one()
@@ -129,10 +126,7 @@ class FolderRepository:
     return self.session.exec(query).all()
 
   def delete_permanently(self, folder_id: UUID) -> None:
-    query = (
-      delete(Folder)
-      .where(Folder.id == folder_id)
-    )
+    query = delete(Folder).where(Folder.id == folder_id)
 
     self.session.exec(query)
     self.session.commit()

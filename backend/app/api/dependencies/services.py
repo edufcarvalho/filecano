@@ -65,7 +65,13 @@ def get_link_service(
   settings: Settings = Depends(get_settings),
 ) -> LinkService:
   return LinkService(
-    repository, file_repository, folder_repository, file_service, folder_service, storage_service, settings
+    repository,
+    file_repository,
+    folder_repository,
+    file_service,
+    folder_service,
+    storage_service,
+    settings,
   )
 
 

@@ -66,7 +66,9 @@ class FileRepository:
 
     return self.session.exec(query).first()
 
-  def get_by_multiple_ids_and_link(self, file_ids: list[UUID], link_id: UUID) -> list[File]:
+  def get_by_multiple_ids_and_link(
+    self, file_ids: list[UUID], link_id: UUID
+  ) -> list[File]:
     query = (
       select(File)
       .join(FileLinkRelation, FileLinkRelation.file_id == File.id)
@@ -121,10 +123,7 @@ class FileRepository:
   def list_by_user(self, user_id: UUID, deleted: bool = False) -> list[File]:
     query = (
       select(File)
-      .where(
-        File.user_id == user_id,
-        File.folder_id._is(None)
-      )
+      .where(File.user_id == user_id, File.folder_id._is(None))
       .order_by(File.id.desc())
     )
 
@@ -183,7 +182,9 @@ class FileRepository:
 
     return self.session.exec(query).first()
 
-  def list_folder_orphans_by_user(self, user_id: UUID, deleted: bool = False) -> list[File]:
+  def list_folder_orphans_by_user(
+    self, user_id: UUID, deleted: bool = False
+  ) -> list[File]:
     query = (
       select(File)
       .where(
@@ -211,11 +212,7 @@ class FileRepository:
     return file
 
   def restore_by_folder(self, folder_id: UUID) -> None:
-    query = (
-      update(File)
-      .where(File.folder_id == folder_id)
-      .values(deleted_at=None)
-    )
+    query = update(File).where(File.folder_id == folder_id).values(deleted_at=None)
 
     self.session.exec(query)
     self.session.commit()

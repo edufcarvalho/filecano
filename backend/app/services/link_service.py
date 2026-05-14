@@ -12,19 +12,19 @@ from app.core import (
   NotFoundError,
   Settings,
 )
-from app.models import File, Link, User, Folder
-from app.repositories import FileRepository, LinkRepository, FolderRepository
+from app.models import File, Link, User
+from app.repositories import FileRepository, FolderRepository, LinkRepository
 from app.schemas import (
   CloningParams,
+  FolderWithFilesResponse,
   LinkCreateParams,
   LinkResponse,
   LinkRestoreParams,
-  FolderWithFilesResponse,
 )
 from app.services.base_service import BaseService
 from app.services.file_service import FileService
-from app.services.folder_service import FolderService
 from app.services.file_storage_service import FileStorageService
+from app.services.folder_service import FolderService
 from app.utils.time import current_datetime
 
 
@@ -49,7 +49,9 @@ class LinkService(BaseService):
 
   def create_link(self, user: User, params: LinkCreateParams) -> dict[str, object]:
     files = self.file_repository.list_by_multiple_ids_and_user(params.files, user.id)
-    folders = self.folder_repository.list_by_multiple_ids_and_user(params.folders, user.id)
+    folders = self.folder_repository.list_by_multiple_ids_and_user(
+      params.folders, user.id
+    )
     expires_at = self._resolve_expires_at(params.expires_at)
 
     link = Link(
@@ -195,10 +197,7 @@ class LinkService(BaseService):
     files = self.file_service.clone_files_by_id(user, params.files)
     folders = self.folder_service.clone_folders(user, params.folders)
 
-    return FolderWithFilesResponse(
-      folders=folders,
-      other_files=files
-    )
+    return FolderWithFilesResponse(folders=folders, other_files=files)
 
   def _generate_token(self, link: Link) -> str:
     return hashlib.shake_256(str(link.id).encode()).hexdigest(

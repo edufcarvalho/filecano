@@ -2,9 +2,14 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
-from sqlalchemy import and_, or_
-from sqlalchemy.orm import foreign, remote
-from sqlmodel import DateTime, Field, Relationship, SQLModel
+from sqlmodel import (
+  DateTime,
+  Field,
+  Relationship,
+  SQLModel,
+  and_,
+  or_,
+)
 from uuid6 import uuid7
 
 from app.models.file import File
@@ -59,15 +64,15 @@ class Folder(SQLModel, table=True):
     sa_relationship_kwargs={
       "lazy": "selectin",
       "primaryjoin": lambda: and_(
-        Folder.id == remote(foreign(Folder.parent_id)),
+        Folder.id == Folder.parent_id,
         or_(
           and_(
             Folder.deleted_at.is_(None),
-            remote(foreign(Folder.deleted_at)).is_(None),
+            Folder.deleted_at.is_(None),
           ),
           and_(
             Folder.deleted_at.is_not(None),
-            remote(foreign(Folder.deleted_at)).is_not(None),
+            Folder.deleted_at.is_not(None),
           ),
         ),
       ),
