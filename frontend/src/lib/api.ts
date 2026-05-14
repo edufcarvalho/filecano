@@ -54,6 +54,7 @@ export type LinkResponse = {
   custom_name: string | null
   expires_at: string
   files: FileResponse[]
+  folders?: FolderResponse[]
 }
 
 export type LinkUpdateResponse = {
@@ -518,9 +519,11 @@ export async function downloadMultipleFiles(
 export async function shareFiles(
   accessToken: string,
   fileIds: string[],
-  expiresAt?: string
+  expiresAt?: string,
+  folderIds?: string[]
 ): Promise<TokenResponse> {
   const body: Record<string, unknown> = { files: fileIds }
+  if (folderIds && folderIds.length > 0) body.folders = folderIds
   if (expiresAt) body.expires_at = expiresAt
 
   const response = await authFetch(`${API_URL}/v1/share`, accessToken, {

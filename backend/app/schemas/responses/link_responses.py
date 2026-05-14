@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 from .file_responses import FileResponse
+from .folder_responses import FolderResponse
 
 
 class LinkResponse(BaseModel):
@@ -12,7 +13,8 @@ class LinkResponse(BaseModel):
   token: str
   custom_name: Optional[str] = None
   expires_at: datetime
-  files: list[FileResponse]
+  files: Optional[list[FileResponse]] = None
+  folders: Optional[list[FolderResponse]] = None
 
   model_config = ConfigDict(from_attributes=True)
 

@@ -406,6 +406,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   const [showExpirationDialog, setShowExpirationDialog] = useState(false)
   const [pendingShareCount, setPendingShareCount] = useState(0)
   const pendingShareFileIdsRef = useRef<string[]>([])
+  const pendingShareFolderIdsRef = useRef<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
   const newlyAddedTimersRef = useRef<Record<string, number>>({})
@@ -1118,28 +1119,31 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   }, [accessToken, files, folders, selectedFileIds, t])
 
   const handleBulkShare = useCallback(() => {
-    if (selectedFileIds.size === 0) return
+    if (selectedFileIds.size === 0 && selectedFolderIds.size === 0) return
 
     setError(null)
     setNotice(null)
     pendingShareFileIdsRef.current = Array.from(selectedFileIds)
-    setPendingShareCount(selectedFileIds.size)
+    pendingShareFolderIdsRef.current = Array.from(selectedFolderIds)
+    setPendingShareCount(selectedFileIds.size + selectedFolderIds.size)
     setShowExpirationDialog(true)
-  }, [selectedFileIds])
+  }, [selectedFileIds, selectedFolderIds])
 
   const executeShare = useCallback(
     async (expiration: LinkExpiration) => {
       const fileIds = pendingShareFileIdsRef.current
-      if (fileIds.length === 0) return
+      const folderIds = pendingShareFolderIdsRef.current
+      if (fileIds.length === 0 && folderIds.length === 0) return
 
-      const isBulk = fileIds.length > 1
+      const isBulk = (fileIds.length + folderIds.length) > 1
       setPendingFileId(isBulk ? "bulk-share" : `share-${fileIds[0]}`)
 
       try {
         const shareToken = await shareFiles(
           accessToken,
           fileIds,
-          resolveExpiresAt(expiration)
+          resolveExpiresAt(expiration),
+          folderIds.length > 0 ? folderIds : undefined
         )
         const result = await copyShareUrl(shareToken.access_token)
         setNotice(
@@ -1155,6 +1159,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       } finally {
         setPendingFileId(null)
         pendingShareFileIdsRef.current = []
+        pendingShareFolderIdsRef.current = []
         setPendingShareCount(0)
       }
     },

@@ -54,12 +54,11 @@ def restore_link(
 
 @router.post("", response_model=TokenResponse)
 def create_share_link(
-  files: Annotated[LinkCreateParams, Body()] = None,
-  folders: Annotated[LinkCreateParams, Body()] = None,
+  params: Annotated[LinkCreateParams, Body()],
   current_user: User = Depends(get_current_user),
   service: LinkService = Depends(get_link_service),
 ) -> TokenResponse:
-  return service.create_link(current_user, files, folders)
+  return service.create_link(current_user, params)
 
 
 @router.get("/{token}", response_model=LinkResponse)

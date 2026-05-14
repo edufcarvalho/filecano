@@ -134,7 +134,10 @@ export function SharedFilesScreen({
       .then((sharedLink) => {
         if (!isCurrentRef.current) return
         setLinkId(sharedLink.id)
-        const grouped = groupFilesByFolder(sharedLink.files)
+        const folderData = Object.fromEntries(
+          (sharedLink.folders ?? []).map((f) => [f.id, { name: f.name }])
+        )
+        const grouped = groupFilesByFolder(sharedLink.files, folderData)
         setFiles(grouped.orphanFiles)
         setFolders(grouped.folders)
         setSelectedFileIds(
