@@ -345,7 +345,7 @@
   }
 
   .auth-marketing-text {
-    @apply text-balance text-muted-foreground;
+    @apply text-balance text-primary-foreground/90;
   }
 
   .tooltip-content-rich {
@@ -681,6 +681,10 @@
 
   .folder-panel-new {
     @apply border-green-600/40 bg-green-500/10;
+  }
+
+  .folder-panel-deleted {
+    @apply border-destructive/40 bg-destructive/5;
   }
 
   .folder-panel-header {
