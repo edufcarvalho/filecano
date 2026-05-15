@@ -121,11 +121,11 @@ def download_shared_file(
   )
 
 
-@router.post("/{link_id}/files/clone", status_code=status.HTTP_201_CREATED)
+@router.post("/{token}/files/clone", status_code=status.HTTP_201_CREATED)
 def clone_shared_objects(
-  link_id: UUID,
+  token: str,
   params: Annotated[CloningParams, Body()],
   current_user: User = Depends(get_current_user),
   service: LinkService = Depends(get_link_service),
 ) -> FolderWithFilesResponse:
-  return service.clone_shared_objects(current_user, link_id, params)
+  return service.clone_shared_objects(current_user, token, params)

@@ -173,10 +173,10 @@ class LinkService(BaseService):
   def clone_shared_objects(
     self,
     user: User,
-    link_id: UUID,
+    token: str,
     params: CloningParams,
   ) -> FolderWithFilesResponse:
-    self._authenticate_link_id(link_id)
+    self.authenticate_token(token)
 
     files = self.file_service.clone_files_by_id(user, params.files)
     folders = self.folder_service.clone_folders(user, params.folders)
@@ -207,19 +207,5 @@ class LinkService(BaseService):
 
     if not link:
       raise NotFoundError("Link not found")
-
-    return link
-
-  def _authenticate_link_id(self, link_id: UUID) -> Link:
-    link = self.repository.get_by_id(link_id)
-
-    if link is None:
-      raise NotFoundError("Share link not found")
-
-    if link.deleted_at is not None:
-      raise NotFoundError("Link deleted by creator")
-
-    if link.expires_at <= current_datetime():
-      raise GoneError("Share link expired")
 
     return link

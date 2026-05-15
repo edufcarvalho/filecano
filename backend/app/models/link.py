@@ -19,7 +19,7 @@ class Link(SQLModel, table=True):
   __tablename__ = "links"
 
   id: UUID = Field(default_factory=uuid7, primary_key=True)
-  token: str = Field(nullable=False, unique=True)
+  token: str = Field(nullable=False, unique=True, index=True)
   custom_name: Optional[str] = Field(default=None, unique=True)
   user_id: UUID = Field(nullable=False, foreign_key="users.id", ondelete="CASCADE")
   expires_at: datetime = Field(nullable=False, sa_type=DateTime(timezone=True))
