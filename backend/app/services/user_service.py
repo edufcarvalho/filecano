@@ -25,9 +25,7 @@ class UserService:
       hashed_password=hash_password(params.password),
     )
 
-    self.repository.add(user)
-    self.session.commit()
-    self.session.refresh(user)
+    self.repository.save(user)
 
     return user
 

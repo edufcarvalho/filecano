@@ -50,7 +50,7 @@ class FileRepository(BaseRepository[File]):
       select(File)
       .join(FileLinkRelation, FileLinkRelation.file_id == File.id)
       .where(
-        File.id._in(file_ids),
+        File.id.in_(file_ids),
         File.deleted_at.is_(None),
         FileLinkRelation.link_id == link_id,
       )

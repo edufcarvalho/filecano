@@ -63,7 +63,7 @@ class LinkService(BaseService):
 
     link.token = self._generate_token(link)
 
-    link = self.repository.add(link)
+    link = self.repository.save(link)
 
     return {
       "access_token": link.token,

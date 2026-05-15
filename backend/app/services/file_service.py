@@ -190,9 +190,7 @@ class FileService(BaseService):
 
       file.folder_id = params.folder_id
 
-    self.repository.add(file)
-    self.repository.commit()
-    self.repository.refresh(file)
+    self.repository.save(file)
 
     return file
 

@@ -1,3 +1,4 @@
+# pragma: no cover
 from app.db.session import engine, get_session
 
 __all__ = [

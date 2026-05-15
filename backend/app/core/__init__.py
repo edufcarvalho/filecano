@@ -1,3 +1,4 @@
+# pragma: no cover
 from app.core.config import Settings, get_settings
 from app.core.exceptions import (
   AppError,

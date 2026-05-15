@@ -45,7 +45,9 @@ def refresh_token(
   service: AuthService = Depends(get_auth_service),
 ) -> TokenResponse:
   if credentials is None:
-    raise AuthenticationError("Authorization header is required", headers={"WWW-Authenticate": "Bearer"})
+    raise AuthenticationError(
+      "Authorization header is required", headers={"WWW-Authenticate": "Bearer"}
+    )
 
   return service.refresh_token(credentials.credentials)
 

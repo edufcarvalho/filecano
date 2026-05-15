@@ -1,6 +1,6 @@
 # Extract with a script from https://github.com/patrickmccallum/mimetype-io/blob/master/src/mimeData.json
 
-SUPPORTED_MIMETYPES = {
+SUPPORTED_MIMETYPES = {  # pragma: no cover
   "application/x-dtbook+xml",
   "audio/x-ms-wax",
   "application/davmount+xml",

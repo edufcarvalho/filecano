@@ -59,7 +59,7 @@ class FolderRepository(BaseRepository[Folder]):
       descendants.update(new_child_ids)
       pending.extend(new_child_ids)
 
-    return descendants
+    return list(descendants)
 
   def get_files_by_folder_ids(self, folder_ids: list[UUID]) -> list[File]:
     query = select(File).where(File.folder_id.in_(folder_ids))

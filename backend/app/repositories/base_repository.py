@@ -5,9 +5,7 @@ from sqlmodel import Session, SQLModel
 
 from app.utils.time import current_datetime
 
-from pydantic import BaseModel
-
-Model = TypeVar("Model", bound="BaseModel")
+Model = TypeVar("Model", bound="SQLModel")
 
 
 class BaseRepository(Generic[Model]):
@@ -52,7 +50,9 @@ class BaseRepository(Generic[Model]):
   def hard_delete(self, entity: Model) -> None:
     self.session.delete(entity)
 
-  def soft_delete_by_parent(self, model: type, parent_field: str, parent_id: UUID) -> None:
+  def soft_delete_by_parent(
+    self, model: type, parent_field: str, parent_id: UUID
+  ) -> None:
     from sqlmodel import update
 
     query = (

@@ -39,9 +39,7 @@ class FolderService(BaseService):
 
     folder = Folder(user=user, name=name, parent_id=params.parent_id)
 
-    self.repository.add(folder)
-    self.repository.commit()
-    self.repository.refresh(folder)
+    self.repository.save(folder)
 
     return folder
 
@@ -54,9 +52,7 @@ class FolderService(BaseService):
     for child in folder.children:
       self.clone_folder(user, child, clone)
 
-    self.repository.add(clone)
-    self.repository.commit()
-    self.repository.refresh(clone)
+    self.repository.save(clone)
 
     return clone
 
@@ -108,9 +104,7 @@ class FolderService(BaseService):
 
       folder.parent_id = params.parent_id
 
-    self.repository.add(folder)
-    self.repository.commit()
-    self.repository.refresh(folder)
+    self.repository.save(folder)
 
     return folder
 
@@ -131,9 +125,7 @@ class FolderService(BaseService):
     self.file_repository.delete_by_folder(folder.id)
     self.repository.delete_children(folder.id)
 
-    self.repository.add(folder)
-    self.repository.commit()
-    self.repository.refresh(folder)
+    self.repository.save(folder)
 
     return folder
 
@@ -157,9 +149,7 @@ class FolderService(BaseService):
 
       self.file_repository.restore_by_folder(folder.id)
 
-      self.repository.add(folder)
-      self.repository.commit()
-      self.repository.refresh(folder)
+      self.repository.save(folder)
 
     folders = self.repository.list_by_user(user.id, deleted=True)
     files = self.file_repository.list_by_user(user.id, deleted=True)
