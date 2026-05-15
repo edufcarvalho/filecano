@@ -39,7 +39,11 @@ class FolderService(BaseService):
 
     folder = Folder(user=user, name=name, parent_id=params.parent_id)
 
-    return self.repository.add(folder)
+    self.repository.add(folder)
+    self.repository.commit()
+    self.repository.refresh(folder)
+
+    return folder
 
   def clone_folder(self, user: User, folder: Folder) -> Folder:
     if folder.deleted_at is not None:
