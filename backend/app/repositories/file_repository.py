@@ -100,7 +100,7 @@ class FileRepository(BaseRepository[File]):
   def list_by_user(self, user_id: UUID, deleted: bool = False) -> list[File]:
     query = (
       select(File)
-      .where(File.user_id == user_id, File.folder_id._is(None))
+      .where(File.user_id == user_id, File.folder_id.is_(None))
       .order_by(File.id.desc())
     )
 

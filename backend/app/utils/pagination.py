@@ -1,4 +1,4 @@
-from sqlmodel import SelectOfScalar
+from sqlmodel.sql.expression import SelectOfScalar
 
 from app.schemas import PaginatedResponse as Response
 from app.schemas import PaginateParams as Params
