@@ -43,16 +43,21 @@ class FolderService(BaseService):
 
     return folder
 
-  def clone_folder(self, user: User, folder: Folder) -> Folder:
+  def clone_folder(
+    self, user: User, folder: Folder, parent: Optional[Folder] = None
+  ) -> Folder:
     if folder.deleted_at is not None:
       raise GoneError("One or more folders you're trying to clone have been deleted")
 
-    clone = self._duplicate_folder(user, folder)
+    clone = self._duplicate_folder(user, folder, parent)
+
+    self.repository.add(clone)
 
     for child in folder.children:
       self.clone_folder(user, child, clone)
 
-    self.repository.save(clone)
+    self.repository.commit()
+    self.repository.refresh(clone)
 
     return clone
 
