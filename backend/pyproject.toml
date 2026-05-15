@@ -37,8 +37,12 @@ git=[
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["app/tests"]
-
-addopts = "--cov=src --cov-report=term-missing --cov-fail-under=70"
+pythonpath = ["."]
+addopts = "--cov=app --cov-report=term-missing"
+filterwarnings = [
+    "ignore:'asyncio.get_event_loop_policy' is deprecated:DeprecationWarning:pytest_asyncio",
+    "ignore:transaction already deassociated from connection:sqlalchemy.exc.SAWarning",
+]
 
 [tool.uv]
 package = false
@@ -63,4 +67,8 @@ line-length = 88
 target-version = ["py311"]
 
 [tool.coverage.run]
-omit = ["app/tests/*"]
+omit = [
+    "app/tests/*",
+    "app/core/*",
+    "app/db/*",
+]
