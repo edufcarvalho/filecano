@@ -63,6 +63,7 @@ class Folder(SQLModel, table=True):
     back_populates="parent",
     sa_relationship_kwargs={
       "lazy": "selectin",
+      "remote_side": "Folder.parent_id",
       "primaryjoin": lambda: and_(
         Folder.id == Folder.parent_id,
         or_(
