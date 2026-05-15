@@ -70,7 +70,6 @@ export function SharedFilesScreen({
   const { shareToken } = useParams()
   const [files, setFiles] = useState<FileResponse[]>([])
   const [folders, setFolders] = useState<FolderResponse[]>([])
-  const [linkId, setLinkId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [linkError, setLinkError] = useState<ShareLinkErrorKind | null>(
@@ -121,7 +120,6 @@ export function SharedFilesScreen({
     getSharedFiles(shareToken)
       .then((sharedLink) => {
         if (!isCurrentRef.current) return
-        setLinkId(sharedLink.id)
         const sharedFiles = sharedLink.files ?? []
         const sharedFolders = sharedLink.folders ?? []
         const allFiles = [...sharedFiles, ...collectFolderFiles(sharedFolders)]
@@ -223,7 +221,7 @@ export function SharedFilesScreen({
 
   const handleClone = useCallback(
     async (file: FileResponse) => {
-      if (!accessToken || !linkId) return
+      if (!accessToken || !shareToken) return
 
       if (!isAvailableFile(file)) {
         setError(t("files.error.fileDeletedByOwner"))
@@ -235,7 +233,7 @@ export function SharedFilesScreen({
       setPendingFileId(`clone-${file.id}`)
 
       try {
-        const cloned = await cloneSharedFiles(accessToken, linkId, [file.id])
+        const cloned = await cloneSharedFiles(accessToken, shareToken, [file.id])
         setSuccess(
           `${t("files.cloneSuccess")}: ${cloned.map((f) => f.display_name).join(", ")}`
         )
@@ -245,13 +243,13 @@ export function SharedFilesScreen({
         setPendingFileId(null)
       }
     },
-    [accessToken, linkId, t]
+    [accessToken, shareToken, t]
   )
 
   const handleCloneAll = useCallback(async () => {
     if (
       !accessToken ||
-      !linkId ||
+      !shareToken ||
       (selectedFileIds.size === 0 && selectedFolderIds.size === 0)
     ) return
 
@@ -262,7 +260,7 @@ export function SharedFilesScreen({
     try {
       const cloned = await cloneSharedFiles(
         accessToken,
-        linkId,
+        shareToken,
         Array.from(selectedFileIds),
         Array.from(selectedFolderIds)
       )
@@ -274,7 +272,7 @@ export function SharedFilesScreen({
     } finally {
       setPendingFileId(null)
     }
-  }, [accessToken, linkId, selectedFileIds, selectedFolderIds, t])
+  }, [accessToken, shareToken, selectedFileIds, selectedFolderIds, t])
 
   const toggleFileSelection = useCallback((fileId: string) => {
     setSelectedFileIds((currentSelection) => {

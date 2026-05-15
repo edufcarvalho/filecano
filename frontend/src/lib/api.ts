@@ -657,7 +657,7 @@ export async function downloadSharedFile(
 
 export async function cloneSharedFiles(
   accessToken: string,
-  linkId: string,
+  token: string,
   fileIds?: string[],
   folderIds?: string[]
 ): Promise<FileResponse[]> {
@@ -666,7 +666,7 @@ export async function cloneSharedFiles(
   if (folderIds && folderIds.length > 0) body.folders = folderIds
 
   const response = await authFetch(
-    `${API_URL}/v1/share/${linkId}/files/clone`,
+    `${API_URL}/v1/share/${token}/files/clone`,
     accessToken,
     {
       method: "POST",

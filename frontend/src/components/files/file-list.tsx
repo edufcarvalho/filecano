@@ -205,14 +205,17 @@ function countFolderFiles(folder: FolderResponse): number {
 }
 
 function flattenFolderFiles(folders: FolderResponse[]): FileResponse[] {
-  const result: FileResponse[] = []
+  const flat: FileResponse[] = []
+
   for (const folder of folders) {
-    result.push(...(folder.files ?? []))
+    flat.push(...(folder.files ?? []))
+
     if (folder.children) {
-      result.push(...flattenFolderFiles(folder.children))
+      flat.push(...flattenFolderFiles(folder.children))
     }
   }
-  return result
+
+  return flat
 }
 
 function collectFolderFileIds(folder: FolderResponse): string[] {
