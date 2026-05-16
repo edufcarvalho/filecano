@@ -24,5 +24,6 @@ class FileUpdateParams(BaseModel):
 class FileListParams(BaseModel):
   deleted: bool = False
   by_folder: bool = False
+  lazy: bool = True
 
   model_config = ConfigDict(from_attributes=True)

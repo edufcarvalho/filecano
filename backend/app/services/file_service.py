@@ -25,6 +25,7 @@ from app.schemas import (
   FileListParams,
   FileUpdateParams,
   FolderWithFilesResponse,
+  FolderLazyResponse,
 )
 from app.services.base_service import BaseService
 from app.services.file_storage_service import FileStorageService
@@ -159,11 +160,11 @@ class FileService(BaseService):
 
   def list_files(
     self, user: User, params: FileListParams
-  ) -> list[File] | FolderWithFilesResponse:
+  ) -> list[File] | FolderWithFilesResponse | FolderLazyResponse:
     if not params.by_folder:
       return self.repository.list_by_user(user.id, params.deleted)
 
-    folders = self.folder_repository.list_by_user(user.id, params.deleted)
+    folders = self.folder_repository.list_by_user(user.id, params.lazy, params.deleted)
     orphans = self.repository.list_folder_orphans_by_user(user.id, params.deleted)
 
     return FolderWithFilesResponse(

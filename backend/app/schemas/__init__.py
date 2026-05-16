@@ -17,6 +17,7 @@ from app.schemas.responses.file_responses import FileResponse
 from app.schemas.responses.folder_responses import (
   FolderResponse,
   FolderWithFilesResponse,
+  FolderLazyResponse,
 )
 from app.schemas.responses.link_responses import (
   LinkResponse,
@@ -37,6 +38,7 @@ __all__ = [
   "FileUpdateParams",
   "FolderParams",
   "FolderResponse",
+  "FolderLazyResponse",
   "LinkResponse",
   "LinkRestoreResponse",
   "LinkUpdateParams",
