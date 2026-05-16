@@ -4,6 +4,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+  model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
   app_name: str = "Filecano API"
   database_url: str = "postgresql+psycopg://filecano:filecano@database:5432/filecano"
   minio_endpoint: str = "data:9000"
@@ -19,8 +21,6 @@ class Settings(BaseSettings):
   shared_url_expire_seconds: int = 604800
   share_token_length: int = 8
   max_file_size_bytes: int = 2147483648
-
-  model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
   @property
   def cors_origin_list(self) -> list[str]:
