@@ -440,7 +440,7 @@
   }
 
   .bulk-action-group {
-    @apply flex min-w-0 flex-auto overflow-hidden rounded-[min(var(--radius-md),12px)];
+    @apply flex min-w-0 flex-auto gap-1;
   }
 
   .bulk-actions-desktop .bulk-action-group {
@@ -448,15 +448,7 @@
   }
 
   .bulk-action-group > [data-slot="button"] {
-    @apply min-w-0 flex-auto rounded-none border-r border-background/60 max-sm:px-1;
-  }
-
-  .bulk-action-group > [data-slot="button"]:first-child {
-    @apply rounded-l-[min(var(--radius-md),12px)];
-  }
-
-  .bulk-action-group > [data-slot="button"]:last-child {
-    @apply rounded-r-[min(var(--radius-md),12px)] border-r-0;
+    @apply min-w-0 flex-auto rounded-[min(var(--radius-md),12px)] max-sm:px-1;
   }
 
   .loading-button-base {
