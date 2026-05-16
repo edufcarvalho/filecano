@@ -176,10 +176,10 @@ class LinkService(BaseService):
     token: str,
     params: CloningParams,
   ) -> FolderWithFilesResponse:
-    self.authenticate_token(token)
+    link = self.authenticate_token(token)
 
-    files = self.file_service.clone_files_by_id(user, params.files)
-    folders = self.folder_service.clone_folders(user, params.folders)
+    files = self.file_service.clone_files_by_id(user, link, params.files)
+    folders = self.folder_service.clone_folders(user, link, params.folders)
 
     return FolderWithFilesResponse(folders=folders, other_files=files)
 

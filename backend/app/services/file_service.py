@@ -19,7 +19,7 @@ from app.core import (
   StorageError,
   UnsupportedFileTypeError,
 )
-from app.models import File, User
+from app.models import File, User, Link
 from app.repositories import FileRepository, FolderRepository
 from app.schemas import (
   FileListParams,
@@ -128,8 +128,8 @@ class FileService(BaseService):
 
     return clones
 
-  def clone_files_by_id(self, user: User, file_ids: list[UUID]) -> list[File]:
-    files = self.repository.list_by_multiple_ids_and_user(file_ids, user.id)
+  def clone_files_by_id(self, user: User, link: Link, file_ids: list[UUID]) -> list[File]:
+    files = self.repository.get_by_multiple_ids_and_link(file_ids, link.id)
     clones = [self._duplicate_file(f, user.id) for f in files]
 
     self.repository.add_all(clones)

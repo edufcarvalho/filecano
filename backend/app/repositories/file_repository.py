@@ -48,11 +48,14 @@ class FileRepository(BaseRepository[File]):
   ) -> list[File]:
     query = (
       select(File)
-      .join(FileLinkRelation, FileLinkRelation.file_id == File.id)
+      .join(
+        FileLinkRelation,
+        FileLinkRelation.file_id == File.id,
+        FileLinkRelation.link_id == link_id,
+      )
       .where(
         File.id.in_(file_ids),
         File.deleted_at.is_(None),
-        FileLinkRelation.link_id == link_id,
       )
     )
 

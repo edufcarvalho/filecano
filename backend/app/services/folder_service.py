@@ -4,7 +4,7 @@ from uuid import UUID
 from uuid6 import uuid7
 
 from app.core.exceptions import ConflictError, GoneError, NotFoundError
-from app.models import Folder, User
+from app.models import Folder, User, Link
 from app.repositories.file_repository import FileRepository
 from app.repositories.folder_repository import FolderRepository
 from app.schemas import FolderParams, FolderUpdateParams, FolderWithFilesResponse
@@ -81,8 +81,8 @@ class FolderService(BaseService):
 
     return clone
 
-  def clone_folders(self, user: User, folder_ids: list[UUID]) -> list[Folder]:
-    folders = self.repository.get_by_ids(folder_ids, user.id)
+  def clone_folders(self, user: User, link: Link, folder_ids: list[UUID]) -> list[Folder]:
+    folders = self.repository.get_by_ids_and_link(folder_ids, link.id)
 
     return list(map(lambda f: self.clone_folder(user, f), folders))
 

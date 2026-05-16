@@ -3,7 +3,7 @@ from uuid import UUID
 
 from sqlmodel import delete, func, or_, select
 
-from app.models import File, Folder
+from app.models import File, Folder, FolderLinkRelation
 from app.repositories.base_repository import BaseRepository
 
 
@@ -22,6 +22,24 @@ class FolderRepository(BaseRepository[Folder]):
 
     return self.session.exec(query).all()
 
+  def get_by_ids_and_link(self, folder_ids: list[UUID], link_id: UUID) -> list[Folder]:
+    if not folder_ids:
+      return []
+
+    query = (
+      select(Folder)
+      .join(
+        FolderLinkRelation,
+        FolderLinkRelation.link_id == link_id,
+        FolderLinkRelation.folder_id == Folder.id,
+      )
+      .where(
+        Folder.id.in_(folder_ids),
+        Folder.deleted_at.is_(None),
+      )
+    )
+
+    return self.session.exec(query).all()
   def list_by_user(self, user_id: UUID, deleted: bool = False) -> list[Folder]:
     query = select(Folder).where(Folder.user_id == user_id).order_by(Folder.id.desc())
 
