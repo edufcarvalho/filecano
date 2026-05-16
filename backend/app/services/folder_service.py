@@ -7,7 +7,7 @@ from app.core.exceptions import ConflictError, GoneError, NotFoundError
 from app.models import Folder, User, Link
 from app.repositories.file_repository import FileRepository
 from app.repositories.folder_repository import FolderRepository
-from app.schemas import FolderParams, FolderUpdateParams, FolderWithFilesResponse
+from app.schemas import FolderParams, FolderUpdateParams, FolderWithFilesResponse, FileListParams
 from app.services.base_service import BaseService
 from app.services.file_service import FileService
 from app.services.file_storage_service import FileStorageService
@@ -156,13 +156,12 @@ class FolderService(BaseService):
 
       self.repository.save(folder)
 
-    folders = self.repository.list_by_user(user.id, deleted=True)
-    files = self.file_repository.list_by_user(user.id, deleted=True)
-
-    return FolderWithFilesResponse(
-      folders=folders,
-      other_files=files,
+    folder_with_files = self.file_service.list_files(
+      user,
+      FileListParams(deleted=True, by_folder=True),
     )
+
+    return folder_with_files
 
   def _get_folder(self, folder_id: UUID) -> Folder:
     folder = self.repository.get_by_id(folder_id)
