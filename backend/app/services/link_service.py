@@ -25,7 +25,7 @@ from app.services.base_service import BaseService
 from app.services.file_service import FileService
 from app.services.file_storage_service import FileStorageService
 from app.services.folder_service import FolderService
-from app.utils.time import current_datetime, default_expires_at
+from app.utils.time import current_datetime, get_expires_at
 
 
 class LinkService(BaseService):
@@ -194,15 +194,20 @@ class LinkService(BaseService):
   ) -> datetime:
     if expires_at:
       now = current_datetime()
+
       if expires_at < now:
         raise BadRequestError("Expiration date must be in the future")
+
       return expires_at
-    return default_expires_at(self.settings.shared_url_expire_seconds)
+
+    return get_expires_at(self.settings.shared_url_expire_seconds)
 
   def _get_link(self, token: str) -> Link:
     link = self.repository.get_by_token(token)
+
     if not link:
       raise NotFoundError("Link not found")
+
     return link
 
   def _authenticate_link_id(self, link_id: UUID) -> Link:
