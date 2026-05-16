@@ -28,15 +28,3 @@ class FolderResponse(BaseModel):
 
   model_config = ConfigDict(from_attributes=True)
 
-
-class FolderLazyResponse(BaseModel):
-  id: UUID
-  user_id: UUID
-  name: str
-  parent_id: Optional[UUID] = None
-  files_count: int
-  children: Optional[list[FolderLazyResponse]] = None
-  created_at: datetime
-  deleted_at: Optional[datetime] = None
-
-  model_config = ConfigDict(from_attributes=True)
