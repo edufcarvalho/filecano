@@ -157,7 +157,7 @@
 
 @layer components {
   .page-wrapper {
-    @apply flex h-full min-h-0 w-full flex-col gap-4 overflow-hidden bg-muted/40 p-4;
+    @apply flex min-h-full w-full flex-col gap-4 overflow-y-auto bg-muted/40 p-4;
   }
 
   .page-center-wrapper {
@@ -681,6 +681,10 @@
 
   .expiration-dialog-body {
     @apply flex flex-col gap-4;
+  }
+
+  .file-list-grid > [data-state="open"] {
+    grid-column: 1 / -1;
   }
 
   .folder-panel {

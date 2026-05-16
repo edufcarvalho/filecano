@@ -230,7 +230,7 @@ function collectFolderFileIds(folder: FolderResponse): string[] {
 }
 
 function isFolderAllDeleted(folder: FolderResponse): boolean {
-  const allFiles = folder.files || []
+  const allFiles = (folder.files || []).slice()
   if (folder.children) {
     for (const child of folder.children) {
       allFiles.push(...isFolderAllDeletedFiles(child))
@@ -285,6 +285,8 @@ type FolderNodeProps = {
   onExternalDrop?: (event: DragEvent, folderId: string) => void
   uploadingFolderIds?: Set<string>
   selectedFolderIds: Set<string>
+  openFolderIds: Set<string>
+  onFolderToggle?: (folderId: string) => void
 }
 
 function FolderNode({
@@ -323,8 +325,13 @@ function FolderNode({
   onExternalDrop,
   uploadingFolderIds,
   selectedFolderIds,
+  openFolderIds,
+  onFolderToggle,
 }: FolderNodeProps) {
-  const fileCount = countFolderFiles(folder)
+  const fileCount = useMemo(
+    () => countFolderFiles(folder),
+    [folder]
+  )
   const fileIds = collectFolderFileIds(folder)
   const isAllDeleted = isFolderAllDeleted(folder)
 
@@ -370,10 +377,16 @@ function FolderNode({
   }, [folder, onPermanentDeleteFolder])
 
   const handleToggleOpen = useCallback(() => {
+    onFolderToggle?.(folder.id)
     if (newlyAddedFolderIds.has(folder.id)) {
       onClearFolderNewlyAdded?.(folder.id)
     }
-  }, [folder.id, newlyAddedFolderIds, onClearFolderNewlyAdded])
+  }, [folder.id, newlyAddedFolderIds, onClearFolderNewlyAdded, onFolderToggle])
+
+  const isFolderOpen = useMemo(
+    () => openFolderIds.has(folder.id),
+    [folder.id, openFolderIds]
+  )
 
   return (
     <Folder
@@ -392,6 +405,7 @@ function FolderNode({
       isNew={newlyAddedFolderIds.has(folder.id)}
       isDeleted={variant !== "trash" && isAllDeleted}
       autoOpen={!!(uploadingFolderIds && uploadingFolderIds.has(folder.id))}
+      open={isFolderOpen || !!(uploadingFolderIds && uploadingFolderIds.has(folder.id))}
       isSelected={selectedFolderIds.has(folder.id)}
       onToggleFolderSelect={onToggleFolderSelect ? handleToggleFolderSelect : undefined}
       onDeleteFolder={variant === "default" && onDeleteFolder ? handleDeleteFolder : undefined}
@@ -437,6 +451,8 @@ function FolderNode({
           onExternalDrop={onExternalDrop}
           uploadingFolderIds={uploadingFolderIds}
           selectedFolderIds={selectedFolderIds}
+          onFolderToggle={onFolderToggle}
+          openFolderIds={openFolderIds}
           movingFolderIds={movingFolderIds}
         />
       ))}
@@ -578,6 +594,19 @@ export function FileList({
   }, [folderNameError])
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const [isCardDragOver, setIsCardDragOver] = useState(false)
+  const [openFolderIds, setOpenFolderIds] = useState<Set<string>>(new Set())
+
+  const handleFolderToggle = useCallback((folderId: string) => {
+    setOpenFolderIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(folderId)) {
+        next.delete(folderId)
+      } else {
+        next.add(folderId)
+      }
+      return next
+    })
+  }, [])
 
   const handleCreateFolderOpen = useCallback(() => {
     setNewFolderName("")
@@ -730,6 +759,23 @@ export function FileList({
         : [],
     [variant, folders, normalizedSearchQuery]
   )
+
+  const { closedFolders, openFolders } = useMemo(() => {
+    if (variant === "trash" || !folders) {
+      return { closedFolders: folders, openFolders: [] as FolderResponse[] }
+    }
+    const closed: FolderResponse[] = []
+    const opened: FolderResponse[] = []
+    for (const folder of folders) {
+      if (openFolderIds.has(folder.id)) {
+        opened.push(folder)
+      } else {
+        closed.push(folder)
+      }
+    }
+    return { closedFolders: closed, openFolders: opened }
+  }, [variant, folders, openFolderIds])
+
   const bulkActions = (
     <>
       {variant === "shared" ? (
@@ -1051,19 +1097,21 @@ export function FileList({
                       onExternalDrop={onExternalDrop}
                       uploadingFolderIds={uploadingFolderIds}
                       selectedFolderIds={selectedFolderIds}
+                      onFolderToggle={handleFolderToggle}
+                      openFolderIds={openFolderIds}
                       movingFolderIds={movingFolderIds}
                     />
                   ))}
                 </div>
               ) : null}
-              {variant !== "trash" && folders && folders.length > 0 ? (
+              {variant !== "trash" && closedFolders && closedFolders.length > 0 ? (
                 <div
                   className={cn(
-                    "grid gap-2",
-                    filteredFiles.length > 0 && "mb-3"
+                    "file-list-grid",
+                    (openFolders.length > 0 || filteredFiles.length > 0) && "mb-3"
                   )}
                 >
-                  {folders.map((folder) => (
+                  {closedFolders.map((folder) => (
                     <FolderNode
                       key={folder.id}
                       folder={folder}
@@ -1100,27 +1148,64 @@ export function FileList({
                       onExternalDrop={onExternalDrop}
                       uploadingFolderIds={uploadingFolderIds}
                       selectedFolderIds={selectedFolderIds}
+                      onFolderToggle={handleFolderToggle}
+                      openFolderIds={openFolderIds}
                       movingFolderIds={movingFolderIds}
                     />
                   ))}
                 </div>
               ) : null}
-              {variant !== "trash" && folders && folders.length > 0 && filteredFiles.length === 0 && (
-                <div className="flex min-h-0 flex-1 items-center justify-center">
-                  <div className="empty-state-base">
-                    <FileSearchIcon
-                      className="icon-muted size-[var(--empty-icon-size)]"
-                      strokeWidth={1.75}
+              {variant !== "trash" && openFolders && openFolders.length > 0 ? (
+                <div
+                  className={cn(
+                    "flex flex-col gap-3",
+                    filteredFiles.length > 0 && "mb-3"
+                  )}
+                >
+                  {openFolders.map((folder) => (
+                    <FolderNode
+                      key={folder.id}
+                      folder={folder}
+                      previewUrls={previewUrls}
+                      selectedFileIds={selectedFileIds}
+                      newlyAddedFileIds={newlyAddedFileIds}
+                      newlyAddedFolderIds={newlyAddedFolderIds}
+                      editingFileId={editingFileId}
+                      editingName={editingName}
+                      pendingFileId={pendingFileId}
+                      error={error}
+                      movingFileIds={movingFileIds}
+                      variant={variant}
+                      onDelete={onDelete}
+                      onDownload={onDownload}
+                      onClone={onClone}
+                      onEditingNameChange={onEditingNameChange}
+                      onRename={onRename}
+                      onPermanentDelete={onPermanentDelete}
+                      onRestore={onRestore}
+                      onRestoreFolder={onRestoreFolder}
+                      onPermanentDeleteFolder={onPermanentDeleteFolder}
+                      onShare={onShare}
+                      onClearNewlyAdded={onClearNewlyAdded}
+                      onStartEditing={onStartEditing}
+                      onStopEditing={onStopEditing}
+                      onToggleSelection={onToggleSelection}
+                      onToggleFolderSelection={safeToggleFolderSelection}
+                      onToggleFolderSelect={onToggleFolderSelect}
+                      onDeleteFolder={onDeleteFolder}
+                      onClearFolderNewlyAdded={onClearFolderNewlyAdded}
+                      onMoveFile={onMoveFile}
+                      onMoveFolder={onMoveFolder}
+                      onExternalDrop={onExternalDrop}
+                      uploadingFolderIds={uploadingFolderIds}
+                      selectedFolderIds={selectedFolderIds}
+                      onFolderToggle={handleFolderToggle}
+                      openFolderIds={openFolderIds}
+                      movingFolderIds={movingFolderIds}
                     />
-                    <p className="file-empty-state-label">
-                      {emptyLabel ??
-                        (variant === "shared"
-                          ? t("files.emptyShared")
-                          : t("files.emptyDefault"))}
-                    </p>
-                  </div>
+                  ))}
                 </div>
-              )}
+              ) : null}
               {filteredFiles.length > 0 ? (
                 <div
                   className="file-list-grid"

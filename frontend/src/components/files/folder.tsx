@@ -34,6 +34,7 @@ type FolderProps = {
   isNew?: boolean
   isDeleted?: boolean
   autoOpen?: boolean
+  open?: boolean
   movingFileIds?: Set<string>
   movingFolderIds?: Set<string>
   variant?: "default" | "shared" | "trash"
@@ -60,6 +61,7 @@ export function Folder({
   isNew,
   isDeleted,
   autoOpen = false,
+  open: controlledOpen,
   movingFileIds = new Set(),
   movingFolderIds,
   variant = "default",
@@ -75,11 +77,14 @@ export function Folder({
   folderId,
 }: FolderProps) {
   const { t } = useTranslation()
-  const [isOpen, setIsOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
 
+  const isControlled = controlledOpen !== undefined
+  const isOpen = isControlled ? controlledOpen : internalOpen
+
   useEffect(() => {
-    if (autoOpen) queueMicrotask(() => setIsOpen(true))
+    if (autoOpen) queueMicrotask(() => setInternalOpen(true))
   }, [autoOpen])
 
   const isReceiving = useMemo(
@@ -150,6 +155,7 @@ export function Folder({
 
   return (
     <div
+      data-state={isOpen ? "open" : "closed"}
       className={cn(
         "folder-panel",
         isNew && "folder-panel-new",
@@ -228,8 +234,12 @@ export function Folder({
         <button
           type="button"
           onClick={() => {
-            setIsOpen((prev) => !prev)
-            onToggleOpen?.()
+            if (isControlled) {
+              onToggleOpen?.()
+            } else {
+              setInternalOpen((prev) => !prev)
+              onToggleOpen?.()
+            }
           }}
           className="folder-toggle-button"
           draggable={!!onFolderDrop && !isTrash}
