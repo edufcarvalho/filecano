@@ -15,9 +15,9 @@ from app.schemas.params.user_params import (
 )
 from app.schemas.responses.file_responses import FileResponse
 from app.schemas.responses.folder_responses import (
+  FolderLazyResponse,
   FolderResponse,
   FolderWithFilesResponse,
-  FolderLazyResponse,
 )
 from app.schemas.responses.link_responses import (
   LinkResponse,

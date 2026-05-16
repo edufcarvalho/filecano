@@ -28,6 +28,7 @@ class FolderResponse(BaseModel):
 
   model_config = ConfigDict(from_attributes=True)
 
+
 class FolderLazyResponse(BaseModel):
   id: UUID
   user_id: UUID

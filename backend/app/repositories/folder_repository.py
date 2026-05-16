@@ -44,20 +44,12 @@ class FolderRepository(BaseRepository[Folder]):
 
   def children_count(self, folder_id: UUID, deleted: bool = False) -> SelectOfScalar:
     tree = (
-      select(Folder.id)
-      .where(Folder.id == folder_id)
-      .cte(name="tree", recursive=True)
+      select(Folder.id).where(Folder.id == folder_id).cte(name="tree", recursive=True)
     )
 
-    tree = tree.union_all(
-      select(Folder.id)
-      .where(Folder.parent_id == tree.c.id)
-    )
+    tree = tree.union_all(select(Folder.id).where(Folder.parent_id == tree.c.id))
 
-    query = (
-      select(func.count())
-      .join(tree, File.folder_id == tree.c.id)
-    )
+    query = select(func.count()).join(tree, File.folder_id == tree.c.id)
 
     if deleted:
       query = query.where(Folder.deleted_at.is_not(None))
@@ -66,7 +58,9 @@ class FolderRepository(BaseRepository[Folder]):
 
     return query
 
-  def list_by_user(self, user_id: UUID, lazy: bool = True, deleted: bool = False) -> list[Folder]:
+  def list_by_user(
+    self, user_id: UUID, lazy: bool = True, deleted: bool = False
+  ) -> list[Folder]:
     query = select(Folder).where(Folder.user_id == user_id).order_by(Folder.id.desc())
 
     if deleted:
