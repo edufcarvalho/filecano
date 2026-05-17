@@ -2,9 +2,9 @@ from typing import Optional
 from uuid import UUID
 
 from sqlalchemy.orm import selectinload
-from sqlmodel import func, or_, select
+from sqlmodel import func, or_, select, and_
 
-from app.models import File
+from app.models import File, Folder
 from app.models.file_link_relation import FileLinkRelation
 from app.repositories.base_repository import BaseRepository
 
@@ -157,9 +157,16 @@ class FileRepository(BaseRepository[File]):
   ) -> list[File]:
     query = (
       select(File)
+      .join(Folder, File.folder_id == Folder.id)
       .where(
         File.user_id == user_id,
-        File.folder_id.is_(None),
+        or_(
+          File.deleted_at.is_not(None),
+          and_(
+            File.deleted_at.is_not(None),
+            Folder.deleted_at.is_(None)
+          )
+        )
       )
       .order_by(File.id.desc())
     )
@@ -173,7 +180,10 @@ class FileRepository(BaseRepository[File]):
 
   def restore(self, file: File) -> File:
     file.deleted_at = None
-    file.folder_id = None
+    folder = file.folder
+
+    if folder is not None and folder.deleted_at is not None:
+      file.folder_id = None
 
     self.add(file)
     self.commit()

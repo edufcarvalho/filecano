@@ -158,17 +158,19 @@ class FolderService(BaseService):
 
     if folder.deleted_at is not None:
       folder.deleted_at = None
+      parent = folder.parent
+
+      if parent is not None and parent.deleted_at is not None:
+        folder.parent_id = None
 
       self.file_repository.restore_by_folder(folder.id)
 
       self.repository.save(folder)
 
-    folder_with_files = self.file_service.list_files(
+    return self.file_service.list_files(
       user,
       FileListParams(deleted=True, by_folder=True),
     )
-
-    return folder_with_files
 
   def _get_folder(self, folder_id: UUID) -> Folder:
     folder = self.repository.get_by_id(folder_id)
