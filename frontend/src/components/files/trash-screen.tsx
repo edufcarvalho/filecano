@@ -15,7 +15,11 @@ import {
 } from "@/lib/api"
 import { useTranslation } from "@/i18n"
 import { getErrorMessage } from "@/lib/errors"
-import { collectFolderFiles } from "@/lib/file-tree"
+import {
+  collectDescendantIds,
+  collectFolderFiles,
+  collectFolderIds,
+} from "@/lib/file-tree"
 import { loadPreviewUrls } from "@/lib/file-preview"
 import { useFileSelection } from "@/hooks/use-file-selection"
 
@@ -38,7 +42,6 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
     setSelectedFileIds,
     setSelectedFolderIds,
     toggleFileSelection,
-    toggleFolderSelection,
     clearSelection,
   } = useFileSelection()
   const selectedFileIdsRef = useRef(selectedFileIds)
@@ -95,9 +98,9 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
       setSelectedFolderIds(
         (currentSelection) =>
           new Set(
-            loadedFolders
-              .filter((folder) => currentSelection.has(folder.id))
-              .map((folder) => folder.id)
+            collectFolderIds(loadedFolders).filter((folderId) =>
+              currentSelection.has(folderId)
+            )
           )
       )
 
@@ -177,8 +180,38 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
       ...collectFolderFiles(folders),
     ]
     setSelectedFileIds(new Set(allFiles.map((f) => f.id)))
-    setSelectedFolderIds(new Set(folders.map((f) => f.id)))
+    setSelectedFolderIds(new Set(collectFolderIds(folders)))
   }, [files, folders, setSelectedFileIds, setSelectedFolderIds])
+
+  const toggleFolderSelection = useCallback(
+    (folderId: string) => {
+      const isSelecting = !selectedFolderIds.has(folderId)
+      const cascade = collectDescendantIds(folders, folderId)
+
+      setSelectedFolderIds((currentSelection) => {
+        const nextSelection = new Set(currentSelection)
+        if (isSelecting) {
+          nextSelection.add(folderId)
+          cascade.folderIds.forEach((id) => nextSelection.add(id))
+        } else {
+          nextSelection.delete(folderId)
+          cascade.folderIds.forEach((id) => nextSelection.delete(id))
+        }
+        return nextSelection
+      })
+
+      setSelectedFileIds((currentSelection) => {
+        const nextSelection = new Set(currentSelection)
+        if (isSelecting) {
+          cascade.fileIds.forEach((id) => nextSelection.add(id))
+        } else {
+          cascade.fileIds.forEach((id) => nextSelection.delete(id))
+        }
+        return nextSelection
+      })
+    },
+    [folders, selectedFolderIds, setSelectedFileIds, setSelectedFolderIds]
+  )
 
   const handlePermanentDelete = useCallback(
     async (file: FileResponse) => {

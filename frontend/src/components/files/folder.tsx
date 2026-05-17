@@ -1,35 +1,33 @@
 import {
-  ArchiveRestoreIcon,
   CheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
-  EraserIcon,
   FolderIcon,
   FolderOpenIcon,
   LoaderCircleIcon,
   MinusIcon,
-  MoreVerticalIcon,
 } from "lucide-react"
-import type { DragEvent, ReactNode } from "react"
+import type { DragEvent, MouseEvent, ReactNode } from "react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useTranslation } from "@/i18n"
 
 import { Button } from "@ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@ui/dropdown-menu"
 import { cn } from "@/lib/utils"
+import {
+  ActionsDropdown,
+  CursorActionsMenu,
+  type ActionMenuItem,
+  type CursorMenuPosition,
+} from "@files/action-menu"
 
 type FolderProps = {
   name: string
   fileCount: number
   children: ReactNode
   folderFileIds: string[]
+  folderFolderIds?: string[]
   selectedFileIds: Set<string>
+  hasNestedFolders?: boolean
   isSelected?: boolean
   isNew?: boolean
   isDeleted?: boolean
@@ -37,14 +35,18 @@ type FolderProps = {
   open?: boolean
   movingFileIds?: Set<string>
   movingFolderIds?: Set<string>
+  actions?: ActionMenuItem[]
+  buttonActions?: ActionMenuItem[]
+  showActionsButton?: boolean
   variant?: "default" | "shared" | "trash"
   pendingFolderId?: string | null
-  onToggleFolderSelection: (fileIds: string[]) => void
+  onToggleFolderSelection: (fileIds: string[], folderIds?: string[]) => void
   onToggleFolderSelect?: () => void
   onToggleOpen?: () => void
   onFileDrop?: (fileId: string, folderId: string) => void
   onFolderDrop?: (folderId: string, parentId: string) => void
   onExternalDrop?: (event: DragEvent) => void
+  onContextMenuSelect?: () => void
   onRestoreFolder?: () => void
   onPermanentDeleteFolder?: () => void
   folderId?: string
@@ -56,7 +58,9 @@ export function Folder({
   fileCount,
   children,
   folderFileIds,
+  folderFolderIds = [],
   selectedFileIds,
+  hasNestedFolders = false,
   isSelected,
   isNew,
   isDeleted,
@@ -64,6 +68,9 @@ export function Folder({
   open: controlledOpen,
   movingFileIds = new Set(),
   movingFolderIds,
+  actions = [],
+  buttonActions,
+  showActionsButton = false,
   variant = "default",
   pendingFolderId,
   onToggleFolderSelection,
@@ -72,13 +79,16 @@ export function Folder({
   onFileDrop,
   onFolderDrop,
   onExternalDrop,
-  onRestoreFolder,
-  onPermanentDeleteFolder,
+  onContextMenuSelect,
   folderId,
 }: FolderProps) {
   const { t } = useTranslation()
   const [internalOpen, setInternalOpen] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [buttonActionsOpen, setButtonActionsOpen] = useState(false)
+  const [contextActionsOpen, setContextActionsOpen] = useState(false)
+  const [contextMenuPosition, setContextMenuPosition] =
+    useState<CursorMenuPosition | null>(null)
 
   const isControlled = controlledOpen !== undefined
   const isOpen = isControlled ? controlledOpen : internalOpen
@@ -100,10 +110,51 @@ export function Folder({
   const someSelected = folderFileIds.some((id) => selectedFileIds.has(id))
 
   const isTrash = variant === "trash"
-  const isPending = pendingFolderId === folderId
-  const isRestoring = isPending && pendingFolderId === `restore-${folderId}`
-  const isPermanentlyDeleting =
-    isPending && pendingFolderId === `permanent-delete-${folderId}`
+  const hasActions = actions.length > 0
+  const visibleActions = buttonActions ?? actions
+  const hasVisibleActions = visibleActions.length > 0
+  const actionsDisabled = pendingFolderId !== null
+
+  const handleSelectionToggle = useCallback(() => {
+    if (folderFileIds.length === 0) {
+      onToggleFolderSelect?.()
+      return
+    }
+
+    if (isSelected) {
+      onToggleFolderSelect?.()
+    } else if (allSelected) {
+      onToggleFolderSelect?.()
+    } else {
+      onToggleFolderSelection(folderFileIds, folderFolderIds)
+    }
+  }, [
+    allSelected,
+    folderFileIds,
+    folderFolderIds,
+    isSelected,
+    onToggleFolderSelect,
+    onToggleFolderSelection,
+  ])
+
+  const handleHeaderContextMenu = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      event.preventDefault()
+      event.stopPropagation()
+
+      if (hasActions) {
+        if (!actionsDisabled) {
+          onContextMenuSelect?.()
+          setContextMenuPosition({ x: event.clientX, y: event.clientY })
+          setContextActionsOpen(true)
+        }
+        return
+      }
+
+      handleSelectionToggle()
+    },
+    [actionsDisabled, handleSelectionToggle, hasActions, onContextMenuSelect]
+  )
 
   const handleDragOver = useCallback((event: DragEvent) => {
     event.preventDefault()
@@ -167,7 +218,7 @@ export function Folder({
       onDragLeave={onFileDrop || onFolderDrop || onExternalDrop ? handleDragLeave : undefined}
       onDrop={onFileDrop || onFolderDrop || onExternalDrop ? handleDrop : undefined}
     >
-      <div className="folder-panel-header">
+      <div className="folder-panel-header" onContextMenu={handleHeaderContextMenu}>
         {isTrash ? (
           <Button
             type="button"
@@ -202,19 +253,7 @@ export function Folder({
                     : "Select all files in folder"
             }
             aria-pressed={allSelected || isSelected}
-            onClick={() => {
-              if (folderFileIds.length === 0) {
-                onToggleFolderSelect?.()
-                return
-              }
-              if (isSelected) {
-                onToggleFolderSelect?.()
-              } else if (allSelected) {
-                onToggleFolderSelect?.()
-              } else {
-                onToggleFolderSelection(folderFileIds)
-              }
-            }}
+            onClick={handleSelectionToggle}
             className={cn(
               "file-selection-toggle",
               ((allSelected || someSelected || isSelected) && folderFileIds.length > 0) ||
@@ -261,52 +300,25 @@ export function Folder({
             <LoaderCircleIcon className="icon-spin size-4 shrink-0 text-muted-foreground" />
           ) : null}
         </button>
-        {isTrash && (onRestoreFolder || onPermanentDeleteFolder) ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                size="icon-sm"
-                variant="outline"
-                disabled={pendingFolderId !== null}
-                aria-label={t("files.openActions", { name })}
-                className="shrink-0 ml-auto"
-              >
-                <MoreVerticalIcon />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" sideOffset={4} className="z-[100]">
-              <DropdownMenuGroup>
-                <DropdownMenuItem
-                  variant="share"
-                  onSelect={onRestoreFolder}
-                >
-                  {isRestoring ? (
-                    <LoaderCircleIcon className="icon-spin" />
-                  ) : (
-                    <ArchiveRestoreIcon />
-                  )}
-                  {t("files.restore")}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  variant="destructive"
-                  onSelect={onPermanentDeleteFolder}
-                >
-                  {isPermanentlyDeleting ? (
-                    <LoaderCircleIcon className="icon-spin" />
-                  ) : (
-                    <EraserIcon />
-                  )}
-                  {t("files.erase")}
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        {showActionsButton && hasVisibleActions ? (
+          <ActionsDropdown
+            actions={visibleActions}
+            ariaLabel={t("files.openActions", { name })}
+            disabled={actionsDisabled}
+            open={buttonActionsOpen && !actionsDisabled}
+            onOpenChange={setButtonActionsOpen}
+          />
         ) : null}
+        <CursorActionsMenu
+          actions={actions}
+          open={contextActionsOpen && !actionsDisabled}
+          position={contextMenuPosition}
+          onOpenChange={setContextActionsOpen}
+        />
       </div>
       {isOpen ? (
         <div className="border-t p-3 flex flex-col gap-2">
-          {fileCount > 0 ? (
+          {fileCount > 0 || hasNestedFolders ? (
             children
           ) : (
             <p className="folder-empty-label">{t("files.emptyFolder")}</p>

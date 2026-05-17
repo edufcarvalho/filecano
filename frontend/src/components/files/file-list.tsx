@@ -16,7 +16,6 @@ import {
   InfoIcon,
   LoaderCircleIcon,
   MinusIcon,
-  MoreVerticalIcon,
   PencilIcon,
   RefreshCwIcon,
   SaveIcon,
@@ -26,17 +25,10 @@ import {
   XIcon,
 } from "lucide-react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import type { DragEvent, ReactNode } from "react"
+import type { DragEvent, MouseEvent, ReactNode } from "react"
 
 import { Button } from "@ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@ui/card"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@ui/dropdown-menu"
 import { Field, FieldGroup, FieldLabel } from "@ui/field"
 import { Input } from "@ui/input"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@ui/tooltip"
@@ -55,6 +47,12 @@ import { LoadingButton } from "@misc/loading-button"
 import { SearchForm } from "@misc/search-form"
 import { FileIconContainer, FileItem, FileActions } from "@files/file-item"
 import {
+  ActionsDropdown,
+  CursorActionsMenu,
+  type ActionMenuItem,
+  type CursorMenuPosition,
+} from "@files/action-menu"
+import {
   BulkActionButton,
   CompactBulkActionButton,
 } from "@misc/bulk-action-button"
@@ -68,6 +66,7 @@ import {
 } from "@/lib/file-display"
 import { Folder } from "@files/folder"
 import {
+  collectEmptyFolderIds,
   collectFolderFileIds,
   collectFolderFiles,
   countFolderFiles,
@@ -118,7 +117,7 @@ type FileListProps = {
   onStartEditing?: (file: FileResponse) => void
   onStopEditing?: () => void
   onToggleSelection?: (fileId: string) => void
-  onToggleFolderSelection?: (fileIds: string[]) => void
+  onToggleFolderSelection?: (fileIds: string[], folderIds?: string[]) => void
   onToggleFolderSelect?: (folderId: string) => void
   onDeleteFolder?: (folderId: string) => void
   onClearFolderNewlyAdded?: (folderId: string) => void
@@ -184,18 +183,6 @@ type BulkActionsProps = Pick<
   sharedCompact?: boolean
 }
 
-type FileActionsDropdownProps = {
-  actions: {
-    icon: ReactNode
-    isLoading: boolean
-    label: string
-    onSelect: () => void
-    variant: "destructive" | "download" | "share"
-  }[]
-  ariaLabel: string
-  disabled: boolean
-}
-
 function shouldIgnoreCardSelection(target: EventTarget | null) {
   return (
     target instanceof HTMLElement &&
@@ -246,14 +233,22 @@ type FolderNodeProps = {
   onRename?: (file: FileResponse) => void
   onPermanentDelete?: (file: FileResponse) => void
   onRestore?: (file: FileResponse) => void
+  onBulkDelete?: () => void
+  onBulkDownload?: () => void
+  onBulkPermanentDelete?: () => void
+  onBulkRestore?: () => void
+  onBulkShare?: () => void
+  onCloneAll?: () => void
+  onDownloadAll?: () => void
   onRestoreFolder?: (folder: FolderResponse) => void
   onPermanentDeleteFolder?: (folder: FolderResponse) => void
   onShare?: (file: FileResponse) => void
+  onClearSelection?: () => void
   onClearNewlyAdded?: (fileId: string) => void
   onStartEditing?: (file: FileResponse) => void
   onStopEditing?: () => void
   onToggleSelection?: (fileId: string) => void
-  onToggleFolderSelection?: (fileIds: string[]) => void
+  onToggleFolderSelection?: (fileIds: string[], folderIds?: string[]) => void
   onToggleFolderSelect?: (folderId: string) => void
   onDeleteFolder?: (folderId: string) => void
   onClearFolderNewlyAdded?: (folderId: string) => void
@@ -286,9 +281,17 @@ function FolderNode({
   onRename,
   onPermanentDelete,
   onRestore,
+  onBulkDelete,
+  onBulkDownload,
+  onBulkPermanentDelete,
+  onBulkRestore,
+  onBulkShare,
+  onCloneAll,
+  onDownloadAll,
   onRestoreFolder,
   onPermanentDeleteFolder,
   onShare,
+  onClearSelection,
   onClearNewlyAdded,
   onStartEditing,
   onStopEditing,
@@ -305,12 +308,15 @@ function FolderNode({
   openFolderIds,
   onFolderToggle,
 }: FolderNodeProps) {
+  const { t } = useTranslation()
   const fileCount = useMemo(
     () => countFolderFiles(folder),
     [folder]
   )
   const fileIds = collectFolderFileIds(folder)
+  const emptyFolderIds = collectEmptyFolderIds(folder.children ?? [])
   const isAllDeleted = isFolderAllDeleted(folder)
+  const isFolderSelected = selectedFolderIds.has(folder.id)
 
   const handleExternalDrop = useCallback(
     (event: DragEvent) => {
@@ -341,6 +347,18 @@ function FolderNode({
     onToggleFolderSelect?.(folder.id)
   }, [folder.id, onToggleFolderSelect])
 
+  const handleContextMenuSelect = useCallback(() => {
+    if (isFolderSelected || !onToggleFolderSelect) return
+
+    onClearSelection?.()
+    onToggleFolderSelect(folder.id)
+  }, [
+    folder.id,
+    isFolderSelected,
+    onClearSelection,
+    onToggleFolderSelect,
+  ])
+
   const handleDeleteFolder = useCallback(() => {
     onDeleteFolder?.(folder.id)
   }, [folder.id, onDeleteFolder])
@@ -352,6 +370,150 @@ function FolderNode({
   const handlePermanentDeleteFolder = useCallback(() => {
     onPermanentDeleteFolder?.(folder)
   }, [folder, onPermanentDeleteFolder])
+
+  const contextActions = useMemo<ActionMenuItem[]>(() => {
+    if (variant === "shared") {
+      return [
+        ...(onDownloadAll
+          ? [
+              {
+                icon: <DownloadIcon />,
+                isLoading: pendingFileId === "bulk-download",
+                label: t("files.download"),
+                onSelect: onDownloadAll,
+                variant: "download" as const,
+              },
+            ]
+          : []),
+        ...(onCloneAll
+          ? [
+              {
+                icon: <CopyIcon />,
+                isLoading: pendingFileId === "bulk-clone",
+                label: t("files.clone"),
+                onSelect: onCloneAll,
+                variant: "share" as const,
+              },
+            ]
+          : []),
+      ]
+    }
+
+    if (variant === "trash") {
+      return [
+        ...(onBulkRestore
+          ? [
+              {
+                icon: <ArchiveRestoreIcon />,
+                isLoading: pendingFileId === "bulk-restore",
+                label: t("files.restore"),
+                onSelect: onBulkRestore,
+                variant: "share" as const,
+              },
+            ]
+          : []),
+        ...(onBulkPermanentDelete
+          ? [
+              {
+                icon: <EraserIcon />,
+                isLoading: pendingFileId === "bulk-permanent-delete",
+                label: t("files.erase"),
+                onSelect: onBulkPermanentDelete,
+                variant: "destructive" as const,
+              },
+            ]
+          : []),
+      ]
+    }
+
+    return [
+      ...(onBulkDownload
+        ? [
+            {
+              icon: <DownloadIcon />,
+              isLoading: pendingFileId === "bulk-download",
+              label: t("files.download"),
+              onSelect: onBulkDownload,
+              variant: "download" as const,
+            },
+          ]
+        : []),
+      ...(onBulkShare
+        ? [
+            {
+              icon: <Share2Icon />,
+              isLoading: pendingFileId === "bulk-share",
+              label: t("files.share"),
+              onSelect: onBulkShare,
+              variant: "share" as const,
+            },
+          ]
+        : []),
+      ...(onBulkDelete
+        ? [
+            {
+              icon: <Trash2Icon />,
+              isLoading: pendingFileId === "bulk-delete",
+              label: t("files.delete"),
+              onSelect: onBulkDelete,
+              variant: "destructive" as const,
+            },
+          ]
+        : []),
+    ]
+  }, [
+    onBulkDelete,
+    onBulkDownload,
+    onBulkPermanentDelete,
+    onBulkRestore,
+    onBulkShare,
+    onCloneAll,
+    onDownloadAll,
+    pendingFileId,
+    t,
+    variant,
+  ])
+
+  const buttonActions = useMemo<ActionMenuItem[]>(
+    () =>
+      variant === "trash"
+        ? [
+            ...(onRestoreFolder
+              ? [
+                  {
+                    icon: <ArchiveRestoreIcon />,
+                    isLoading: pendingFileId === `restore-${folder.id}`,
+                    label: t("files.restore"),
+                    onSelect: handleRestoreFolder,
+                    variant: "share" as const,
+                  },
+                ]
+              : []),
+            ...(onPermanentDeleteFolder
+              ? [
+                  {
+                    icon: <EraserIcon />,
+                    isLoading:
+                      pendingFileId === `permanent-delete-${folder.id}`,
+                    label: t("files.erase"),
+                    onSelect: handlePermanentDeleteFolder,
+                    variant: "destructive" as const,
+                  },
+                ]
+              : []),
+          ]
+        : [],
+    [
+      folder.id,
+      handlePermanentDeleteFolder,
+      handleRestoreFolder,
+      onPermanentDeleteFolder,
+      onRestoreFolder,
+      pendingFileId,
+      t,
+      variant,
+    ]
+  )
 
   const handleToggleOpen = useCallback(() => {
     onFolderToggle?.(folder.id)
@@ -370,15 +532,21 @@ function FolderNode({
       name={folder.name}
       fileCount={fileCount}
       folderFileIds={fileIds}
+      folderFolderIds={emptyFolderIds}
       folderId={folder.id}
       selectedFileIds={selectedFileIds}
+      hasNestedFolders={Boolean(folder.children?.length)}
       movingFileIds={movingFileIds}
+      actions={contextActions}
+      buttonActions={buttonActions}
+      showActionsButton={variant === "trash"}
       variant={variant}
       pendingFolderId={pendingFileId}
       onToggleFolderSelection={onToggleFolderSelection ?? (() => {})}
       onFileDrop={variant === "default" && onMoveFile ? handleFileDrop : undefined}
       onFolderDrop={variant === "default" && onMoveFolder ? handleFolderDrop : undefined}
       onExternalDrop={onExternalDrop ? handleExternalDrop : undefined}
+      onContextMenuSelect={handleContextMenuSelect}
       isNew={newlyAddedFolderIds.has(folder.id)}
       isDeleted={variant !== "trash" && isAllDeleted}
       autoOpen={!!(uploadingFolderIds && uploadingFolderIds.has(folder.id))}
@@ -386,8 +554,6 @@ function FolderNode({
       isSelected={selectedFolderIds.has(folder.id)}
       onToggleFolderSelect={onToggleFolderSelect ? handleToggleFolderSelect : undefined}
       onDeleteFolder={variant === "default" && onDeleteFolder ? handleDeleteFolder : undefined}
-      onRestoreFolder={variant === "trash" && onRestoreFolder ? handleRestoreFolder : undefined}
-      onPermanentDeleteFolder={variant === "trash" && onPermanentDeleteFolder ? handlePermanentDeleteFolder : undefined}
       onToggleOpen={handleToggleOpen}
       movingFolderIds={movingFolderIds}
     >
@@ -412,9 +578,17 @@ function FolderNode({
           onRename={onRename}
           onPermanentDelete={onPermanentDelete}
           onRestore={onRestore}
+          onBulkDelete={onBulkDelete}
+          onBulkDownload={onBulkDownload}
+          onBulkPermanentDelete={onBulkPermanentDelete}
+          onBulkRestore={onBulkRestore}
+          onBulkShare={onBulkShare}
+          onCloneAll={onCloneAll}
+          onDownloadAll={onDownloadAll}
           onRestoreFolder={onRestoreFolder}
           onPermanentDeleteFolder={onPermanentDeleteFolder}
           onShare={onShare}
+          onClearSelection={onClearSelection}
           onClearNewlyAdded={onClearNewlyAdded}
           onStartEditing={onStartEditing}
           onStopEditing={onStopEditing}
@@ -671,7 +845,8 @@ export function FileList({
   )
 
   const safeToggleFolderSelection = useCallback(
-    (fileIds: string[]) => onToggleFolderSelection?.(fileIds),
+    (fileIds: string[], folderIds?: string[]) =>
+      onToggleFolderSelection?.(fileIds, folderIds),
     [onToggleFolderSelection]
   )
 
@@ -907,9 +1082,17 @@ export function FileList({
       onRename={onRename}
       onPermanentDelete={onPermanentDelete}
       onRestore={onRestore}
+      onBulkDelete={onBulkDelete}
+      onBulkDownload={onBulkDownload}
+      onBulkPermanentDelete={onBulkPermanentDelete}
+      onBulkRestore={onBulkRestore}
+      onBulkShare={onBulkShare}
+      onCloneAll={onCloneAll}
+      onDownloadAll={onDownloadAll}
       onRestoreFolder={onRestoreFolder}
       onPermanentDeleteFolder={onPermanentDeleteFolder}
       onShare={onShare}
+      onClearSelection={onClearSelection}
       onClearNewlyAdded={onClearNewlyAdded}
       onStartEditing={onStartEditing}
       onStopEditing={onStopEditing}
@@ -1096,7 +1279,7 @@ export function FileList({
               {variant === "trash" && filteredTrashFolders.length > 0 ? (
                 <div
                   className={cn(
-                    "grid gap-2",
+                    "file-list-grid",
                     filteredFiles.length > 0 && "mb-3"
                   )}
                 >
@@ -1471,47 +1654,6 @@ function FileInfoButton({
   )
 }
 
-function FileActionsDropdown({
-  actions,
-  ariaLabel,
-  disabled,
-}: FileActionsDropdownProps) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="outline"
-          disabled={disabled}
-          aria-label={ariaLabel}
-          className="shrink-0"
-        >
-          <MoreVerticalIcon />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={4} className="z-[100]">
-        <DropdownMenuGroup>
-          {actions.map((action) => (
-            <DropdownMenuItem
-              key={action.label}
-              variant={action.variant}
-              onSelect={action.onSelect}
-            >
-              {action.isLoading ? (
-                <LoaderCircleIcon className="icon-spin" />
-              ) : (
-                action.icon
-              )}
-              {action.label}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
 const FileListItem = memo(function FileListItem({
   file,
   previewUrl,
@@ -1547,6 +1689,14 @@ const FileListItem = memo(function FileListItem({
   const isDeleted = file.deleted_at !== null
   const isSelectable = variant === "trash" || !isDeleted
   const showDeletedState = isDeleted && variant !== "trash"
+  const [dropdownActionsOpen, setDropdownActionsOpen] = useState(false)
+  const [contextActionsOpen, setContextActionsOpen] = useState(false)
+  const [contextMenuPosition, setContextMenuPosition] =
+    useState<CursorMenuPosition | null>(null)
+  const actionsDisabled =
+    variant === "shared" ? pendingFileId !== null || isDeleted : pendingFileId !== null
+  const hasActionsDropdown = variant === "shared" || variant === "trash" || !isEditing
+  const actionsDropdownOpen = dropdownActionsOpen && !actionsDisabled
 
   const handleCardClick = useCallback(
     (event: { target: EventTarget | null }) => {
@@ -1564,6 +1714,19 @@ const FileListItem = memo(function FileListItem({
       event.dataTransfer.effectAllowed = "move"
     },
     [file.id]
+  )
+
+  const handleCardContextMenu = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      if (!hasActionsDropdown || actionsDisabled) return
+      if (shouldIgnoreCardSelection(event.target)) return
+
+      event.preventDefault()
+      event.stopPropagation()
+      setContextMenuPosition({ x: event.clientX, y: event.clientY })
+      setContextActionsOpen(true)
+    },
+    [actionsDisabled, hasActionsDropdown]
   )
 
   const isDraggable = variant === "default" && !isEditing && !isDeleted
@@ -1636,6 +1799,12 @@ const FileListItem = memo(function FileListItem({
       variant: "destructive" as const,
     },
   ]
+  const actions =
+    variant === "shared"
+      ? sharedActions
+      : variant === "trash"
+        ? trashActions
+        : defaultActions
 
   return (
     <FileItem
@@ -1645,6 +1814,7 @@ const FileListItem = memo(function FileListItem({
       isDeleted={showDeletedState}
       draggable={isDraggable && !isMoving}
       onDragStart={isDraggable && !isMoving ? handleDragStart : undefined}
+      onContextMenu={handleCardContextMenu}
       className={cn(isSelectable && "cursor-pointer", isMoving && "opacity-50")}
     >
       <div className="file-card-name-area">
@@ -1704,16 +1874,20 @@ const FileListItem = memo(function FileListItem({
           />
           <FileActions>
             {variant === "shared" ? (
-              <FileActionsDropdown
+              <ActionsDropdown
                 actions={sharedActions}
                 ariaLabel={openActionsLabel}
-                disabled={pendingFileId !== null || isDeleted}
+                disabled={actionsDisabled}
+                open={actionsDropdownOpen}
+                onOpenChange={setDropdownActionsOpen}
               />
             ) : variant === "trash" ? (
-              <FileActionsDropdown
+              <ActionsDropdown
                 actions={trashActions}
                 ariaLabel={openActionsLabel}
-                disabled={pendingFileId !== null}
+                disabled={actionsDisabled}
+                open={actionsDropdownOpen}
+                onOpenChange={setDropdownActionsOpen}
               />
             ) : isEditing ? (
               <>
@@ -1741,15 +1915,23 @@ const FileListItem = memo(function FileListItem({
                 </Button>
               </>
             ) : (
-              <FileActionsDropdown
+              <ActionsDropdown
                 actions={defaultActions}
                 ariaLabel={openActionsLabel}
-                disabled={pendingFileId !== null}
+                disabled={actionsDisabled}
+                open={actionsDropdownOpen}
+                onOpenChange={setDropdownActionsOpen}
               />
             )}
           </FileActions>
         </div>
       </div>
+      <CursorActionsMenu
+        actions={actions}
+        open={contextActionsOpen && !actionsDisabled}
+        position={contextMenuPosition}
+        onOpenChange={setContextActionsOpen}
+      />
     </FileItem>
   )
 })

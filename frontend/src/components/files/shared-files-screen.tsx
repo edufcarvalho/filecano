@@ -21,7 +21,11 @@ import {
 import { useTranslation } from "@/i18n"
 import type { StoredToken } from "@/lib/session"
 import { getErrorMessage } from "@/lib/errors"
-import { collectFolderFiles, collectFolderIds } from "@/lib/file-tree"
+import {
+  collectDescendantIds,
+  collectFolderFiles,
+  collectFolderIds,
+} from "@/lib/file-tree"
 import { loadPreviewUrls } from "@/lib/file-preview"
 import { useFileSelection } from "@/hooks/use-file-selection"
 
@@ -68,7 +72,6 @@ export function SharedFilesScreen({
     setSelectedFileIds,
     setSelectedFolderIds,
     toggleFileSelection,
-    toggleFolderSelection: toggleFolderSelect,
     toggleFolderFileSelection: toggleFolderSelection,
     clearSelection: clearFileSelection,
   } = useFileSelection()
@@ -266,6 +269,36 @@ export function SharedFilesScreen({
       new Set(collectFolderIds(folders.filter(isAvailableFolder)))
     )
   }, [files, folders, setSelectedFileIds, setSelectedFolderIds])
+
+  const toggleFolderSelect = useCallback(
+    (folderId: string) => {
+      const isSelecting = !selectedFolderIds.has(folderId)
+      const cascade = collectDescendantIds(folders, folderId)
+
+      setSelectedFolderIds((currentSelection) => {
+        const nextSelection = new Set(currentSelection)
+        if (isSelecting) {
+          nextSelection.add(folderId)
+          cascade.folderIds.forEach((id) => nextSelection.add(id))
+        } else {
+          nextSelection.delete(folderId)
+          cascade.folderIds.forEach((id) => nextSelection.delete(id))
+        }
+        return nextSelection
+      })
+
+      setSelectedFileIds((currentSelection) => {
+        const nextSelection = new Set(currentSelection)
+        if (isSelecting) {
+          cascade.fileIds.forEach((id) => nextSelection.add(id))
+        } else {
+          cascade.fileIds.forEach((id) => nextSelection.delete(id))
+        }
+        return nextSelection
+      })
+    },
+    [folders, selectedFolderIds, setSelectedFileIds, setSelectedFolderIds]
+  )
 
   if (!shareToken) return <ShareLinkErrorScreen kind="not-found" />
   if (linkError) return <ShareLinkErrorScreen kind={linkError} />

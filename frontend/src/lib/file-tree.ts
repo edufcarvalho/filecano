@@ -33,6 +33,13 @@ export function collectFolderIds(folders: FolderResponse[]): string[] {
   ])
 }
 
+export function collectEmptyFolderIds(folders: FolderResponse[]): string[] {
+  return folders.flatMap((folder): string[] => {
+    const childIds = collectEmptyFolderIds(folder.children ?? [])
+    return countFolderFiles(folder) === 0 ? [folder.id, ...childIds] : childIds
+  })
+}
+
 export function countFolderFiles(folder: FolderResponse): number {
   let count = folder.files?.length || 0
 
@@ -63,19 +70,13 @@ export function removeFileFromFolders(
   folders: FolderResponse[],
   fileId: string
 ): FolderResponse[] {
-  return folders
-    .map((folder) => ({
-      ...folder,
-      files: folder.files.filter((file) => file.id !== fileId),
-      children: folder.children
-        ? removeFileFromFolders(folder.children, fileId)
-        : undefined,
-    }))
-    .filter(
-      (folder) =>
-        folder.files.length > 0 ||
-        (folder.children && folder.children.length > 0)
-    )
+  return folders.map((folder) => ({
+    ...folder,
+    files: folder.files.filter((file) => file.id !== fileId),
+    children: folder.children
+      ? removeFileFromFolders(folder.children, fileId)
+      : undefined,
+  }))
 }
 
 export function updateFileInFolders(
@@ -216,11 +217,6 @@ export function removeFolderFromTree(
         ? removeFolderFromTree(folder.children, folderId)
         : undefined,
     }))
-    .filter(
-      (folder) =>
-        folder.files.length > 0 ||
-        (folder.children && folder.children.length > 0)
-    )
 }
 
 export function addFolderToParent(
