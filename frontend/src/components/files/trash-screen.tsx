@@ -13,24 +13,18 @@ import {
   type FileResponse,
   type FolderResponse,
 } from "@/lib/api"
-import { isPreviewSupportedFile } from "@/lib/file-display"
 import { useTranslation } from "@/i18n"
+import { getErrorMessage } from "@/lib/errors"
+import {
+  collectDescendantIds,
+  collectFolderFiles,
+  collectFolderIds,
+} from "@/lib/file-tree"
+import { loadPreviewUrls } from "@/lib/file-preview"
+import { useFileSelection } from "@/hooks/use-file-selection"
 
 type TrashScreenProps = {
   accessToken: string
-}
-
-function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback
-}
-
-function collectAllFiles(folderList: FolderResponse[]): FileResponse[] {
-  const result: FileResponse[] = []
-  for (const folder of folderList) {
-    if (folder.files) result.push(...folder.files)
-    if (folder.children) result.push(...collectAllFiles(folder.children))
-  }
-  return result
 }
 
 export function TrashScreen({ accessToken }: TrashScreenProps) {
@@ -42,8 +36,14 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
   const [pendingFileId, setPendingFileId] = useState<string | null>(null)
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({})
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set())
-  const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set())
+  const {
+    selectedFileIds,
+    selectedFolderIds,
+    setSelectedFileIds,
+    setSelectedFolderIds,
+    toggleFileSelection,
+    clearSelection,
+  } = useFileSelection()
   const selectedFileIdsRef = useRef(selectedFileIds)
   const selectedFolderIdsRef = useRef(selectedFolderIds)
 
@@ -60,22 +60,11 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
       filesToPreview: FileResponse[],
       isCurrent: () => boolean = () => true
     ) => {
-      const previewFiles = filesToPreview.filter((file) =>
-        isPreviewSupportedFile(file.content_type)
-      )
-
-      await Promise.all(
-        previewFiles.map((file) =>
-          fetchFilePreviewAsDataUrl(accessToken, file.id)
-            .then((dataUrl) => {
-              if (!isCurrent()) return
-              setPreviewUrls((currentUrls) => ({
-                ...currentUrls,
-                [file.id]: dataUrl,
-              }))
-            })
-            .catch(() => {})
-        )
+      await loadPreviewUrls(
+        filesToPreview,
+        (file) => fetchFilePreviewAsDataUrl(accessToken, file.id),
+        setPreviewUrls,
+        isCurrent
       )
     },
     [accessToken]
@@ -94,7 +83,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
 
       const allFiles = [
         ...loadedOrphans,
-        ...collectAllFiles(loadedFolders),
+        ...collectFolderFiles(loadedFolders),
       ]
 
       setSelectedFileIds(
@@ -109,15 +98,15 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
       setSelectedFolderIds(
         (currentSelection) =>
           new Set(
-            loadedFolders
-              .filter((folder) => currentSelection.has(folder.id))
-              .map((folder) => folder.id)
+            collectFolderIds(loadedFolders).filter((folderId) =>
+              currentSelection.has(folderId)
+            )
           )
       )
 
       void loadPreviews(allFiles, isCurrent)
     },
-    [loadPreviews]
+    [loadPreviews, setSelectedFileIds, setSelectedFolderIds]
   )
 
   const loadData = useCallback(async () => {
@@ -160,7 +149,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
         )
       )
     },
-    []
+    [setSelectedFileIds, setSelectedFolderIds]
   )
 
   useEffect(() => {
@@ -185,43 +174,44 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
     }
   }, [accessToken, applyLoadedData, t])
 
-  const toggleFileSelection = useCallback((fileId: string) => {
-    setSelectedFileIds((currentSelection) => {
-      const nextSelection = new Set(currentSelection)
-      if (nextSelection.has(fileId)) {
-        nextSelection.delete(fileId)
-      } else {
-        nextSelection.add(fileId)
-      }
-      return nextSelection
-    })
-  }, [])
-
-  const toggleFolderSelection = useCallback((folderId: string) => {
-    setSelectedFolderIds((currentSelection) => {
-      const nextSelection = new Set(currentSelection)
-      if (nextSelection.has(folderId)) {
-        nextSelection.delete(folderId)
-      } else {
-        nextSelection.add(folderId)
-      }
-      return nextSelection
-    })
-  }, [])
-
   const selectAll = useCallback(() => {
     const allFiles = [
       ...files,
-      ...collectAllFiles(folders),
+      ...collectFolderFiles(folders),
     ]
     setSelectedFileIds(new Set(allFiles.map((f) => f.id)))
-    setSelectedFolderIds(new Set(folders.map((f) => f.id)))
-  }, [files, folders])
+    setSelectedFolderIds(new Set(collectFolderIds(folders)))
+  }, [files, folders, setSelectedFileIds, setSelectedFolderIds])
 
-  const clearSelection = useCallback(() => {
-    setSelectedFileIds(new Set())
-    setSelectedFolderIds(new Set())
-  }, [])
+  const toggleFolderSelection = useCallback(
+    (folderId: string) => {
+      const isSelecting = !selectedFolderIds.has(folderId)
+      const cascade = collectDescendantIds(folders, folderId)
+
+      setSelectedFolderIds((currentSelection) => {
+        const nextSelection = new Set(currentSelection)
+        if (isSelecting) {
+          nextSelection.add(folderId)
+          cascade.folderIds.forEach((id) => nextSelection.add(id))
+        } else {
+          nextSelection.delete(folderId)
+          cascade.folderIds.forEach((id) => nextSelection.delete(id))
+        }
+        return nextSelection
+      })
+
+      setSelectedFileIds((currentSelection) => {
+        const nextSelection = new Set(currentSelection)
+        if (isSelecting) {
+          cascade.fileIds.forEach((id) => nextSelection.add(id))
+        } else {
+          cascade.fileIds.forEach((id) => nextSelection.delete(id))
+        }
+        return nextSelection
+      })
+    },
+    [folders, selectedFolderIds, setSelectedFileIds, setSelectedFolderIds]
+  )
 
   const handlePermanentDelete = useCallback(
     async (file: FileResponse) => {
@@ -242,7 +232,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
         setPendingFileId(null)
       }
     },
-    [accessToken, t]
+    [accessToken, setSelectedFileIds, t]
   )
 
   const handleRestore = useCallback(
@@ -264,7 +254,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
         setPendingFileId(null)
       }
     },
-    [accessToken, t]
+    [accessToken, setSelectedFileIds, t]
   )
 
   const handleRestoreFolder = useCallback(
@@ -286,7 +276,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
         setPendingFileId(null)
       }
     },
-    [accessToken, t]
+    [accessToken, setSelectedFolderIds, t]
   )
 
   const handlePermanentDeleteFolder = useCallback(
@@ -308,7 +298,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
         setPendingFileId(null)
       }
     },
-    [accessToken, t]
+    [accessToken, setSelectedFolderIds, t]
   )
 
   const handleBulkPermanentDelete = useCallback(async () => {

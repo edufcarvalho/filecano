@@ -16,7 +16,6 @@ import {
   InfoIcon,
   LoaderCircleIcon,
   MinusIcon,
-  MoreVerticalIcon,
   PencilIcon,
   RefreshCwIcon,
   SaveIcon,
@@ -26,17 +25,10 @@ import {
   XIcon,
 } from "lucide-react"
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import type { DragEvent, ReactNode } from "react"
+import type { DragEvent, MouseEvent, ReactNode } from "react"
 
 import { Button } from "@ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@ui/card"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@ui/dropdown-menu"
 import { Field, FieldGroup, FieldLabel } from "@ui/field"
 import { Input } from "@ui/input"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@ui/tooltip"
@@ -55,6 +47,12 @@ import { LoadingButton } from "@misc/loading-button"
 import { SearchForm } from "@misc/search-form"
 import { FileIconContainer, FileItem, FileActions } from "@files/file-item"
 import {
+  ActionsDropdown,
+  CursorActionsMenu,
+  type ActionMenuItem,
+  type CursorMenuPosition,
+} from "@files/action-menu"
+import {
   BulkActionButton,
   CompactBulkActionButton,
 } from "@misc/bulk-action-button"
@@ -67,6 +65,13 @@ import {
   isImageFile,
 } from "@/lib/file-display"
 import { Folder } from "@files/folder"
+import {
+  collectEmptyFolderIds,
+  collectFolderFileIds,
+  collectFolderFiles,
+  countFolderFiles,
+  isFolderAllDeleted,
+} from "@/lib/file-tree"
 
 type FileListProps = {
   variant?: "default" | "shared" | "trash"
@@ -112,7 +117,7 @@ type FileListProps = {
   onStartEditing?: (file: FileResponse) => void
   onStopEditing?: () => void
   onToggleSelection?: (fileId: string) => void
-  onToggleFolderSelection?: (fileIds: string[]) => void
+  onToggleFolderSelection?: (fileIds: string[], folderIds?: string[]) => void
   onToggleFolderSelect?: (folderId: string) => void
   onDeleteFolder?: (folderId: string) => void
   onClearFolderNewlyAdded?: (folderId: string) => void
@@ -162,6 +167,22 @@ type FileInfoDetailsProps = {
   isNewlyAdded: boolean
 }
 
+type BulkActionsProps = Pick<
+  FileListProps,
+  | "onBulkDelete"
+  | "onBulkDownload"
+  | "onBulkPermanentDelete"
+  | "onBulkRestore"
+  | "onBulkShare"
+  | "onCloneAll"
+  | "onDownloadAll"
+  | "pendingFileId"
+> & {
+  variant: "default" | "shared" | "trash"
+  hasSelectedFiles: boolean
+  sharedCompact?: boolean
+}
+
 function shouldIgnoreCardSelection(target: EventTarget | null) {
   return (
     target instanceof HTMLElement &&
@@ -192,63 +213,6 @@ export function FileTypeIcon({ contentType }: { contentType: string | null }) {
   }
 }
 
-function countFolderFiles(folder: FolderResponse): number {
-  if (!folder ) return 0
-  
-  let count = folder?.files?.length || 0
-  if (folder.children) {
-    for (const child of folder.children) {
-      count += countFolderFiles(child)
-    }
-  }
-  return count
-}
-
-function flattenFolderFiles(folders: FolderResponse[]): FileResponse[] {
-  const flat: FileResponse[] = []
-
-  for (const folder of folders) {
-    flat.push(...(folder.files ?? []))
-
-    if (folder.children) {
-      flat.push(...flattenFolderFiles(folder.children))
-    }
-  }
-
-  return flat
-}
-
-function collectFolderFileIds(folder: FolderResponse): string[] {
-  const ids = folder.files?.map((f) => f.id) || []
-
-  if (folder.children) {
-    for (const child of folder.children) {
-      ids.push(...collectFolderFileIds(child))
-    }
-  }
-  return ids
-}
-
-function isFolderAllDeleted(folder: FolderResponse): boolean {
-  const allFiles = (folder.files || []).slice()
-  if (folder.children) {
-    for (const child of folder.children) {
-      allFiles.push(...isFolderAllDeletedFiles(child))
-    }
-  }
-  return allFiles.length > 0 && allFiles.every((f) => f.deleted_at !== null)
-}
-
-function isFolderAllDeletedFiles(folder: FolderResponse): FileResponse[] {
-  const files = (folder.files || []).slice()
-  if (folder.children) {
-    for (const child of folder.children) {
-      files.push(...isFolderAllDeletedFiles(child))
-    }
-  }
-  return files
-}
-
 type FolderNodeProps = {
   folder: FolderResponse
   previewUrls: Record<string, string>
@@ -269,14 +233,22 @@ type FolderNodeProps = {
   onRename?: (file: FileResponse) => void
   onPermanentDelete?: (file: FileResponse) => void
   onRestore?: (file: FileResponse) => void
+  onBulkDelete?: () => void
+  onBulkDownload?: () => void
+  onBulkPermanentDelete?: () => void
+  onBulkRestore?: () => void
+  onBulkShare?: () => void
+  onCloneAll?: () => void
+  onDownloadAll?: () => void
   onRestoreFolder?: (folder: FolderResponse) => void
   onPermanentDeleteFolder?: (folder: FolderResponse) => void
   onShare?: (file: FileResponse) => void
+  onClearSelection?: () => void
   onClearNewlyAdded?: (fileId: string) => void
   onStartEditing?: (file: FileResponse) => void
   onStopEditing?: () => void
   onToggleSelection?: (fileId: string) => void
-  onToggleFolderSelection?: (fileIds: string[]) => void
+  onToggleFolderSelection?: (fileIds: string[], folderIds?: string[]) => void
   onToggleFolderSelect?: (folderId: string) => void
   onDeleteFolder?: (folderId: string) => void
   onClearFolderNewlyAdded?: (folderId: string) => void
@@ -309,9 +281,17 @@ function FolderNode({
   onRename,
   onPermanentDelete,
   onRestore,
+  onBulkDelete,
+  onBulkDownload,
+  onBulkPermanentDelete,
+  onBulkRestore,
+  onBulkShare,
+  onCloneAll,
+  onDownloadAll,
   onRestoreFolder,
   onPermanentDeleteFolder,
   onShare,
+  onClearSelection,
   onClearNewlyAdded,
   onStartEditing,
   onStopEditing,
@@ -328,12 +308,15 @@ function FolderNode({
   openFolderIds,
   onFolderToggle,
 }: FolderNodeProps) {
+  const { t } = useTranslation()
   const fileCount = useMemo(
     () => countFolderFiles(folder),
     [folder]
   )
   const fileIds = collectFolderFileIds(folder)
+  const emptyFolderIds = collectEmptyFolderIds(folder.children ?? [])
   const isAllDeleted = isFolderAllDeleted(folder)
+  const isFolderSelected = selectedFolderIds.has(folder.id)
 
   const handleExternalDrop = useCallback(
     (event: DragEvent) => {
@@ -364,6 +347,18 @@ function FolderNode({
     onToggleFolderSelect?.(folder.id)
   }, [folder.id, onToggleFolderSelect])
 
+  const handleContextMenuSelect = useCallback(() => {
+    if (isFolderSelected || !onToggleFolderSelect) return
+
+    onClearSelection?.()
+    onToggleFolderSelect(folder.id)
+  }, [
+    folder.id,
+    isFolderSelected,
+    onClearSelection,
+    onToggleFolderSelect,
+  ])
+
   const handleDeleteFolder = useCallback(() => {
     onDeleteFolder?.(folder.id)
   }, [folder.id, onDeleteFolder])
@@ -375,6 +370,150 @@ function FolderNode({
   const handlePermanentDeleteFolder = useCallback(() => {
     onPermanentDeleteFolder?.(folder)
   }, [folder, onPermanentDeleteFolder])
+
+  const contextActions = useMemo<ActionMenuItem[]>(() => {
+    if (variant === "shared") {
+      return [
+        ...(onDownloadAll
+          ? [
+              {
+                icon: <DownloadIcon />,
+                isLoading: pendingFileId === "bulk-download",
+                label: t("files.download"),
+                onSelect: onDownloadAll,
+                variant: "download" as const,
+              },
+            ]
+          : []),
+        ...(onCloneAll
+          ? [
+              {
+                icon: <CopyIcon />,
+                isLoading: pendingFileId === "bulk-clone",
+                label: t("files.clone"),
+                onSelect: onCloneAll,
+                variant: "share" as const,
+              },
+            ]
+          : []),
+      ]
+    }
+
+    if (variant === "trash") {
+      return [
+        ...(onBulkRestore
+          ? [
+              {
+                icon: <ArchiveRestoreIcon />,
+                isLoading: pendingFileId === "bulk-restore",
+                label: t("files.restore"),
+                onSelect: onBulkRestore,
+                variant: "share" as const,
+              },
+            ]
+          : []),
+        ...(onBulkPermanentDelete
+          ? [
+              {
+                icon: <EraserIcon />,
+                isLoading: pendingFileId === "bulk-permanent-delete",
+                label: t("files.erase"),
+                onSelect: onBulkPermanentDelete,
+                variant: "destructive" as const,
+              },
+            ]
+          : []),
+      ]
+    }
+
+    return [
+      ...(onBulkDownload
+        ? [
+            {
+              icon: <DownloadIcon />,
+              isLoading: pendingFileId === "bulk-download",
+              label: t("files.download"),
+              onSelect: onBulkDownload,
+              variant: "download" as const,
+            },
+          ]
+        : []),
+      ...(onBulkShare
+        ? [
+            {
+              icon: <Share2Icon />,
+              isLoading: pendingFileId === "bulk-share",
+              label: t("files.share"),
+              onSelect: onBulkShare,
+              variant: "share" as const,
+            },
+          ]
+        : []),
+      ...(onBulkDelete
+        ? [
+            {
+              icon: <Trash2Icon />,
+              isLoading: pendingFileId === "bulk-delete",
+              label: t("files.delete"),
+              onSelect: onBulkDelete,
+              variant: "destructive" as const,
+            },
+          ]
+        : []),
+    ]
+  }, [
+    onBulkDelete,
+    onBulkDownload,
+    onBulkPermanentDelete,
+    onBulkRestore,
+    onBulkShare,
+    onCloneAll,
+    onDownloadAll,
+    pendingFileId,
+    t,
+    variant,
+  ])
+
+  const buttonActions = useMemo<ActionMenuItem[]>(
+    () =>
+      variant === "trash"
+        ? [
+            ...(onRestoreFolder
+              ? [
+                  {
+                    icon: <ArchiveRestoreIcon />,
+                    isLoading: pendingFileId === `restore-${folder.id}`,
+                    label: t("files.restore"),
+                    onSelect: handleRestoreFolder,
+                    variant: "share" as const,
+                  },
+                ]
+              : []),
+            ...(onPermanentDeleteFolder
+              ? [
+                  {
+                    icon: <EraserIcon />,
+                    isLoading:
+                      pendingFileId === `permanent-delete-${folder.id}`,
+                    label: t("files.erase"),
+                    onSelect: handlePermanentDeleteFolder,
+                    variant: "destructive" as const,
+                  },
+                ]
+              : []),
+          ]
+        : [],
+    [
+      folder.id,
+      handlePermanentDeleteFolder,
+      handleRestoreFolder,
+      onPermanentDeleteFolder,
+      onRestoreFolder,
+      pendingFileId,
+      t,
+      variant,
+    ]
+  )
 
   const handleToggleOpen = useCallback(() => {
     onFolderToggle?.(folder.id)
@@ -393,15 +532,21 @@ function FolderNode({
       name={folder.name}
       fileCount={fileCount}
       folderFileIds={fileIds}
+      folderFolderIds={emptyFolderIds}
       folderId={folder.id}
       selectedFileIds={selectedFileIds}
+      hasNestedFolders={Boolean(folder.children?.length)}
       movingFileIds={movingFileIds}
+      actions={contextActions}
+      buttonActions={buttonActions}
+      showActionsButton={variant === "trash"}
       variant={variant}
       pendingFolderId={pendingFileId}
       onToggleFolderSelection={onToggleFolderSelection ?? (() => {})}
       onFileDrop={variant === "default" && onMoveFile ? handleFileDrop : undefined}
       onFolderDrop={variant === "default" && onMoveFolder ? handleFolderDrop : undefined}
       onExternalDrop={onExternalDrop ? handleExternalDrop : undefined}
+      onContextMenuSelect={handleContextMenuSelect}
       isNew={newlyAddedFolderIds.has(folder.id)}
       isDeleted={variant !== "trash" && isAllDeleted}
       autoOpen={!!(uploadingFolderIds && uploadingFolderIds.has(folder.id))}
@@ -409,8 +554,6 @@ function FolderNode({
       isSelected={selectedFolderIds.has(folder.id)}
       onToggleFolderSelect={onToggleFolderSelect ? handleToggleFolderSelect : undefined}
       onDeleteFolder={variant === "default" && onDeleteFolder ? handleDeleteFolder : undefined}
-      onRestoreFolder={variant === "trash" && onRestoreFolder ? handleRestoreFolder : undefined}
-      onPermanentDeleteFolder={variant === "trash" && onPermanentDeleteFolder ? handlePermanentDeleteFolder : undefined}
       onToggleOpen={handleToggleOpen}
       movingFolderIds={movingFolderIds}
     >
@@ -435,9 +578,17 @@ function FolderNode({
           onRename={onRename}
           onPermanentDelete={onPermanentDelete}
           onRestore={onRestore}
+          onBulkDelete={onBulkDelete}
+          onBulkDownload={onBulkDownload}
+          onBulkPermanentDelete={onBulkPermanentDelete}
+          onBulkRestore={onBulkRestore}
+          onBulkShare={onBulkShare}
+          onCloneAll={onCloneAll}
+          onDownloadAll={onDownloadAll}
           onRestoreFolder={onRestoreFolder}
           onPermanentDeleteFolder={onPermanentDeleteFolder}
           onShare={onShare}
+          onClearSelection={onClearSelection}
           onClearNewlyAdded={onClearNewlyAdded}
           onStartEditing={onStartEditing}
           onStopEditing={onStopEditing}
@@ -486,6 +637,124 @@ function FolderNode({
         ))}
       </div>
     </Folder>
+  )
+}
+
+function BulkActions({
+  variant,
+  hasSelectedFiles,
+  pendingFileId,
+  onBulkDelete,
+  onBulkDownload,
+  onBulkPermanentDelete,
+  onBulkRestore,
+  onBulkShare,
+  onCloneAll,
+  onDownloadAll,
+  sharedCompact = false,
+}: BulkActionsProps) {
+  const { t } = useTranslation()
+
+  if (variant === "shared") {
+    const ButtonComponent = sharedCompact
+      ? CompactBulkActionButton
+      : BulkActionButton
+
+    return (
+      <>
+        <ButtonComponent
+          type="button"
+          variant="download"
+          size="sm"
+          onClick={onDownloadAll}
+          disabled={!hasSelectedFiles || pendingFileId !== null}
+          isLoading={pendingFileId === "bulk-download"}
+          idleIcon={<DownloadIcon data-icon="inline-start" />}
+        >
+          {t("files.download")}
+        </ButtonComponent>
+        {onCloneAll ? (
+          <ButtonComponent
+            type="button"
+            variant="share"
+            size="sm"
+            onClick={onCloneAll}
+            disabled={!hasSelectedFiles || pendingFileId !== null}
+            isLoading={pendingFileId === "bulk-clone"}
+            idleIcon={<CopyIcon data-icon="inline-start" />}
+          >
+            {t("files.clone")}
+          </ButtonComponent>
+        ) : null}
+      </>
+    )
+  }
+
+  if (variant === "trash") {
+    return (
+      <div className="bulk-action-group">
+        <BulkActionButton
+          type="button"
+          variant="share"
+          size="sm"
+          onClick={onBulkRestore}
+          disabled={!hasSelectedFiles || pendingFileId !== null}
+          isLoading={pendingFileId === "bulk-restore"}
+          idleIcon={<ArchiveRestoreIcon data-icon="inline-start" />}
+        >
+          {t("files.restore")}
+        </BulkActionButton>
+        <BulkActionButton
+          type="button"
+          variant="destructive"
+          size="sm"
+          onClick={onBulkPermanentDelete}
+          disabled={!hasSelectedFiles || pendingFileId !== null}
+          isLoading={pendingFileId === "bulk-permanent-delete"}
+          idleIcon={<EraserIcon data-icon="inline-start" />}
+        >
+          {t("files.erase")}
+        </BulkActionButton>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bulk-action-group">
+      <BulkActionButton
+        type="button"
+        variant="download"
+        size="sm"
+        onClick={onBulkDownload}
+        disabled={!hasSelectedFiles || pendingFileId !== null}
+        isLoading={pendingFileId === "bulk-download"}
+        idleIcon={<DownloadIcon data-icon="inline-start" />}
+      >
+        {t("files.download")}
+      </BulkActionButton>
+      <BulkActionButton
+        type="button"
+        variant="share"
+        size="sm"
+        onClick={onBulkShare}
+        disabled={!hasSelectedFiles || pendingFileId !== null}
+        isLoading={pendingFileId === "bulk-share"}
+        idleIcon={<Share2Icon data-icon="inline-start" />}
+      >
+        {t("files.share")}
+      </BulkActionButton>
+      <BulkActionButton
+        type="button"
+        variant="destructive"
+        size="sm"
+        onClick={onBulkDelete}
+        disabled={!hasSelectedFiles || pendingFileId !== null}
+        isLoading={pendingFileId === "bulk-delete"}
+        idleIcon={<Trash2Icon data-icon="inline-start" />}
+      >
+        {t("files.delete")}
+      </BulkActionButton>
+    </div>
   )
 }
 
@@ -551,7 +820,7 @@ export function FileList({
 }: FileListProps) {
   const { t } = useTranslation()
   const allFolderFiles = useMemo(
-    () => flattenFolderFiles(folders ?? []),
+    () => collectFolderFiles(folders ?? []),
     [folders]
   )
   const trashFolderCount = useMemo(
@@ -576,7 +845,8 @@ export function FileList({
   )
 
   const safeToggleFolderSelection = useCallback(
-    (fileIds: string[]) => onToggleFolderSelection?.(fileIds),
+    (fileIds: string[], folderIds?: string[]) =>
+      onToggleFolderSelection?.(fileIds, folderIds),
     [onToggleFolderSelection]
   )
 
@@ -777,97 +1047,69 @@ export function FileList({
   }, [variant, folders, openFolderIds])
 
   const bulkActions = (
-    <>
-      {variant === "shared" ? (
-        <>
-          <CompactBulkActionButton
-            type="button"
-            variant="download"
-            size="sm"
-            onClick={onDownloadAll}
-            disabled={!hasSelectedFiles || pendingFileId !== null}
-            isLoading={pendingFileId === "bulk-download"}
-            idleIcon={<DownloadIcon data-icon="inline-start" />}
-          >
-            {t("files.download")}
-          </CompactBulkActionButton>
-          {onCloneAll ? (
-            <CompactBulkActionButton
-              type="button"
-              variant="share"
-              size="sm"
-              onClick={onCloneAll}
-              disabled={!hasSelectedFiles || pendingFileId !== null}
-              isLoading={pendingFileId === "bulk-clone"}
-              idleIcon={<CopyIcon data-icon="inline-start" />}
-            >
-              {t("files.clone")}
-            </CompactBulkActionButton>
-          ) : null}
-        </>
-      ) : variant === "trash" ? (
-        <div className="bulk-action-group">
-          <BulkActionButton
-            type="button"
-            variant="share"
-            size="sm"
-            onClick={onBulkRestore}
-            disabled={!hasSelectedFiles || pendingFileId !== null}
-            isLoading={pendingFileId === "bulk-restore"}
-            idleIcon={<ArchiveRestoreIcon data-icon="inline-start" />}
-          >
-            {t("files.restore")}
-          </BulkActionButton>
-          <BulkActionButton
-            type="button"
-            variant="destructive"
-            size="sm"
-            onClick={onBulkPermanentDelete}
-            disabled={!hasSelectedFiles || pendingFileId !== null}
-            isLoading={pendingFileId === "bulk-permanent-delete"}
-            idleIcon={<EraserIcon data-icon="inline-start" />}
-          >
-            {t("files.erase")}
-          </BulkActionButton>
-        </div>
-      ) : (
-        <div className="bulk-action-group">
-          <BulkActionButton
-            type="button"
-            variant="download"
-            size="sm"
-            onClick={onBulkDownload}
-            disabled={!hasSelectedFiles || pendingFileId !== null}
-            isLoading={pendingFileId === "bulk-download"}
-            idleIcon={<DownloadIcon data-icon="inline-start" />}
-          >
-            {t("files.download")}
-          </BulkActionButton>
-          <BulkActionButton
-            type="button"
-            variant="share"
-            size="sm"
-            onClick={onBulkShare}
-            disabled={!hasSelectedFiles || pendingFileId !== null}
-            isLoading={pendingFileId === "bulk-share"}
-            idleIcon={<Share2Icon data-icon="inline-start" />}
-          >
-            {t("files.share")}
-          </BulkActionButton>
-          <BulkActionButton
-            type="button"
-            variant="destructive"
-            size="sm"
-            onClick={onBulkDelete}
-            disabled={!hasSelectedFiles || pendingFileId !== null}
-            isLoading={pendingFileId === "bulk-delete"}
-            idleIcon={<Trash2Icon data-icon="inline-start" />}
-          >
-            {t("files.delete")}
-          </BulkActionButton>
-        </div>
-      )}
-    </>
+    <BulkActions
+      variant={variant}
+      hasSelectedFiles={hasSelectedFiles}
+      pendingFileId={pendingFileId}
+      onBulkDelete={onBulkDelete}
+      onBulkDownload={onBulkDownload}
+      onBulkPermanentDelete={onBulkPermanentDelete}
+      onBulkRestore={onBulkRestore}
+      onBulkShare={onBulkShare}
+      onCloneAll={onCloneAll}
+      onDownloadAll={onDownloadAll}
+      sharedCompact
+    />
+  )
+  const renderFolderNode = (folder: FolderResponse) => (
+    <FolderNode
+      key={folder.id}
+      folder={folder}
+      previewUrls={previewUrls}
+      selectedFileIds={selectedFileIds}
+      newlyAddedFileIds={newlyAddedFileIds}
+      newlyAddedFolderIds={newlyAddedFolderIds}
+      editingFileId={editingFileId}
+      editingName={editingName}
+      pendingFileId={pendingFileId}
+      error={error}
+      movingFileIds={movingFileIds}
+      variant={variant}
+      onDelete={onDelete}
+      onDownload={onDownload}
+      onClone={onClone}
+      onEditingNameChange={onEditingNameChange}
+      onRename={onRename}
+      onPermanentDelete={onPermanentDelete}
+      onRestore={onRestore}
+      onBulkDelete={onBulkDelete}
+      onBulkDownload={onBulkDownload}
+      onBulkPermanentDelete={onBulkPermanentDelete}
+      onBulkRestore={onBulkRestore}
+      onBulkShare={onBulkShare}
+      onCloneAll={onCloneAll}
+      onDownloadAll={onDownloadAll}
+      onRestoreFolder={onRestoreFolder}
+      onPermanentDeleteFolder={onPermanentDeleteFolder}
+      onShare={onShare}
+      onClearSelection={onClearSelection}
+      onClearNewlyAdded={onClearNewlyAdded}
+      onStartEditing={onStartEditing}
+      onStopEditing={onStopEditing}
+      onToggleSelection={onToggleSelection}
+      onToggleFolderSelection={safeToggleFolderSelection}
+      onToggleFolderSelect={onToggleFolderSelect}
+      onDeleteFolder={onDeleteFolder}
+      onClearFolderNewlyAdded={onClearFolderNewlyAdded}
+      onMoveFile={onMoveFile}
+      onMoveFolder={onMoveFolder}
+      onExternalDrop={onExternalDrop}
+      uploadingFolderIds={uploadingFolderIds}
+      selectedFolderIds={selectedFolderIds}
+      onFolderToggle={handleFolderToggle}
+      openFolderIds={openFolderIds}
+      movingFolderIds={movingFolderIds}
+    />
   )
 
   return (
@@ -974,32 +1216,13 @@ export function FileList({
           )}
         >
           {variant === "shared" ? (
-            <>
-              <BulkActionButton
-                type="button"
-                variant="download"
-                size="sm"
-                onClick={onDownloadAll}
-                disabled={!hasSelectedFiles || pendingFileId !== null}
-                isLoading={pendingFileId === "bulk-download"}
-                idleIcon={<DownloadIcon data-icon="inline-start" />}
-              >
-                {t("files.download")}
-              </BulkActionButton>
-              {onCloneAll ? (
-                <BulkActionButton
-                  type="button"
-                  variant="share"
-                  size="sm"
-                  onClick={onCloneAll}
-                  disabled={!hasSelectedFiles || pendingFileId !== null}
-                  isLoading={pendingFileId === "bulk-clone"}
-                  idleIcon={<CopyIcon data-icon="inline-start" />}
-                >
-                  {t("files.clone")}
-                </BulkActionButton>
-              ) : null}
-            </>
+            <BulkActions
+              variant={variant}
+              hasSelectedFiles={hasSelectedFiles}
+              pendingFileId={pendingFileId}
+              onCloneAll={onCloneAll}
+              onDownloadAll={onDownloadAll}
+            />
           ) : (
             bulkActions
           )}
@@ -1056,52 +1279,11 @@ export function FileList({
               {variant === "trash" && filteredTrashFolders.length > 0 ? (
                 <div
                   className={cn(
-                    "grid gap-2",
+                    "file-list-grid",
                     filteredFiles.length > 0 && "mb-3"
                   )}
                 >
-                  {filteredTrashFolders.map((folder) => (
-                    <FolderNode
-                      key={folder.id}
-                      folder={folder}
-                      previewUrls={previewUrls}
-                      selectedFileIds={selectedFileIds}
-                      newlyAddedFileIds={newlyAddedFileIds}
-                      newlyAddedFolderIds={newlyAddedFolderIds}
-                      editingFileId={editingFileId}
-                      editingName={editingName}
-                      pendingFileId={pendingFileId}
-                      error={error}
-                      movingFileIds={movingFileIds}
-                      variant={variant}
-                      onDelete={onDelete}
-                      onDownload={onDownload}
-                      onClone={onClone}
-                      onEditingNameChange={onEditingNameChange}
-                      onRename={onRename}
-                      onPermanentDelete={onPermanentDelete}
-                      onRestore={onRestore}
-                      onRestoreFolder={onRestoreFolder}
-                      onPermanentDeleteFolder={onPermanentDeleteFolder}
-                      onShare={onShare}
-                      onClearNewlyAdded={onClearNewlyAdded}
-                      onStartEditing={onStartEditing}
-                      onStopEditing={onStopEditing}
-                      onToggleSelection={onToggleSelection}
-                      onToggleFolderSelection={safeToggleFolderSelection}
-                      onToggleFolderSelect={onToggleFolderSelect}
-                      onDeleteFolder={onDeleteFolder}
-                      onClearFolderNewlyAdded={onClearFolderNewlyAdded}
-                      onMoveFile={onMoveFile}
-                      onMoveFolder={onMoveFolder}
-                      onExternalDrop={onExternalDrop}
-                      uploadingFolderIds={uploadingFolderIds}
-                      selectedFolderIds={selectedFolderIds}
-                      onFolderToggle={handleFolderToggle}
-                      openFolderIds={openFolderIds}
-                      movingFolderIds={movingFolderIds}
-                    />
-                  ))}
+                  {filteredTrashFolders.map(renderFolderNode)}
                 </div>
               ) : null}
               {variant !== "trash" && closedFolders && closedFolders.length > 0 ? (
@@ -1111,48 +1293,7 @@ export function FileList({
                     (openFolders.length > 0 || filteredFiles.length > 0) && "mb-3"
                   )}
                 >
-                  {closedFolders.map((folder) => (
-                    <FolderNode
-                      key={folder.id}
-                      folder={folder}
-                      previewUrls={previewUrls}
-                      selectedFileIds={selectedFileIds}
-                      newlyAddedFileIds={newlyAddedFileIds}
-                      newlyAddedFolderIds={newlyAddedFolderIds}
-                      editingFileId={editingFileId}
-                      editingName={editingName}
-                      pendingFileId={pendingFileId}
-                      error={error}
-                      movingFileIds={movingFileIds}
-                      variant={variant}
-                      onDelete={onDelete}
-                      onDownload={onDownload}
-                      onClone={onClone}
-                      onEditingNameChange={onEditingNameChange}
-                      onRename={onRename}
-                      onPermanentDelete={onPermanentDelete}
-                      onRestore={onRestore}
-                      onRestoreFolder={onRestoreFolder}
-                      onPermanentDeleteFolder={onPermanentDeleteFolder}
-                      onShare={onShare}
-                      onClearNewlyAdded={onClearNewlyAdded}
-                      onStartEditing={onStartEditing}
-                      onStopEditing={onStopEditing}
-                      onToggleSelection={onToggleSelection}
-                      onToggleFolderSelection={safeToggleFolderSelection}
-                      onToggleFolderSelect={onToggleFolderSelect}
-                      onDeleteFolder={onDeleteFolder}
-                      onClearFolderNewlyAdded={onClearFolderNewlyAdded}
-                      onMoveFile={onMoveFile}
-                      onMoveFolder={onMoveFolder}
-                      onExternalDrop={onExternalDrop}
-                      uploadingFolderIds={uploadingFolderIds}
-                      selectedFolderIds={selectedFolderIds}
-                      onFolderToggle={handleFolderToggle}
-                      openFolderIds={openFolderIds}
-                      movingFolderIds={movingFolderIds}
-                    />
-                  ))}
+                  {closedFolders.map(renderFolderNode)}
                 </div>
               ) : null}
               {variant !== "trash" && openFolders && openFolders.length > 0 ? (
@@ -1162,48 +1303,7 @@ export function FileList({
                     filteredFiles.length > 0 && "mb-3"
                   )}
                 >
-                  {openFolders.map((folder) => (
-                    <FolderNode
-                      key={folder.id}
-                      folder={folder}
-                      previewUrls={previewUrls}
-                      selectedFileIds={selectedFileIds}
-                      newlyAddedFileIds={newlyAddedFileIds}
-                      newlyAddedFolderIds={newlyAddedFolderIds}
-                      editingFileId={editingFileId}
-                      editingName={editingName}
-                      pendingFileId={pendingFileId}
-                      error={error}
-                      movingFileIds={movingFileIds}
-                      variant={variant}
-                      onDelete={onDelete}
-                      onDownload={onDownload}
-                      onClone={onClone}
-                      onEditingNameChange={onEditingNameChange}
-                      onRename={onRename}
-                      onPermanentDelete={onPermanentDelete}
-                      onRestore={onRestore}
-                      onRestoreFolder={onRestoreFolder}
-                      onPermanentDeleteFolder={onPermanentDeleteFolder}
-                      onShare={onShare}
-                      onClearNewlyAdded={onClearNewlyAdded}
-                      onStartEditing={onStartEditing}
-                      onStopEditing={onStopEditing}
-                      onToggleSelection={onToggleSelection}
-                      onToggleFolderSelection={safeToggleFolderSelection}
-                      onToggleFolderSelect={onToggleFolderSelect}
-                      onDeleteFolder={onDeleteFolder}
-                      onClearFolderNewlyAdded={onClearFolderNewlyAdded}
-                      onMoveFile={onMoveFile}
-                      onMoveFolder={onMoveFolder}
-                      onExternalDrop={onExternalDrop}
-                      uploadingFolderIds={uploadingFolderIds}
-                      selectedFolderIds={selectedFolderIds}
-                      onFolderToggle={handleFolderToggle}
-                      openFolderIds={openFolderIds}
-                      movingFolderIds={movingFolderIds}
-                    />
-                  ))}
+                  {openFolders.map(renderFolderNode)}
                 </div>
               ) : null}
               {filteredFiles.length > 0 ? (
@@ -1589,6 +1689,14 @@ const FileListItem = memo(function FileListItem({
   const isDeleted = file.deleted_at !== null
   const isSelectable = variant === "trash" || !isDeleted
   const showDeletedState = isDeleted && variant !== "trash"
+  const [dropdownActionsOpen, setDropdownActionsOpen] = useState(false)
+  const [contextActionsOpen, setContextActionsOpen] = useState(false)
+  const [contextMenuPosition, setContextMenuPosition] =
+    useState<CursorMenuPosition | null>(null)
+  const actionsDisabled =
+    variant === "shared" ? pendingFileId !== null || isDeleted : pendingFileId !== null
+  const hasActionsDropdown = variant === "shared" || variant === "trash" || !isEditing
+  const actionsDropdownOpen = dropdownActionsOpen && !actionsDisabled
 
   const handleCardClick = useCallback(
     (event: { target: EventTarget | null }) => {
@@ -1608,6 +1716,19 @@ const FileListItem = memo(function FileListItem({
     [file.id]
   )
 
+  const handleCardContextMenu = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      if (!hasActionsDropdown || actionsDisabled) return
+      if (shouldIgnoreCardSelection(event.target)) return
+
+      event.preventDefault()
+      event.stopPropagation()
+      setContextMenuPosition({ x: event.clientX, y: event.clientY })
+      setContextActionsOpen(true)
+    },
+    [actionsDisabled, hasActionsDropdown]
+  )
+
   const isDraggable = variant === "default" && !isEditing && !isDeleted
 
   const handleEditingNameChange = useCallback(
@@ -1616,6 +1737,74 @@ const FileListItem = memo(function FileListItem({
     },
     [onEditingNameChange]
   )
+  const openActionsLabel = t("files.openActions", {
+    name: file.display_name,
+  })
+  const sharedActions = [
+    {
+      icon: <DownloadIcon />,
+      isLoading: isDownloading,
+      label: t("files.download"),
+      onSelect: () => onDownload(file),
+      variant: "download" as const,
+    },
+    ...(onClone
+      ? [
+          {
+            icon: <CopyIcon />,
+            isLoading: isCloning,
+            label: t("files.clone"),
+            onSelect: () => onClone(file),
+            variant: "share" as const,
+          },
+        ]
+      : []),
+  ]
+  const trashActions = [
+    {
+      icon: <ArchiveRestoreIcon />,
+      isLoading: isRestoring,
+      label: t("files.restore"),
+      onSelect: () => onRestore?.(file),
+      variant: "share" as const,
+    },
+    {
+      icon: <EraserIcon />,
+      isLoading: isPermanentlyDeleting,
+      label: t("files.erase"),
+      onSelect: () => onPermanentDelete?.(file),
+      variant: "destructive" as const,
+    },
+  ]
+  const defaultActions = [
+    {
+      icon: <DownloadIcon />,
+      isLoading: isDownloading,
+      label: t("files.download"),
+      onSelect: () => onDownload(file),
+      variant: "download" as const,
+    },
+    {
+      icon: <Share2Icon />,
+      isLoading: isSharing,
+      label: t("files.share"),
+      onSelect: () => onShare?.(file),
+      variant: "share" as const,
+    },
+    {
+      icon: <Trash2Icon />,
+      isLoading: isPending,
+      label: t("files.delete"),
+      onSelect: () => onDelete?.(file),
+      variant: "destructive" as const,
+    },
+  ]
+  const actions =
+    variant === "shared"
+      ? sharedActions
+      : variant === "trash"
+        ? trashActions
+        : defaultActions
 
   return (
     <FileItem
@@ -1625,6 +1814,7 @@ const FileListItem = memo(function FileListItem({
       isDeleted={showDeletedState}
       draggable={isDraggable && !isMoving}
       onDragStart={isDraggable && !isMoving ? handleDragStart : undefined}
+      onContextMenu={handleCardContextMenu}
       className={cn(isSelectable && "cursor-pointer", isMoving && "opacity-50")}
     >
       <div className="file-card-name-area">
@@ -1684,101 +1874,21 @@ const FileListItem = memo(function FileListItem({
           />
           <FileActions>
             {variant === "shared" ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="outline"
-                    disabled={pendingFileId !== null || isDeleted}
-                    aria-label={t("files.openActions", {
-                      name: file.display_name,
-                    })}
-                    className="shrink-0"
-                  >
-                    <MoreVerticalIcon />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  sideOffset={4}
-                  className="z-[100]"
-                >
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem
-                      variant="download"
-                      onSelect={() => onDownload(file)}
-                    >
-                      {isDownloading ? (
-                        <LoaderCircleIcon className="icon-spin" />
-                      ) : (
-                        <DownloadIcon />
-                      )}
-                      {t("files.download")}
-                    </DropdownMenuItem>
-                    {onClone ? (
-                      <DropdownMenuItem
-                        variant="share"
-                        onSelect={() => onClone(file)}
-                      >
-                        {isCloning ? (
-                          <LoaderCircleIcon className="icon-spin" />
-                        ) : (
-                          <CopyIcon />
-                        )}
-                        {t("files.clone")}
-                      </DropdownMenuItem>
-                    ) : null}
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <ActionsDropdown
+                actions={sharedActions}
+                ariaLabel={openActionsLabel}
+                disabled={actionsDisabled}
+                open={actionsDropdownOpen}
+                onOpenChange={setDropdownActionsOpen}
+              />
             ) : variant === "trash" ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="outline"
-                    disabled={pendingFileId !== null}
-                    aria-label={t("files.openActions", {
-                      name: file.display_name,
-                    })}
-                    className="shrink-0"
-                  >
-                    <MoreVerticalIcon />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  sideOffset={4}
-                  className="z-[100]"
-                >
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem
-                      variant="share"
-                      onSelect={() => onRestore?.(file)}
-                    >
-                      {isRestoring ? (
-                        <LoaderCircleIcon className="icon-spin" />
-                      ) : (
-                        <ArchiveRestoreIcon />
-                      )}
-                      {t("files.restore")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      variant="destructive"
-                      onSelect={() => onPermanentDelete?.(file)}
-                    >
-                      {isPermanentlyDeleting ? (
-                        <LoaderCircleIcon className="icon-spin" />
-                      ) : (
-                        <EraserIcon />
-                      )}
-                      {t("files.erase")}
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <ActionsDropdown
+                actions={trashActions}
+                ariaLabel={openActionsLabel}
+                disabled={actionsDisabled}
+                open={actionsDropdownOpen}
+                onOpenChange={setDropdownActionsOpen}
+              />
             ) : isEditing ? (
               <>
                 <LoadingButton
@@ -1805,67 +1915,23 @@ const FileListItem = memo(function FileListItem({
                 </Button>
               </>
             ) : (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    size="icon-sm"
-                    variant="outline"
-                    disabled={pendingFileId !== null}
-                    aria-label={t("files.openActions", {
-                      name: file.display_name,
-                    })}
-                    className="shrink-0"
-                  >
-                    <MoreVerticalIcon />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  sideOffset={4}
-                  className="z-[100]"
-                >
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem
-                      variant="download"
-                      onSelect={() => onDownload(file)}
-                    >
-                      {isDownloading ? (
-                        <LoaderCircleIcon className="icon-spin" />
-                      ) : (
-                        <DownloadIcon />
-                      )}
-                      {t("files.download")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      variant="share"
-                      onSelect={() => onShare?.(file)}
-                    >
-                      {isSharing ? (
-                        <LoaderCircleIcon className="icon-spin" />
-                      ) : (
-                        <Share2Icon />
-                      )}
-                      {t("files.share")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      variant="destructive"
-                      onSelect={() => onDelete?.(file)}
-                    >
-                      {isPending ? (
-                        <LoaderCircleIcon className="icon-spin" />
-                      ) : (
-                        <Trash2Icon />
-                      )}
-                      {t("files.delete")}
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <ActionsDropdown
+                actions={defaultActions}
+                ariaLabel={openActionsLabel}
+                disabled={actionsDisabled}
+                open={actionsDropdownOpen}
+                onOpenChange={setDropdownActionsOpen}
+              />
             )}
           </FileActions>
         </div>
       </div>
+      <CursorActionsMenu
+        actions={actions}
+        open={contextActionsOpen && !actionsDisabled}
+        position={contextMenuPosition}
+        onOpenChange={setContextActionsOpen}
+      />
     </FileItem>
   )
 })

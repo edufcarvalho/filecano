@@ -40,10 +40,7 @@ import {
   type LinkExpiration,
 } from "@/lib/link-expiration"
 import { useTranslation } from "@/i18n"
-
-function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback
-}
+import { getErrorMessage } from "@/lib/errors"
 
 type MyLinksDropdownProps = {
   accessToken?: string
