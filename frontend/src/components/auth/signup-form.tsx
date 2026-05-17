@@ -1,8 +1,6 @@
 import type { ComponentProps } from "react"
 import { useState } from "react"
 
-import { XIcon } from "lucide-react"
-
 import { useTranslation } from "@/i18n"
 import { Link } from "react-router-dom"
 
@@ -16,6 +14,7 @@ import { LoadingButton } from "@misc/loading-button"
 import { signupUser, type TokenResponse } from "@/lib/api"
 import type { FormSubmitHandler } from "@/lib/form-types"
 import { useAuthForm } from "@/hooks/use-auth-form"
+import { PasswordMismatchMessage } from "@auth/password-mismatch-message"
 
 type SignupFormProps = Omit<ComponentProps<"div">, "onSubmit"> & {
   onLogin?: (token: TokenResponse) => void
@@ -131,12 +130,9 @@ export function SignupForm({ className, onLogin, ...props }: SignupFormProps) {
         }}
       >
         {confirmPassword.length > 0 && !passwordsMatch ? (
-          <div className="ps-4 mt-0.5">
-            <div className="flex items-center gap-2 text-sm text-destructive">
-              <XIcon className="size-3.5" />
-              {t("auth.signup.passwordsDoNotMatch")}
-            </div>
-          </div>
+          <PasswordMismatchMessage
+            message={t("auth.signup.passwordsDoNotMatch")}
+          />
         ) : null}
       </AuthPasswordField>
       <Field>

@@ -3,11 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { LoaderCircleIcon } from "lucide-react"
 
 import { FileList } from "@files/file-list"
-import {
-  FileUploadDropzone,
-  UploadActivityPanel,
-  type UploadingFile,
-} from "@files/file-upload-dropzone"
+import { FileUploadDropzone, UploadActivityPanel } from "@files/file-upload-dropzone"
 import { ErrorField } from "@misc/status-field"
 import { PageWrapper } from "@misc/page-wrapper"
 import {
@@ -31,6 +27,32 @@ import { isPreviewSupportedFile } from "@/lib/file-display"
 import { LinkExpirationDialog } from "@/components/links/link-expiration-dialog"
 import { resolveExpiresAt, type LinkExpiration } from "@/lib/link-expiration"
 import { useTranslation } from "@/i18n"
+import { getErrorMessage } from "@/lib/errors"
+import {
+  addFileToFolder,
+  addFolderToParent,
+  buildParentMap,
+  collectDescendantIds,
+  collectFolderFiles,
+  findFileInFolders,
+  findFolderInTree,
+  flattenFolderFileIds,
+  isDescendantOf,
+  removeFileFromFolders,
+  removeFolderFromTree,
+  updateFileInFolders,
+} from "@/lib/file-tree"
+import { loadPreviewUrls, readFileAsDataUrl } from "@/lib/file-preview"
+import {
+  buildFolderMapping,
+  createUploadId,
+  getFilesFromDataTransferItems,
+  getPastedFiles,
+  updateUploadingFile,
+  type FileWithPath,
+  type UploadingFile,
+} from "@/lib/file-upload"
+import { useFileSelection } from "@/hooks/use-file-selection"
 
 type FilesScreenProps = {
   accessToken: string
@@ -41,20 +63,6 @@ type DropHandler = NonNullable<ComponentProps<"div">["onDrop"]>
 type FileInputChangeHandler = NonNullable<ComponentProps<"input">["onChange"]>
 
 const NEWLY_ADDED_DURATION_MS = 10_000
-
-function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback
-}
-
-function updateUploadingFile(
-  files: UploadingFile[],
-  fileId: string,
-  patch: Partial<UploadingFile>
-) {
-  return files.map((file) =>
-    file.id === fileId ? { ...file, ...patch } : file
-  )
-}
 
 async function copyShareUrl(shareToken: string) {
   const shareUrl = `${window.location.origin}/share/${encodeURIComponent(shareToken)}`
@@ -68,315 +76,6 @@ async function copyShareUrl(shareToken: string) {
   }
 }
 
-function createUploadId(file: File) {
-  if (window.crypto.randomUUID) return window.crypto.randomUUID()
-
-  return `${file.name}-${file.size}-${file.lastModified}-${Math.random()}`
-}
-
-function getImageFileExtension(contentType: string) {
-  switch (contentType) {
-    case "image/jpeg":
-      return "jpg"
-    case "image/png":
-      return "png"
-    case "image/gif":
-      return "gif"
-    case "image/webp":
-      return "webp"
-    default:
-      return "png"
-  }
-}
-
-function hasFileExtension(fileName: string) {
-  return /\.[^./\\]+$/.test(fileName)
-}
-
-function normalizePastedFile(file: File, index: number) {
-  if (!isPreviewSupportedFile(file.type)) return file
-  if (file.name && hasFileExtension(file.name)) return file
-
-  const extension = getImageFileExtension(file.type)
-  const name = file.name || `pasted-image-${index + 1}.${extension}`
-
-  return new File(
-    [file],
-    hasFileExtension(name) ? name : `${name}.${extension}`,
-    {
-      type: file.type,
-      lastModified: file.lastModified,
-    }
-  )
-}
-
-function readFileAsDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onloadend = () => resolve(reader.result as string)
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-}
-
-function getPastedFiles(event: ClipboardEvent) {
-  if (!event.clipboardData) return []
-
-  const files = Array.from(event.clipboardData.files)
-
-  if (files.length > 0) return files.map(normalizePastedFile)
-
-  const itemFiles = Array.from(event.clipboardData.items).flatMap((item) => {
-    const file = item.kind === "file" ? item.getAsFile() : null
-    return file ? [file] : []
-  })
-
-  return itemFiles.map(normalizePastedFile)
-}
-
-type FileWithPath = {
-  file: File
-  relativePath: string
-}
-
-async function getFilesFromEntry(
-  entry: FileSystemEntry
-): Promise<FileWithPath[]> {
-  if (entry.isFile) {
-    return new Promise((resolve) => {
-      ;(entry as FileSystemFileEntry).file((file) => {
-        const relativePath = entry.fullPath.startsWith("/")
-          ? entry.fullPath.substring(1)
-          : entry.fullPath
-        resolve([{ file, relativePath }])
-      })
-    })
-  }
-
-  if (entry.isDirectory) {
-    return new Promise((resolve) => {
-      const dirReader = (entry as FileSystemDirectoryEntry).createReader()
-      const allEntries: FileSystemEntry[] = []
-
-      function readBatch() {
-        dirReader.readEntries((batch) => {
-          if (batch.length === 0) {
-            void Promise.all(allEntries.map(getFilesFromEntry)).then(
-              (results) => resolve(results.flat())
-            )
-            return
-          }
-          allEntries.push(...batch)
-          readBatch()
-        })
-      }
-
-      readBatch()
-    })
-  }
-
-  return []
-}
-
-async function getFilesFromDataTransferItems(
-  items: DataTransferItemList
-): Promise<FileWithPath[]> {
-  const entries: FileSystemEntry[] = []
-
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i]
-    const entry =
-      "webkitGetAsEntry" in item
-        ? (item as unknown as { webkitGetAsEntry(): FileSystemEntry | null }).webkitGetAsEntry()
-        : null
-    if (entry) {
-      entries.push(entry)
-    }
-  }
-
-  if (entries.length === 0) return []
-
-  const results = await Promise.all(entries.map(getFilesFromEntry))
-  return results.flat()
-}
-
-function buildFolderMapping(filesWithPath: FileWithPath[]) {
-  const folderFiles: Map<string, { folderPath: string; parentPath: string | null; file: File }[]> = new Map()
-
-  filesWithPath.forEach(({ file, relativePath }) => {
-    const parts = relativePath.split("/")
-    const fileName = parts.pop()
-    if (!fileName) return
-
-    const folderPath = parts.join("/")
-
-    if (!folderFiles.has(folderPath)) {
-      folderFiles.set(folderPath, [])
-    }
-    folderFiles.get(folderPath)!.push({ folderPath, parentPath: null, file })
-  })
-
-  const allPaths = new Set<string>()
-  folderFiles.forEach((_, path) => {
-    if (!path) return
-    const parts = path.split("/")
-    for (let i = 0; i < parts.length; i++) {
-      allPaths.add(parts.slice(0, i + 1).join("/"))
-    }
-  })
-
-  allPaths.forEach((path) => {
-    const parts = path.split("/")
-    if (parts.length > 1) {
-      const parentPath = parts.slice(0, -1).join("/")
-      folderFiles.get(path)?.forEach((entry) => {
-        entry.parentPath = parentPath
-      })
-    }
-  })
-
-  return { folderFiles, allPaths: Array.from(allPaths) }
-}
-
-function flattenFolderFiles(folders: FolderResponse[]): FileResponse[] {
-  const result: FileResponse[] = []
-  for (const folder of folders) {
-    result.push(...folder.files)
-    if (folder.children) {
-      result.push(...flattenFolderFiles(folder.children))
-    }
-  }
-  return result
-}
-
-function flattenFolderFileIds(folders: FolderResponse[]): string[] {
-  return flattenFolderFiles(folders).map((f) => f.id)
-}
-
-function removeFileFromFolders(folders: FolderResponse[], fileId: string): FolderResponse[] {
-  return folders
-    .map((folder) => ({
-      ...folder,
-      files: folder.files.filter((f) => f.id !== fileId),
-      children: folder.children ? removeFileFromFolders(folder.children, fileId) : undefined,
-    }))
-    .filter(
-      (folder) =>
-        folder.files.length > 0 || (folder.children && folder.children.length > 0)
-    )
-}
-
-function updateFileInFolders(folders: FolderResponse[], fileId: string, updatedFile: FileResponse): FolderResponse[] {
-  return folders.map((folder) => ({
-    ...folder,
-    files: folder.files.map((f) => (f.id === fileId ? updatedFile : f)),
-    children: folder.children ? updateFileInFolders(folder.children, fileId, updatedFile) : undefined,
-  }))
-}
-
-function findFileInFolders(folders: FolderResponse[], fileId: string): FileResponse | undefined {
-  for (const folder of folders) {
-    const found = folder.files.find((f) => f.id === fileId)
-    if (found) return found
-    if (folder.children) {
-      const childFound = findFileInFolders(folder.children, fileId)
-      if (childFound) return childFound
-    }
-  }
-  return undefined
-}
-
-function addFileToFolder(folders: FolderResponse[], folderId: string, file: FileResponse): FolderResponse[] {
-  return folders.map((folder) => {
-    if (folder.id === folderId) {
-      return { ...folder, files: [...folder.files, file] }
-    }
-    if (folder.children) {
-      return { ...folder, children: addFileToFolder(folder.children, folderId, file) }
-    }
-    return folder
-  })
-}
-
-function collectDescendantIds(
-  folders: FolderResponse[],
-  folderId: string
-): { fileIds: string[]; folderIds: string[] } {
-  const folder = findFolderInTree(folders, folderId)
-  if (!folder) return { fileIds: [], folderIds: [] }
-  const result: { fileIds: string[]; folderIds: string[] } = {
-    fileIds: [...folder.files.map((f) => f.id)],
-    folderIds: [],
-  }
-  if (folder.children) {
-    for (const child of folder.children) {
-      result.folderIds.push(child.id)
-      const childResult = collectDescendantIds(folders, child.id)
-      result.fileIds.push(...childResult.fileIds)
-      result.folderIds.push(...childResult.folderIds)
-    }
-  }
-  return result
-}
-
-function findFolderInTree(folders: FolderResponse[], folderId: string): FolderResponse | undefined {
-  for (const folder of folders) {
-    if (folder.id === folderId) return folder
-    if (folder.children) {
-      const found = findFolderInTree(folder.children, folderId)
-      if (found) return found
-    }
-  }
-  return undefined
-}
-
-function isDescendantOf(folders: FolderResponse[], folderId: string, ancestorId: string): boolean {
-  const ancestor = findFolderInTree(folders, ancestorId)
-  if (!ancestor || !ancestor.children) return false
-  return ancestor.children.some((child) =>
-    child.id === folderId || isDescendantOf(folders, folderId, child.id)
-  )
-}
-
-function buildParentMap(
-  folders: FolderResponse[],
-  parentId = ""
-): Map<string, string> {
-  const map = new Map<string, string>()
-  for (const folder of folders) {
-    map.set(folder.id, parentId)
-    if (folder.children) {
-      const childMap = buildParentMap(folder.children, folder.id)
-      childMap.forEach((v, k) => map.set(k, v))
-    }
-  }
-  return map
-}
-
-function removeFolderFromTree(folders: FolderResponse[], folderId: string): FolderResponse[] {
-  return folders
-    .filter((f) => f.id !== folderId)
-    .map((folder) => ({
-      ...folder,
-      children: folder.children ? removeFolderFromTree(folder.children, folderId) : undefined,
-    }))
-    .filter(
-      (folder) =>
-        folder.files.length > 0 || (folder.children && folder.children.length > 0)
-    )
-}
-
-function addFolderToParent(folders: FolderResponse[], parentId: string, childFolder: FolderResponse): FolderResponse[] {
-  return folders.map((folder) => {
-    if (folder.id === parentId) {
-      return { ...folder, children: [...(folder.children || []), childFolder] }
-    }
-    if (folder.children) {
-      return { ...folder, children: addFolderToParent(folder.children, parentId, childFolder) }
-    }
-    return folder
-  })
-}
 
 export function FilesScreen({ accessToken }: FilesScreenProps) {
   const { addLink } = useLinks()
@@ -391,8 +90,15 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   const [isDragOver, setIsDragOver] = useState(false)
   const [isUploadPanelCollapsed, setIsUploadPanelCollapsed] = useState(false)
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([])
-  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set())
-  const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set())
+  const {
+    selectedFileIds,
+    selectedFolderIds,
+    setSelectedFileIds,
+    setSelectedFolderIds,
+    toggleFileSelection,
+    toggleFolderFileSelection: toggleFolderSelection,
+    clearSelection: clearFileSelection,
+  } = useFileSelection()
   const [newlyAddedFileIds, setNewlyAddedFileIds] = useState<Set<string>>(
     new Set()
   )
@@ -423,22 +129,11 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       filesToPreview: FileResponse[],
       isCurrent: () => boolean = () => true
     ) => {
-      const previewFiles = filesToPreview.filter((file) =>
-        isPreviewSupportedFile(file.content_type)
-      )
-
-      await Promise.all(
-        previewFiles.map((file) =>
-          fetchFilePreviewAsDataUrl(accessToken, file.id)
-            .then((dataUrl) => {
-              if (!isCurrent()) return
-              setPreviewUrls((currentUrls) => ({
-                ...currentUrls,
-                [file.id]: dataUrl,
-              }))
-            })
-            .catch(() => {})
-        )
+      await loadPreviewUrls(
+        filesToPreview,
+        (file) => fetchFilePreviewAsDataUrl(accessToken, file.id),
+        setPreviewUrls,
+        isCurrent
       )
     },
     [accessToken]
@@ -457,7 +152,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
 
       const allFiles = [
         ...loadedFiles,
-        ...flattenFolderFiles(loadedFolders),
+        ...collectFolderFiles(loadedFolders),
       ]
 
       setSelectedFileIds(
@@ -470,7 +165,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       )
       void loadPreviews(allFiles, isCurrent)
     },
-    [loadPreviews]
+    [loadPreviews, setSelectedFileIds]
   )
 
   const loadFiles = useCallback(async () => {
@@ -674,7 +369,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         setPendingFileId(null)
       }
     },
-    [accessToken, t, stopEditing]
+    [accessToken, setSelectedFileIds, t, stopEditing]
   )
 
   const handleUpload = useCallback(
@@ -877,7 +572,14 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         )
       }
     },
-    [accessToken, loadPreviews, markFileAsNewlyAdded, dismissUploadError, t]
+    [
+      accessToken,
+      loadPreviews,
+      markFileAsNewlyAdded,
+      markFolderAsNewlyAdded,
+      dismissUploadError,
+      t,
+    ]
   )
 
   useEffect(() => {
@@ -962,29 +664,12 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     )
   }, [])
 
-  const toggleFileSelection = useCallback((fileId: string) => {
-    setSelectedFileIds((currentSelection) => {
-      const nextSelection = new Set(currentSelection)
-      if (nextSelection.has(fileId)) {
-        nextSelection.delete(fileId)
-      } else {
-        nextSelection.add(fileId)
-      }
-      return nextSelection
-    })
-  }, [])
-
   const selectAllFiles = useCallback(() => {
     const folderFileIds = flattenFolderFileIds(folders)
     setSelectedFileIds(
       new Set([...files.map((file) => file.id), ...folderFileIds])
     )
-  }, [files, folders])
-
-  const clearFileSelection = useCallback(() => {
-    setSelectedFileIds(new Set())
-    setSelectedFolderIds(new Set())
-  }, [])
+  }, [files, folders, setSelectedFileIds])
 
   const toggleFolderSelect = useCallback(
     (folderId: string) => {
@@ -1012,7 +697,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         return next
       })
     },
-    [folders, selectedFolderIds]
+    [folders, selectedFolderIds, setSelectedFileIds, setSelectedFolderIds]
   )
 
   const deleteSingleFolder = useCallback(
@@ -1033,21 +718,8 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         setPendingFileId(null)
       }
     },
-    [accessToken, t]
+    [accessToken, setSelectedFolderIds, t]
   )
-
-  const toggleFolderSelection = useCallback((fileIds: string[]) => {
-    setSelectedFileIds((currentSelection) => {
-      const allSelected = fileIds.every((id) => currentSelection.has(id))
-      const nextSelection = new Set(currentSelection)
-      if (allSelected) {
-        fileIds.forEach((id) => nextSelection.delete(id))
-      } else {
-        fileIds.forEach((id) => nextSelection.add(id))
-      }
-      return nextSelection
-    })
-  }, [])
 
   const handleBulkDelete = useCallback(async () => {
     if (selectedFileIds.size === 0 && selectedFolderIds.size === 0) return
@@ -1098,7 +770,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     setError(null)
     setPendingFileId("bulk-download")
 
-    const folderFiles = flattenFolderFiles(folders)
+    const folderFiles = collectFolderFiles(folders)
     const filesToDownload = [...files, ...folderFiles].filter((file) =>
       selectedFileIds.has(file.id)
     )

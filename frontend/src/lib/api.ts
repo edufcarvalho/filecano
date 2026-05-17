@@ -1,4 +1,5 @@
 import { translate } from "@/i18n"
+import { readBlobAsDataUrl } from "@/lib/file-preview"
 
 const DEFAULT_API_URL = "http://localhost:8000/api"
 
@@ -391,13 +392,7 @@ export async function fetchFilePreviewAsDataUrl(
     await readError(response, translate("api.error.loadPreview"))
 
   const blob = await response.blob()
-
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onloadend = () => resolve(reader.result as string)
-    reader.onerror = reject
-    reader.readAsDataURL(blob)
-  })
+  return readBlobAsDataUrl(blob)
 }
 
 export async function fetchSharedFilePreviewAsDataUrl(
@@ -412,13 +407,7 @@ export async function fetchSharedFilePreviewAsDataUrl(
     await readError(response, translate("api.error.loadPreview"))
 
   const blob = await response.blob()
-
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onloadend = () => resolve(reader.result as string)
-    reader.onerror = reject
-    reader.readAsDataURL(blob)
-  })
+  return readBlobAsDataUrl(blob)
 }
 
 export async function updateFile(
@@ -644,15 +633,7 @@ export async function downloadSharedFile(
   if (!response.ok)
     await readError(response, translate("files.error.downloadFile"))
 
-  const blob = await response.blob()
-  const url = window.URL.createObjectURL(blob)
-  const link = document.createElement("a")
-  link.href = url
-  link.download = fileName
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  window.URL.revokeObjectURL(url)
+  await downloadResponse(response, fileName)
 }
 
 export async function cloneSharedFiles(

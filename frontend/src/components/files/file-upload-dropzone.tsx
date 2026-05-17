@@ -11,15 +11,7 @@ import { Button } from "@ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@ui/card"
 import { cn } from "@/lib/utils"
 import { useTranslation } from "@/i18n"
-
-export type UploadingFile = {
-  id: string
-  name: string
-  progress: number
-  done: boolean
-  error: boolean
-  message?: string
-}
+import type { UploadingFile } from "@/lib/file-upload"
 
 type FileUploadDropzoneProps = {
   fileInputRef: RefObject<HTMLInputElement | null>

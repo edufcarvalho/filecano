@@ -18,13 +18,12 @@ import {
   type FileResponse,
   type FolderResponse,
 } from "@/lib/api"
-import { isPreviewSupportedFile } from "@/lib/file-display"
 import { useTranslation } from "@/i18n"
 import type { StoredToken } from "@/lib/session"
-
-function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback
-}
+import { getErrorMessage } from "@/lib/errors"
+import { collectFolderFiles, collectFolderIds } from "@/lib/file-tree"
+import { loadPreviewUrls } from "@/lib/file-preview"
+import { useFileSelection } from "@/hooks/use-file-selection"
 
 function isAvailableFile(file: FileResponse) {
   return file.deleted_at === null
@@ -32,20 +31,6 @@ function isAvailableFile(file: FileResponse) {
 
 function isAvailableFolder(folder: FolderResponse) {
   return folder.deleted_at === null || folder.deleted_at === undefined
-}
-
-function collectFolderIds(folders: FolderResponse[]) {
-  return folders.flatMap((folder): string[] => [
-    folder.id,
-    ...collectFolderIds(folder.children ?? []),
-  ])
-}
-
-function collectFolderFiles(folders: FolderResponse[]) {
-  return folders.flatMap((folder): FileResponse[] => [
-    ...folder.files,
-    ...collectFolderFiles(folder.children ?? []),
-  ])
 }
 
 type SharedFilesScreenUser = {
@@ -77,32 +62,27 @@ export function SharedFilesScreen({
   )
   const [isLoading, setIsLoading] = useState(!shareToken ? false : true)
   const [pendingFileId, setPendingFileId] = useState<string | null>(null)
-  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set())
-  const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set())
+  const {
+    selectedFileIds,
+    selectedFolderIds,
+    setSelectedFileIds,
+    setSelectedFolderIds,
+    toggleFileSelection,
+    toggleFolderSelection: toggleFolderSelect,
+    toggleFolderFileSelection: toggleFolderSelection,
+    clearSelection: clearFileSelection,
+  } = useFileSelection()
   const [searchQuery, setSearchQuery] = useState("")
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({})
   const isCurrentRef = useRef(true)
 
   const loadPreviews = useCallback(
     (loadedFiles: FileResponse[]) => {
-      const previewFiles = loadedFiles.filter((file) =>
-        isPreviewSupportedFile(file.content_type)
-      )
-
-      if (previewFiles.length === 0) return
-
-      Promise.all(
-        previewFiles.map((file) =>
-          fetchSharedFilePreviewAsDataUrl(shareToken!, file.id)
-            .then((dataUrl) => {
-              if (!isCurrentRef.current) return
-              setPreviewUrls((currentUrls) => ({
-                ...currentUrls,
-                [file.id]: dataUrl,
-              }))
-            })
-            .catch(() => {})
-        )
+      void loadPreviewUrls(
+        loadedFiles,
+        (file) => fetchSharedFilePreviewAsDataUrl(shareToken!, file.id),
+        setPreviewUrls,
+        () => isCurrentRef.current
       )
     },
     [shareToken]
@@ -167,7 +147,7 @@ export function SharedFilesScreen({
     return () => {
       isCurrentRef.current = false
     }
-  }, [shareToken, loadPreviews, t])
+  }, [shareToken, loadPreviews, setSelectedFileIds, setSelectedFolderIds, t])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleDownload = useCallback(
@@ -274,18 +254,6 @@ export function SharedFilesScreen({
     }
   }, [accessToken, shareToken, selectedFileIds, selectedFolderIds, t])
 
-  const toggleFileSelection = useCallback((fileId: string) => {
-    setSelectedFileIds((currentSelection) => {
-      const nextSelection = new Set(currentSelection)
-      if (nextSelection.has(fileId)) {
-        nextSelection.delete(fileId)
-      } else {
-        nextSelection.add(fileId)
-      }
-      return nextSelection
-    })
-  }, [])
-
   const selectAllFiles = useCallback(() => {
     const allFiles = [
       ...files,
@@ -297,37 +265,7 @@ export function SharedFilesScreen({
     setSelectedFolderIds(
       new Set(collectFolderIds(folders.filter(isAvailableFolder)))
     )
-  }, [files, folders])
-
-  const toggleFolderSelection = useCallback((fileIds: string[]) => {
-    setSelectedFileIds((currentSelection) => {
-      const allSelected = fileIds.every((id) => currentSelection.has(id))
-      const nextSelection = new Set(currentSelection)
-      if (allSelected) {
-        fileIds.forEach((id) => nextSelection.delete(id))
-      } else {
-        fileIds.forEach((id) => nextSelection.add(id))
-      }
-      return nextSelection
-    })
-  }, [])
-
-  const clearFileSelection = useCallback(() => {
-    setSelectedFileIds(new Set())
-    setSelectedFolderIds(new Set())
-  }, [])
-
-  const toggleFolderSelect = useCallback((folderId: string) => {
-    setSelectedFolderIds((currentSelection) => {
-      const nextSelection = new Set(currentSelection)
-      if (nextSelection.has(folderId)) {
-        nextSelection.delete(folderId)
-      } else {
-        nextSelection.add(folderId)
-      }
-      return nextSelection
-    })
-  }, [])
+  }, [files, folders, setSelectedFileIds, setSelectedFolderIds])
 
   if (!shareToken) return <ShareLinkErrorScreen kind="not-found" />
   if (linkError) return <ShareLinkErrorScreen kind={linkError} />

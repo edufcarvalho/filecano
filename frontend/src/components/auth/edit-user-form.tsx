@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react"
 import { Link } from "react-router-dom"
-import { ChevronDown, XIcon } from "lucide-react"
+import { ChevronDown } from "lucide-react"
 
 import { useTranslation } from "@/i18n"
 
@@ -25,6 +25,7 @@ import { updateUser, type UserResponse } from "@/lib/api"
 import type { FormSubmitHandler } from "@/lib/form-types"
 import { CenteredPageWrapper } from "@misc/page-wrapper"
 import { useAuthForm } from "@/hooks/use-auth-form"
+import { PasswordMismatchMessage } from "@auth/password-mismatch-message"
 
 const languages = [
   { code: "en", name: "American English", flag: "fi fi-us" },
@@ -296,12 +297,9 @@ export function EditUserForm({
                     }}
                   >
                     {confirmNewPassword.length > 0 && !newPasswordsMatch ? (
-                      <div className="ps-4 mt-0.5">
-                        <div className="flex items-center gap-2 text-sm text-destructive">
-                          <XIcon className="size-3.5" />
-                          {t("auth.signup.passwordsDoNotMatch")}
-                        </div>
-                      </div>
+                      <PasswordMismatchMessage
+                        message={t("auth.signup.passwordsDoNotMatch")}
+                      />
                     ) : null}
                   </AuthPasswordField>
                 </>
