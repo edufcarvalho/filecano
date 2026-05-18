@@ -26,6 +26,7 @@ import {
   collectDescendantIds,
   collectFolderFiles,
   collectFolderIds,
+  collectSelectedFiles,
   excludeSelectedFolderContents,
 } from "@/lib/file-tree"
 import { loadPreviewUrls } from "@/lib/file-preview"
@@ -225,7 +226,9 @@ export function SharedFilesScreen({
       setPendingFileId(`clone-${file.id}`)
 
       try {
-        const cloned = await cloneSharedFiles(accessToken, shareToken, [file.id])
+        const cloned = await cloneSharedFiles(accessToken, shareToken, [
+          { file_id: file.id, folder_id: file.folder_id },
+        ])
         setSuccess(`${t("files.cloneSuccess")}: ${getClonedItemNames(cloned)}`)
       } catch (error) {
         setError(getErrorMessage(error, t("files.error.cloneFiles")))
@@ -247,17 +250,23 @@ export function SharedFilesScreen({
     setSuccess(null)
     setPendingFileId("bulk-clone")
 
-    const { fileIds, folderIds } = excludeSelectedFolderContents(
+    const selectedFiles = collectSelectedFiles(
+      files,
       folders,
-      selectedFileIds,
-      selectedFolderIds
+      selectedFileIds
     )
+    const { files: selectedFilesForAction, folderIds } =
+      excludeSelectedFolderContents(
+        folders,
+        selectedFiles,
+        selectedFolderIds
+      )
 
     try {
       const cloned = await cloneSharedFiles(
         accessToken,
         shareToken,
-        fileIds,
+        selectedFilesForAction,
         folderIds
       )
       setSuccess(`${t("files.cloneSuccess")}: ${getClonedItemNames(cloned)}`)
@@ -266,7 +275,15 @@ export function SharedFilesScreen({
     } finally {
       setPendingFileId(null)
     }
-  }, [accessToken, folders, shareToken, selectedFileIds, selectedFolderIds, t])
+  }, [
+    accessToken,
+    files,
+    folders,
+    shareToken,
+    selectedFileIds,
+    selectedFolderIds,
+    t,
+  ])
 
   const selectAllFiles = useCallback(() => {
     const allFiles = [

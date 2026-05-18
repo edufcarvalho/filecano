@@ -19,6 +19,7 @@ import {
   collectDescendantIds,
   collectFolderFiles,
   collectFolderIds,
+  collectSelectedFiles,
   excludeSelectedFolderContents,
   removeFolderFromTree,
 } from "@/lib/file-tree"
@@ -308,16 +309,23 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
   )
 
   const handleBulkPermanentDelete = useCallback(async () => {
-    const selectedFiles = selectedFileIdsRef.current
+    const selectedFileIds = selectedFileIdsRef.current
     const selectedFolders = selectedFolderIdsRef.current
 
-    if (selectedFiles.size === 0 && selectedFolders.size === 0) return
+    if (selectedFileIds.size === 0 && selectedFolders.size === 0) return
 
-    const { fileIds, folderIds } = excludeSelectedFolderContents(
+    const selectedFiles = collectSelectedFiles(
+      files,
       folders,
-      selectedFiles,
-      selectedFolders
+      selectedFileIds
     )
+    const { files: selectedFilesForAction, folderIds } =
+      excludeSelectedFolderContents(
+        folders,
+        selectedFiles,
+        selectedFolders
+      )
+    const fileIds = selectedFilesForAction.map((file) => file.file_id)
     const fileIdSet = new Set(fileIds)
     const folderIdSet = new Set(folderIds)
 
@@ -341,19 +349,26 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
     } finally {
       setPendingFileId(null)
     }
-  }, [accessToken, folders, t, removeItems])
+  }, [accessToken, files, folders, t, removeItems])
 
   const handleBulkRestore = useCallback(async () => {
-    const selectedFiles = selectedFileIdsRef.current
+    const selectedFileIds = selectedFileIdsRef.current
     const selectedFolders = selectedFolderIdsRef.current
 
-    if (selectedFiles.size === 0 && selectedFolders.size === 0) return
+    if (selectedFileIds.size === 0 && selectedFolders.size === 0) return
 
-    const { fileIds, folderIds } = excludeSelectedFolderContents(
+    const selectedFiles = collectSelectedFiles(
+      files,
       folders,
-      selectedFiles,
-      selectedFolders
+      selectedFileIds
     )
+    const { files: selectedFilesForAction, folderIds } =
+      excludeSelectedFolderContents(
+        folders,
+        selectedFiles,
+        selectedFolders
+      )
+    const fileIds = selectedFilesForAction.map((file) => file.file_id)
     const fileIdSet = new Set(fileIds)
     const folderIdSet = new Set(folderIds)
 
@@ -375,7 +390,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
     } finally {
       setPendingFileId(null)
     }
-  }, [accessToken, folders, t, removeItems])
+  }, [accessToken, files, folders, t, removeItems])
 
   const handleRefresh = useCallback(() => {
     loadData()

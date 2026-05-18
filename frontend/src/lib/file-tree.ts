@@ -1,4 +1,6 @@
-import type { FileResponse, FolderResponse } from "@/lib/api"
+import type { FileReference, FileResponse, FolderResponse } from "@/lib/api"
+
+export type SelectedFile = FileReference
 
 export function collectFolderFiles(folders: FolderResponse[]): FileResponse[] {
   const files: FileResponse[] = []
@@ -64,6 +66,25 @@ export function isFolderAllDeleted(folder: FolderResponse): boolean {
 
 export function flattenFolderFileIds(folders: FolderResponse[]): string[] {
   return collectFolderFiles(folders).map((file) => file.id)
+}
+
+export function collectSelectedFiles(
+  files: FileResponse[],
+  folders: FolderResponse[],
+  selectedFileIds: Iterable<string>
+): SelectedFile[] {
+  const selectedIds = new Set(selectedFileIds)
+  const folderIdByFileId = new Map(
+    [...files, ...collectFolderFiles(folders)].map((file) => [
+      file.id,
+      file.folder_id,
+    ])
+  )
+
+  return Array.from(selectedIds).map((fileId) => ({
+    file_id: fileId,
+    folder_id: folderIdByFileId.get(fileId),
+  }))
 }
 
 export function removeFileFromFolders(
@@ -175,26 +196,24 @@ export function collectDescendantIds(
 
 export function excludeSelectedFolderContents(
   folders: FolderResponse[],
-  selectedFileIds: Iterable<string>,
+  selectedFileIds: SelectedFile[],
   selectedFolderIds: Iterable<string>
-): { fileIds: string[]; folderIds: string[] } {
-  const coveredFileIds = new Set<string>()
-  const coveredFolderIds = new Set<string>()
+): { files: SelectedFile[]; folderIds: string[] } {
+  const coveredChildFolderIds = new Set<string>()
   const folderIds = Array.from(selectedFolderIds)
 
   folderIds.forEach((folderId) => {
     const descendantIds = collectDescendantIds(folders, folderId)
-    descendantIds.fileIds.forEach((fileId) => coveredFileIds.add(fileId))
-    descendantIds.folderIds.forEach((childFolderId) =>
-      coveredFolderIds.add(childFolderId)
-    )
+    descendantIds.folderIds.forEach((childFolderId) => {
+      coveredChildFolderIds.add(childFolderId)
+    })
   })
 
   return {
-    fileIds: Array.from(selectedFileIds).filter(
-      (fileId) => !coveredFileIds.has(fileId)
+    files: selectedFileIds.filter((file) => !file.folder_id),
+    folderIds: folderIds.filter(
+      (folderId) => !coveredChildFolderIds.has(folderId)
     ),
-    folderIds: folderIds.filter((folderId) => !coveredFolderIds.has(folderId)),
   }
 }
 

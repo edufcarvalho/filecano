@@ -49,6 +49,11 @@ export type FileResponse = {
   deleted_at: string | null
 }
 
+export type FileReference = {
+  file_id: string
+  folder_id?: string | null
+}
+
 export type LinkResponse = {
   id: string
   token: string
@@ -507,11 +512,13 @@ export async function downloadMultipleFiles(
 
 export async function shareFiles(
   accessToken: string,
-  fileIds: string[],
+  files: FileReference[],
   expiresAt?: string,
   folderIds?: string[]
 ): Promise<TokenResponse> {
-  const body: Record<string, unknown> = { files: fileIds }
+  const body: Record<string, unknown> = {
+    files: files.map((file) => file.file_id),
+  }
   if (folderIds && folderIds.length > 0) body.folders = folderIds
   if (expiresAt) body.expires_at = expiresAt
 
@@ -639,11 +646,12 @@ export async function downloadSharedFile(
 export async function cloneSharedFiles(
   accessToken: string,
   token: string,
-  fileIds?: string[],
+  files?: FileReference[],
   folderIds?: string[]
 ): Promise<FolderListResponse> {
   const body: Record<string, unknown> = {}
-  if (fileIds && fileIds.length > 0) body.files = fileIds
+  if (files && files.length > 0)
+    body.files = files.map((file) => file.file_id)
   if (folderIds && folderIds.length > 0) body.folders = folderIds
 
   const response = await authFetch(

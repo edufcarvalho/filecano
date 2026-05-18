@@ -34,6 +34,7 @@ import {
   buildParentMap,
   collectDescendantIds,
   collectFolderFiles,
+  collectSelectedFiles,
   excludeSelectedFolderContents,
   findFileInFolders,
   findFolderInTree,
@@ -42,6 +43,7 @@ import {
   removeFileFromFolders,
   removeFolderFromTree,
   updateFileInFolders,
+  type SelectedFile,
 } from "@/lib/file-tree"
 import { loadPreviewUrls, readFileAsDataUrl } from "@/lib/file-preview"
 import {
@@ -112,7 +114,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   const [notice, setNotice] = useState<string | null>(null)
   const [showExpirationDialog, setShowExpirationDialog] = useState(false)
   const [pendingShareCount, setPendingShareCount] = useState(0)
-  const pendingShareFileIdsRef = useRef<string[]>([])
+  const pendingShareFilesRef = useRef<SelectedFile[]>([])
   const pendingShareFolderIdsRef = useRef<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
@@ -725,11 +727,18 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   const handleBulkDelete = useCallback(async () => {
     if (selectedFileIds.size === 0 && selectedFolderIds.size === 0) return
 
-    const { fileIds, folderIds } = excludeSelectedFolderContents(
+    const selectedFiles = collectSelectedFiles(
+      files,
       folders,
-      selectedFileIds,
-      selectedFolderIds
+      selectedFileIds
     )
+    const { files: selectedFilesForAction, folderIds } =
+      excludeSelectedFolderContents(
+        folders,
+        selectedFiles,
+        selectedFolderIds
+      )
+    const fileIds = selectedFilesForAction.map((file) => file.file_id)
 
     setError(null)
     setPendingFileId("bulk-delete")
@@ -768,6 +777,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   }, [
     accessToken,
     clearFileSelection,
+    files,
     folders,
     selectedFileIds,
     selectedFolderIds,
@@ -805,32 +815,40 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
 
     setError(null)
     setNotice(null)
-    const { fileIds, folderIds } = excludeSelectedFolderContents(
+    const selectedFiles = collectSelectedFiles(
+      files,
       folders,
-      selectedFileIds,
-      selectedFolderIds
+      selectedFileIds
     )
-    pendingShareFileIdsRef.current = fileIds
+    const { files: selectedFilesForAction, folderIds } =
+      excludeSelectedFolderContents(
+        folders,
+        selectedFiles,
+        selectedFolderIds
+      )
+    pendingShareFilesRef.current = selectedFilesForAction
     pendingShareFolderIdsRef.current = folderIds
-    setPendingShareCount(fileIds.length + folderIds.length)
+    setPendingShareCount(selectedFilesForAction.length + folderIds.length)
     setShowExpirationDialog(true)
-  }, [folders, selectedFileIds, selectedFolderIds])
+  }, [files, folders, selectedFileIds, selectedFolderIds])
 
   const executeShare = useCallback(
     async (expiration: LinkExpiration) => {
-      const fileIds = pendingShareFileIdsRef.current
+      const selectedFiles = pendingShareFilesRef.current
       const folderIds = pendingShareFolderIdsRef.current
-      if (fileIds.length === 0 && folderIds.length === 0) return
+      if (selectedFiles.length === 0 && folderIds.length === 0) return
 
-      const isBulk = (fileIds.length + folderIds.length) > 1
+      const isBulk = (selectedFiles.length + folderIds.length) > 1
       setPendingFileId(
-        isBulk ? "bulk-share" : `share-${fileIds[0] ?? folderIds[0]}`
+        isBulk
+          ? "bulk-share"
+          : `share-${selectedFiles[0]?.file_id ?? folderIds[0]}`
       )
 
       try {
         const shareToken = await shareFiles(
           accessToken,
-          fileIds,
+          selectedFiles,
           resolveExpiresAt(expiration),
           folderIds.length > 0 ? folderIds : undefined
         )
@@ -847,7 +865,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         setError(getErrorMessage(error, t("files.error.shareFiles")))
       } finally {
         setPendingFileId(null)
-        pendingShareFileIdsRef.current = []
+        pendingShareFilesRef.current = []
         pendingShareFolderIdsRef.current = []
         setPendingShareCount(0)
       }
@@ -874,7 +892,9 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   const handleShare = useCallback((file: FileResponse) => {
     setError(null)
     setNotice(null)
-    pendingShareFileIdsRef.current = [file.id]
+    pendingShareFilesRef.current = [
+      { file_id: file.id, folder_id: file.folder_id },
+    ]
     setPendingShareCount(1)
     setShowExpirationDialog(true)
   }, [])
