@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@ui/card"
 import { cn } from "@/lib/utils"
 import { useTranslation } from "@/i18n"
 import type { UploadingFile } from "@/lib/file-upload"
+import { formatFileSize } from "@/lib/file-display"
 
 type FileUploadDropzoneProps = {
   fileInputRef: RefObject<HTMLInputElement | null>
@@ -85,6 +86,11 @@ export function UploadActivityPanel({
         ? t("files.dropzone.failedCount", { count: failedCount })
         : t("files.dropzone.uploadsComplete")
 
+  const getProgressPercent = (file: UploadingFile) =>
+    file.totalBytes > 0
+      ? Math.min(100, Math.round((file.uploadedBytes / file.totalBytes) * 100))
+      : 0
+
   return (
     <Card className="upload-panel-base">
       <CardHeader className="flex flex-row items-center justify-between gap-3 pt-3 pb-1">
@@ -125,46 +131,54 @@ export function UploadActivityPanel({
         <CardContent className="max-h-80 overflow-y-auto pt-0 pb-3">
           <div className="flex flex-col gap-3">
             {uploadingFiles.map((file) => (
-              <div key={file.id} className="upload-file-item">
-                <div className="upload-file-header">
-                  <span className="upload-file-name">{file.name}</span>
-                  <span className="upload-file-status">
-                    {file.error
-                      ? t("files.dropzone.failed")
-                      : file.done
-                        ? t("files.dropzone.done")
-                        : `${file.progress}%`}
-                  </span>
-                  {file.done ? (
-                    <button
-                      type="button"
-                      onClick={() => onDismiss(file.id)}
-                      className="upload-dismiss-button"
-                      aria-label={t("files.dropzone.dismiss", {
-                        name: file.name,
-                      })}
-                    >
-                      <XIcon size={14} />
-                    </button>
-                  ) : null}
-                </div>
-                <div className="upload-progress-bar-container">
-                  <div
-                    className={cn(
-                      "upload-progress-bar",
-                      file.error
-                        ? "upload-progress-bar-error"
-                        : "upload-progress-bar-success"
-                    )}
-                    style={{ width: `${file.error ? 100 : file.progress}%` }}
-                  />
-                </div>
-                {file.message ? (
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {file.message}
-                  </p>
-                ) : null}
-              </div>
+              (() => {
+                const progressPercent = getProgressPercent(file)
+
+                return (
+                  <div key={file.id} className="upload-file-item">
+                    <div className="upload-file-header">
+                      <span className="upload-file-name">{file.name}</span>
+                      <span className="upload-file-status">
+                        {file.error
+                          ? t("files.dropzone.failed")
+                          : file.done
+                            ? t("files.dropzone.done")
+                            : `${formatFileSize(file.uploadedBytes)} / ${formatFileSize(file.totalBytes)}`}
+                      </span>
+                      {file.done ? (
+                        <button
+                          type="button"
+                          onClick={() => onDismiss(file.id)}
+                          className="upload-dismiss-button"
+                          aria-label={t("files.dropzone.dismiss", {
+                            name: file.name,
+                          })}
+                        >
+                          <XIcon size={14} />
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className="upload-progress-bar-container">
+                      <div
+                        className={cn(
+                          "upload-progress-bar",
+                          file.error
+                            ? "upload-progress-bar-error"
+                            : "upload-progress-bar-success"
+                        )}
+                        style={{
+                          width: `${file.error ? 100 : progressPercent}%`,
+                        }}
+                      />
+                    </div>
+                    {file.message ? (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {file.message}
+                      </p>
+                    ) : null}
+                  </div>
+                )
+              })()
             ))}
           </div>
         </CardContent>

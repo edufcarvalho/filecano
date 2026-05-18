@@ -3,7 +3,8 @@ import { isPreviewSupportedFile } from "@/lib/file-display"
 export type UploadingFile = {
   id: string
   name: string
-  progress: number
+  uploadedBytes: number
+  totalBytes: number
   done: boolean
   error: boolean
   message?: string

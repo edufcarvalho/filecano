@@ -1,11 +1,11 @@
 from typing import Annotated, Optional, Union
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, File, Form, UploadFile, status
+from fastapi import APIRouter, Body, Depends, File, Form, Header, UploadFile, status
 from fastapi.responses import StreamingResponse
 
 from app.api.dependencies import get_current_user, get_file_service
-from app.core import NotFoundError
+from app.core import FileTooLargeError, NotFoundError, Settings, get_settings
 from app.models import User
 from app.schemas import (
   FileListParams,
@@ -14,17 +14,36 @@ from app.schemas import (
   FolderWithFilesResponse,
 )
 from app.services import FileService as Service
+from app.utils.file import GB_SCALE
 
 router = APIRouter(prefix="/files", tags=["files"])
 
 
-@router.post("", response_model=FileResponse, status_code=status.HTTP_201_CREATED)
+def ensure_upload_size_allowed(
+  file_size_bytes: Annotated[int, Header(alias="X-File-Size-Bytes")],
+  settings: Settings = Depends(get_settings),
+) -> None:
+  if file_size_bytes <= settings.max_file_size_bytes:
+    return
+
+  raise FileTooLargeError(
+    f"Uploaded file is bigger than max allowed size ({(settings.max_file_size_bytes / GB_SCALE):.2f} GB)"
+  )
+
+
+@router.post(
+  "",
+  response_model=FileResponse,
+  status_code=status.HTTP_201_CREATED,
+  dependencies=[Depends(ensure_upload_size_allowed)],
+)
 def upload_file(
   file: Annotated[UploadFile, File()],
   folder_id: Annotated[Optional[UUID], Form()] = None,
   current_user: User = Depends(get_current_user),
   service: Service = Depends(get_file_service),
 ) -> FileResponse:
+
   return service.create_file(current_user, file, folder_id)
 
 

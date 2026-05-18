@@ -429,18 +429,29 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
           const uploadId = createUploadId(file)
 
           setUploadingFiles((current) => [
-            { id: uploadId, name: file.name, progress: 0, done: false, error: false },
+            {
+              id: uploadId,
+              name: file.name,
+              uploadedBytes: 0,
+              totalBytes: file.size,
+              done: false,
+              error: false,
+            },
             ...current,
           ])
 
-          return uploadFile(accessToken, file, (percent) => {
+          return uploadFile(accessToken, file, (progress) => {
             setUploadingFiles((current) =>
-              updateUploadingFile(current, uploadId, { progress: percent })
+              updateUploadingFile(current, uploadId, progress)
             )
           }, folderId)
             .then((uploadedFile) => {
               setUploadingFiles((current) =>
-                updateUploadingFile(current, uploadId, { done: true, progress: 100 })
+                updateUploadingFile(current, uploadId, {
+                  done: true,
+                  uploadedBytes: file.size,
+                  totalBytes: file.size,
+                })
               )
               if (folderId) {
                 setFolders((current) =>
@@ -509,7 +520,8 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         status: {
           id: createUploadId(file),
           name: file.name,
-          progress: 0,
+          uploadedBytes: 0,
+          totalBytes: file.size,
           done: false,
           error: false,
         },
@@ -523,14 +535,15 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       const uploadPromises = uploadEntries.map(({ file, status }) =>
         uploadFile(accessToken, file, (progress) => {
           setUploadingFiles((currentFiles) =>
-            updateUploadingFile(currentFiles, status.id, { progress })
+            updateUploadingFile(currentFiles, status.id, progress)
           )
         })
           .then((uploadedFile) => {
             setUploadingFiles((currentFiles) =>
               updateUploadingFile(currentFiles, status.id, {
                 done: true,
-                progress: 100,
+                uploadedBytes: file.size,
+                totalBytes: file.size,
               })
             )
             setFiles((currentFiles) => [uploadedFile, ...currentFiles])
@@ -1044,17 +1057,28 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       const uploadPromises = filesWithPath.map(({ file }) => {
         const uploadId = createUploadId(file)
         setUploadingFiles((current) => [
-          { id: uploadId, name: file.name, progress: 0, done: false, error: false },
+          {
+            id: uploadId,
+            name: file.name,
+            uploadedBytes: 0,
+            totalBytes: file.size,
+            done: false,
+            error: false,
+          },
           ...current,
         ])
-        return uploadFile(accessToken, file, (percent) => {
+        return uploadFile(accessToken, file, (progress) => {
           setUploadingFiles((current) =>
-            updateUploadingFile(current, uploadId, { progress: percent })
+            updateUploadingFile(current, uploadId, progress)
           )
         }, folderId)
           .then((uploadedFile) => {
             setUploadingFiles((current) =>
-              updateUploadingFile(current, uploadId, { done: true, progress: 100 })
+              updateUploadingFile(current, uploadId, {
+                done: true,
+                uploadedBytes: file.size,
+                totalBytes: file.size,
+              })
             )
             setFolders((current) =>
               addFileToFolder(current, folderId, uploadedFile)

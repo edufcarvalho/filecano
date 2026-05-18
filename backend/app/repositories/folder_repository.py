@@ -44,24 +44,37 @@ class FolderRepository(BaseRepository[Folder]):
     return self.session.exec(query).all()
 
   def list_by_user(self, user_id: UUID, deleted: bool = False) -> list[Folder]:
-    query = select(Folder).where(Folder.user_id == user_id).order_by(Folder.id.desc())
+    if not deleted:
+      query = (
+        select(Folder)
+        .where(
+          Folder.user_id == user_id,
+          Folder.deleted_at.is_(None),
+          Folder.parent_id.is_(None),
+        )
+        .order_by(Folder.id.desc())
+      )
 
-    if deleted:
-      parent = aliased(Folder)
+      return self.session.exec(query).all()
 
-      query = query.join(
+    parent = aliased(Folder)
+
+    query = (
+      select(Folder)
+      .join(
         parent,
         and_(
           Folder.parent_id == parent.id,
           parent.deleted_at.is_not(None),
         ),
         isouter=True,
-      ).where(Folder.deleted_at.is_not(None), parent.id.is_(None))
-    else:
-      query = query.where(
-        Folder.deleted_at.is_(None),
-        Folder.parent_id.is_(None),
       )
+      .where(
+        Folder.user_id == user_id,
+        Folder.deleted_at.is_not(None),
+        parent.id.is_(None),
+      )
+    )
 
     return self.session.exec(query).all()
 

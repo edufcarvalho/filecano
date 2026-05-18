@@ -28,12 +28,10 @@ from app.schemas import (
 )
 from app.services.base_service import BaseService
 from app.services.file_storage_service import FileStorageService
-from app.utils.file import is_content_type_supported
+from app.utils.file import GB_SCALE, is_content_type_supported
 from app.utils.time import current_datetime
 
 SUPPORTED_PREVIEW_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
-
-GB_SCALE = 1024 * 1024 * 1024
 
 
 class FileService(BaseService):
@@ -254,7 +252,11 @@ class FileService(BaseService):
 
     while chunk := data.read(1024 * 1024):
       size_bytes += len(chunk)
-      checksum.update(chunk)
+
+      if size_bytes > self.settings.max_file_size_bytes:
+        raise FileTooLargeError(
+          f"Uploaded file is bigger than max allowed size ({(self.settings.max_file_size_bytes / GB_SCALE):.2f} GB)"
+        )
 
     data.seek(0)
 
