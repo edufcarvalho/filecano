@@ -30,6 +30,30 @@ type TrashScreenProps = {
   accessToken: string
 }
 
+let deletedFilesRequest: {
+  accessToken: string
+  promise: ReturnType<typeof listFolderedFiles>
+} | null = null
+
+function loadDeletedFiles(accessToken: string) {
+  if (deletedFilesRequest?.accessToken === accessToken) {
+    return deletedFilesRequest.promise
+  }
+
+  const promise = listFolderedFiles(accessToken, { deleted: true })
+  deletedFilesRequest = { accessToken, promise }
+
+  const clearRequest = () => {
+    if (deletedFilesRequest?.promise === promise) {
+      deletedFilesRequest = null
+    }
+  }
+
+  promise.then(clearRequest, clearRequest)
+
+  return promise
+}
+
 export function TrashScreen({ accessToken }: TrashScreenProps) {
   const { t } = useTranslation()
   const [files, setFiles] = useState<FileResponse[]>([])
@@ -112,17 +136,18 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
     [loadPreviews, setSelectedFileIds, setSelectedFolderIds]
   )
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (isCurrent: () => boolean = () => true) => {
     setError(null)
     setIsLoading(true)
 
     try {
-      const data = await listFolderedFiles(accessToken, { deleted: true })
-      await applyLoadedData(data.folders, data.other_files ?? [])
+      const data = await loadDeletedFiles(accessToken)
+      await applyLoadedData(data.folders, data.other_files ?? [], isCurrent)
     } catch (error) {
+      if (!isCurrent()) return
       setError(getErrorMessage(error, t("files.error.loadDeletedFiles")))
     } finally {
-      setIsLoading(false)
+      if (isCurrent()) setIsLoading(false)
     }
   }, [accessToken, applyLoadedData, t])
 
@@ -164,7 +189,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
 
     async function loadInitialData() {
       try {
-        const data = await listFolderedFiles(accessToken, { deleted: true })
+        const data = await loadDeletedFiles(accessToken)
         await applyLoadedData(data.folders, data.other_files ?? [], () => isCurrent)
       } catch (error) {
         if (!isCurrent) return

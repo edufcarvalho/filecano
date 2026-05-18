@@ -59,6 +59,30 @@ type SharedFilesScreenProps = {
   onSignOut?: () => void
 }
 
+let sharedFilesRequest: {
+  shareToken: string
+  promise: ReturnType<typeof getSharedFiles>
+} | null = null
+
+function loadSharedFiles(shareToken: string) {
+  if (sharedFilesRequest?.shareToken === shareToken) {
+    return sharedFilesRequest.promise
+  }
+
+  const promise = getSharedFiles(shareToken)
+  sharedFilesRequest = { shareToken, promise }
+
+  const clearRequest = () => {
+    if (sharedFilesRequest?.promise === promise) {
+      sharedFilesRequest = null
+    }
+  }
+
+  promise.then(clearRequest, clearRequest)
+
+  return promise
+}
+
 export function SharedFilesScreen({
   accessToken,
   user,
@@ -110,7 +134,7 @@ export function SharedFilesScreen({
     setLinkError(null)
     setIsLoading(true)
 
-    getSharedFiles(shareToken)
+    loadSharedFiles(shareToken)
       .then((sharedLink) => {
         if (!isCurrentRef.current) return
         const sharedFiles = sharedLink.files ?? []
