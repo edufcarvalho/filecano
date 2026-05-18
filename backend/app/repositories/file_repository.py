@@ -43,9 +43,9 @@ class FileRepository(BaseRepository[File]):
           FileLinkRelation.link_id == link_id,
           and_(
             FolderLinkRelation.folder_id == File.folder_id,
-            FolderLinkRelation.link_id == link_id
-          )
-        )
+            FolderLinkRelation.link_id == link_id,
+          ),
+        ),
       )
     )
 

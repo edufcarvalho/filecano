@@ -1,7 +1,8 @@
 from typing import Optional
 from uuid import UUID
 
-from sqlmodel import delete, func, or_, select, update
+from sqlalchemy.orm import aliased
+from sqlmodel import and_, delete, func, or_, select, update
 
 from app.models import File, Folder, FolderLinkRelation
 from app.repositories.base_repository import BaseRepository
@@ -46,7 +47,16 @@ class FolderRepository(BaseRepository[Folder]):
     query = select(Folder).where(Folder.user_id == user_id).order_by(Folder.id.desc())
 
     if deleted:
-      query = query.where(Folder.deleted_at.is_not(None))
+      parent = aliased(Folder)
+
+      query = query.join(
+        parent,
+        and_(
+          Folder.parent_id == parent.id,
+          parent.deleted_at.is_not(None),
+        ),
+        isouter=True,
+      ).where(Folder.deleted_at.is_not(None), parent.id.is_(None))
     else:
       query = query.where(
         Folder.deleted_at.is_(None),
