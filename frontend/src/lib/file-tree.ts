@@ -173,6 +173,31 @@ export function collectDescendantIds(
   return result
 }
 
+export function excludeSelectedFolderContents(
+  folders: FolderResponse[],
+  selectedFileIds: Iterable<string>,
+  selectedFolderIds: Iterable<string>
+): { fileIds: string[]; folderIds: string[] } {
+  const coveredFileIds = new Set<string>()
+  const coveredFolderIds = new Set<string>()
+  const folderIds = Array.from(selectedFolderIds)
+
+  folderIds.forEach((folderId) => {
+    const descendantIds = collectDescendantIds(folders, folderId)
+    descendantIds.fileIds.forEach((fileId) => coveredFileIds.add(fileId))
+    descendantIds.folderIds.forEach((childFolderId) =>
+      coveredFolderIds.add(childFolderId)
+    )
+  })
+
+  return {
+    fileIds: Array.from(selectedFileIds).filter(
+      (fileId) => !coveredFileIds.has(fileId)
+    ),
+    folderIds: folderIds.filter((folderId) => !coveredFolderIds.has(folderId)),
+  }
+}
+
 export function isDescendantOf(
   folders: FolderResponse[],
   folderId: string,

@@ -1,7 +1,7 @@
 from typing import Generic, Optional, TypeVar
 from uuid import UUID
 
-from sqlmodel import Session, SQLModel
+from sqlmodel import Session, SQLModel, update
 
 from app.utils.time import current_datetime
 
@@ -53,19 +53,28 @@ class BaseRepository(Generic[Model]):
   def soft_delete_by_parent(
     self, model: type, parent_field: str, parent_id: UUID
   ) -> None:
-    from sqlmodel import update
-
     query = (
       update(model)
       .where(getattr(model, parent_field) == parent_id)
       .values(deleted_at=current_datetime())
     )
+
+    self.session.exec(query)
+    self.session.commit()
+
+  def soft_delete_by_parents(
+    self, model: type, parent_field: str, parent_ids: list[UUID]
+  ) -> None:
+    query = (
+      update(model)
+      .where(getattr(model, parent_field).in_(parent_ids))
+      .values(deleted_at=current_datetime())
+    )
+
     self.session.exec(query)
     self.session.commit()
 
   def restore_by_parent(self, model: type, parent_field: str, parent_id: UUID) -> None:
-    from sqlmodel import update
-
     query = (
       update(model)
       .where(getattr(model, parent_field) == parent_id)

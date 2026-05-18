@@ -19,6 +19,8 @@ import {
   collectDescendantIds,
   collectFolderFiles,
   collectFolderIds,
+  excludeSelectedFolderContents,
+  removeFolderFromTree,
 } from "@/lib/file-tree"
 import { loadPreviewUrls } from "@/lib/file-preview"
 import { useFileSelection } from "@/hooks/use-file-selection"
@@ -128,9 +130,13 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
       setFiles((currentFiles) =>
         currentFiles.filter((file) => !fileIds.has(file.id))
       )
-      setFolders((currentFolders) =>
-        currentFolders.filter((folder) => !folderIds.has(folder.id))
-      )
+      setFolders((currentFolders) => {
+        let nextFolders = currentFolders
+        folderIds.forEach((folderId) => {
+          nextFolders = removeFolderFromTree(nextFolders, folderId)
+        })
+        return nextFolders
+      })
       setSelectedFileIds((currentSelection) => {
         const nextSelection = new Set(currentSelection)
         fileIds.forEach((fileId) => nextSelection.delete(fileId))
@@ -302,24 +308,32 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
   )
 
   const handleBulkPermanentDelete = useCallback(async () => {
-    const fileIds = new Set(selectedFileIdsRef.current)
-    const folderIds = new Set(selectedFolderIdsRef.current)
+    const selectedFiles = selectedFileIdsRef.current
+    const selectedFolders = selectedFolderIdsRef.current
 
-    if (fileIds.size === 0 && folderIds.size === 0) return
+    if (selectedFiles.size === 0 && selectedFolders.size === 0) return
+
+    const { fileIds, folderIds } = excludeSelectedFolderContents(
+      folders,
+      selectedFiles,
+      selectedFolders
+    )
+    const fileIdSet = new Set(fileIds)
+    const folderIdSet = new Set(folderIds)
 
     setError(null)
     setPendingFileId("bulk-permanent-delete")
 
     try {
-      const fileDeletions = Array.from(fileIds).map((fileId) =>
+      const fileDeletions = fileIds.map((fileId) =>
         deleteFile(accessToken, fileId, { permanent: true })
       )
-      const folderDeletions = Array.from(folderIds).map((folderId) =>
+      const folderDeletions = folderIds.map((folderId) =>
         deleteFolder(accessToken, folderId, { permanent: true })
       )
 
       await Promise.all([...fileDeletions, ...folderDeletions])
-      removeItems(fileIds, folderIds)
+      removeItems(fileIdSet, folderIdSet)
     } catch (error) {
       setError(
         getErrorMessage(error, t("files.error.deleteFilesPermanently"))
@@ -327,33 +341,41 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
     } finally {
       setPendingFileId(null)
     }
-  }, [accessToken, t, removeItems])
+  }, [accessToken, folders, t, removeItems])
 
   const handleBulkRestore = useCallback(async () => {
-    const fileIds = new Set(selectedFileIdsRef.current)
-    const folderIds = new Set(selectedFolderIdsRef.current)
+    const selectedFiles = selectedFileIdsRef.current
+    const selectedFolders = selectedFolderIdsRef.current
 
-    if (fileIds.size === 0 && folderIds.size === 0) return
+    if (selectedFiles.size === 0 && selectedFolders.size === 0) return
+
+    const { fileIds, folderIds } = excludeSelectedFolderContents(
+      folders,
+      selectedFiles,
+      selectedFolders
+    )
+    const fileIdSet = new Set(fileIds)
+    const folderIdSet = new Set(folderIds)
 
     setError(null)
     setPendingFileId("bulk-restore")
 
     try {
-      const fileRestores = Array.from(fileIds).map((fileId) =>
+      const fileRestores = fileIds.map((fileId) =>
         restoreFile(accessToken, fileId)
       )
-      const folderRestores = Array.from(folderIds).map((folderId) =>
+      const folderRestores = folderIds.map((folderId) =>
         restoreFolder(accessToken, folderId)
       )
 
       await Promise.all([...fileRestores, ...folderRestores])
-      removeItems(fileIds, folderIds)
+      removeItems(fileIdSet, folderIdSet)
     } catch (error) {
       setError(getErrorMessage(error, t("files.error.restoreFiles")))
     } finally {
       setPendingFileId(null)
     }
-  }, [accessToken, t, removeItems])
+  }, [accessToken, folders, t, removeItems])
 
   const handleRefresh = useCallback(() => {
     loadData()

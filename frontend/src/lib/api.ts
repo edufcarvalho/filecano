@@ -641,7 +641,7 @@ export async function cloneSharedFiles(
   token: string,
   fileIds?: string[],
   folderIds?: string[]
-): Promise<FileResponse[]> {
+): Promise<FolderListResponse> {
   const body: Record<string, unknown> = {}
   if (fileIds && fileIds.length > 0) body.files = fileIds
   if (folderIds && folderIds.length > 0) body.folders = folderIds

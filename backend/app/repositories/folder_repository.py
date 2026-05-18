@@ -1,11 +1,11 @@
 from typing import Optional
 from uuid import UUID
 
-from sqlmodel import delete, func, or_, select
-from sqlmodel.sql.expression import SelectOfScalar
+from sqlmodel import delete, func, or_, select, update
 
 from app.models import File, Folder, FolderLinkRelation
 from app.repositories.base_repository import BaseRepository
+from app.utils.time import current_datetime
 
 
 class FolderRepository(BaseRepository[Folder]):
@@ -42,9 +42,7 @@ class FolderRepository(BaseRepository[Folder]):
 
     return self.session.exec(query).all()
 
-  def list_by_user(
-    self, user_id: UUID, deleted: bool = False
-  ) -> list[Folder]:
+  def list_by_user(self, user_id: UUID, deleted: bool = False) -> list[Folder]:
     query = select(Folder).where(Folder.user_id == user_id).order_by(Folder.id.desc())
 
     if deleted:
@@ -60,13 +58,22 @@ class FolderRepository(BaseRepository[Folder]):
   def delete_children(self, parent_id: UUID) -> None:
     self.soft_delete_by_parent(Folder, "parent_id", parent_id)
 
+  def soft_delete_by_ids(self, folder_ids: list[UUID]) -> None:
+    query = (
+      update(Folder)
+      .where(Folder.id.in_(folder_ids))
+      .values(deleted_at=current_datetime())
+    )
+    self.session.exec(query)
+    self.session.commit()
+
   def delete_by_id(self, folder_id: UUID) -> None:
     folder = self.session.get(Folder, folder_id)
     if folder:
       self.session.delete(folder)
 
   def get_all_descendant_ids(self, folder_id: UUID) -> list[UUID]:
-    descendants: list[UUID] = {folder_id}
+    descendants: set[UUID] = {folder_id}
     pending: list[UUID] = [folder_id]
 
     while pending:
@@ -119,5 +126,13 @@ class FolderRepository(BaseRepository[Folder]):
   def delete_permanently(self, folder_id: UUID) -> None:
     query = delete(Folder).where(Folder.id == folder_id)
 
+    self.session.exec(query)
+    self.session.commit()
+
+  def restore_by_ids(self, folder_ids: list[UUID]) -> None:
+    if not folder_ids:
+      return
+
+    query = update(Folder).where(Folder.id.in_(folder_ids)).values(deleted_at=None)
     self.session.exec(query)
     self.session.commit()

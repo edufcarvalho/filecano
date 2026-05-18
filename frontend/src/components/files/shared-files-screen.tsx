@@ -16,6 +16,7 @@ import {
   fetchSharedFilePreviewAsDataUrl,
   getSharedFiles,
   type FileResponse,
+  type FolderListResponse,
   type FolderResponse,
 } from "@/lib/api"
 import { useTranslation } from "@/i18n"
@@ -25,6 +26,7 @@ import {
   collectDescendantIds,
   collectFolderFiles,
   collectFolderIds,
+  excludeSelectedFolderContents,
 } from "@/lib/file-tree"
 import { loadPreviewUrls } from "@/lib/file-preview"
 import { useFileSelection } from "@/hooks/use-file-selection"
@@ -35,6 +37,13 @@ function isAvailableFile(file: FileResponse) {
 
 function isAvailableFolder(folder: FolderResponse) {
   return folder.deleted_at === null || folder.deleted_at === undefined
+}
+
+function getClonedItemNames(cloned: FolderListResponse) {
+  return [
+    ...(cloned.other_files ?? []).map((file) => file.display_name),
+    ...cloned.folders.map((folder) => folder.name),
+  ].join(", ")
 }
 
 type SharedFilesScreenUser = {
@@ -217,9 +226,7 @@ export function SharedFilesScreen({
 
       try {
         const cloned = await cloneSharedFiles(accessToken, shareToken, [file.id])
-        setSuccess(
-          `${t("files.cloneSuccess")}: ${cloned.map((f) => f.display_name).join(", ")}`
-        )
+        setSuccess(`${t("files.cloneSuccess")}: ${getClonedItemNames(cloned)}`)
       } catch (error) {
         setError(getErrorMessage(error, t("files.error.cloneFiles")))
       } finally {
@@ -240,22 +247,26 @@ export function SharedFilesScreen({
     setSuccess(null)
     setPendingFileId("bulk-clone")
 
+    const { fileIds, folderIds } = excludeSelectedFolderContents(
+      folders,
+      selectedFileIds,
+      selectedFolderIds
+    )
+
     try {
       const cloned = await cloneSharedFiles(
         accessToken,
         shareToken,
-        Array.from(selectedFileIds),
-        Array.from(selectedFolderIds)
+        fileIds,
+        folderIds
       )
-      setSuccess(
-        `${t("files.cloneSuccess")}: ${cloned.map((f) => f.display_name).join(", ")}`
-      )
+      setSuccess(`${t("files.cloneSuccess")}: ${getClonedItemNames(cloned)}`)
     } catch (error) {
       setError(getErrorMessage(error, t("files.error.cloneFiles")))
     } finally {
       setPendingFileId(null)
     }
-  }, [accessToken, shareToken, selectedFileIds, selectedFolderIds, t])
+  }, [accessToken, folders, shareToken, selectedFileIds, selectedFolderIds, t])
 
   const selectAllFiles = useCallback(() => {
     const allFiles = [

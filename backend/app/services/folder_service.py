@@ -152,23 +152,22 @@ class FolderService(BaseService):
         self.storage.delete_all_versions(file.preview_object_key)
 
     self.repository.hard_delete(folder)
+    self.repository.commit()
 
   def restore_folder(self, user: User, folder_id: UUID) -> FolderWithFilesResponse:
     folder = self._get_folder(folder_id)
+    self._ensure_user_has_rights(user.id, folder.user_id)
 
     if folder.deleted_at is not None:
-      folder.deleted_at = None
+      folder_ids = self.repository.get_all_descendant_ids(folder.id) + [folder.id]
+      self.repository.restore_by_ids(folder_ids)
+      self.file_repository.restore_by_folders(folder_ids)
+      self.repository.refresh(folder)
 
-      self.file_repository.restore_by_folder(folder.id)
-
-      self.repository.save(folder)
-
-    folder_with_files = self.file_service.list_files(
+    return self.file_service.list_files(
       user,
       FileListParams(deleted=True, by_folder=True),
     )
-
-    return folder_with_files
 
   def _get_folder(self, folder_id: UUID) -> Folder:
     folder = self.repository.get_by_id(folder_id)

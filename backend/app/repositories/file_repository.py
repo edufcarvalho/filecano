@@ -2,10 +2,11 @@ from typing import Optional
 from uuid import UUID
 
 from sqlalchemy.orm import selectinload
-from sqlmodel import func, or_, select
+from sqlmodel import and_, func, or_, select, update
 
 from app.models import File
 from app.models.file_link_relation import FileLinkRelation
+from app.models.folder_link_relation import FolderLinkRelation
 from app.repositories.base_repository import BaseRepository
 
 
@@ -34,10 +35,17 @@ class FileRepository(BaseRepository[File]):
     query = (
       select(File)
       .join(FileLinkRelation, FileLinkRelation.file_id == File.id)
+      .join(FolderLinkRelation, FolderLinkRelation.folder_id == File.folder_id)
       .where(
         File.id == file_id,
         File.deleted_at.is_(None),
-        FileLinkRelation.link_id == link_id,
+        or_(
+          FileLinkRelation.link_id == link_id,
+          and_(
+            FolderLinkRelation.folder_id == File.folder_id,
+            FolderLinkRelation.link_id == link_id
+          )
+        )
       )
     )
 
@@ -140,6 +148,9 @@ class FileRepository(BaseRepository[File]):
   def delete_by_folder(self, folder_id: UUID) -> None:
     self.soft_delete_by_parent(File, "folder_id", folder_id)
 
+  def delete_by_folders(self, folder_ids: list[UUID]) -> None:
+    self.soft_delete_by_parents(File, "folder_id", folder_ids)
+
   def get_deleted_file_by_checksum_and_user(
     self, checksum: str, display_name: str, user_id: UUID
   ) -> File:
@@ -183,3 +194,9 @@ class FileRepository(BaseRepository[File]):
 
   def restore_by_folder(self, folder_id: UUID) -> None:
     self.restore_by_parent(File, "folder_id", folder_id)
+
+  def restore_by_folders(self, folder_ids: list[UUID]) -> None:
+    query = update(File).where(File.folder_id.in_(folder_ids)).values(deleted_at=None)
+
+    self.session.exec(query)
+    self.session.commit()

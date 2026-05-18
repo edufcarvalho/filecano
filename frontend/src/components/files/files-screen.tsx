@@ -34,6 +34,7 @@ import {
   buildParentMap,
   collectDescendantIds,
   collectFolderFiles,
+  excludeSelectedFolderContents,
   findFileInFolders,
   findFolderInTree,
   flattenFolderFileIds,
@@ -724,27 +725,29 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   const handleBulkDelete = useCallback(async () => {
     if (selectedFileIds.size === 0 && selectedFolderIds.size === 0) return
 
+    const { fileIds, folderIds } = excludeSelectedFolderContents(
+      folders,
+      selectedFileIds,
+      selectedFolderIds
+    )
+
     setError(null)
     setPendingFileId("bulk-delete")
 
     try {
       await Promise.all([
-        ...Array.from(selectedFileIds).map((fileId) =>
-          deleteFile(accessToken, fileId)
-        ),
-        ...Array.from(selectedFolderIds).map((folderId) =>
-          deleteFolder(accessToken, folderId)
-        ),
+        ...fileIds.map((fileId) => deleteFile(accessToken, fileId)),
+        ...folderIds.map((folderId) => deleteFolder(accessToken, folderId)),
       ])
       setFiles((currentFiles) =>
-        currentFiles.filter((file) => !selectedFileIds.has(file.id))
+        currentFiles.filter((file) => !fileIds.includes(file.id))
       )
       setFolders((currentFolders) => {
         let nextFolders = currentFolders
-        selectedFileIds.forEach((fileId) => {
+        fileIds.forEach((fileId) => {
           nextFolders = removeFileFromFolders(nextFolders, fileId)
         })
-        selectedFolderIds.forEach((folderId) => {
+        folderIds.forEach((folderId) => {
           nextFolders = removeFolderFromTree(nextFolders, folderId)
         })
         return nextFolders
@@ -762,7 +765,14 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     } finally {
       setPendingFileId(null)
     }
-  }, [accessToken, clearFileSelection, selectedFileIds, selectedFolderIds, t])
+  }, [
+    accessToken,
+    clearFileSelection,
+    folders,
+    selectedFileIds,
+    selectedFolderIds,
+    t,
+  ])
 
   const handleBulkDownload = useCallback(async () => {
     if (selectedFileIds.size === 0) return
@@ -795,11 +805,16 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
 
     setError(null)
     setNotice(null)
-    pendingShareFileIdsRef.current = Array.from(selectedFileIds)
-    pendingShareFolderIdsRef.current = Array.from(selectedFolderIds)
-    setPendingShareCount(selectedFileIds.size + selectedFolderIds.size)
+    const { fileIds, folderIds } = excludeSelectedFolderContents(
+      folders,
+      selectedFileIds,
+      selectedFolderIds
+    )
+    pendingShareFileIdsRef.current = fileIds
+    pendingShareFolderIdsRef.current = folderIds
+    setPendingShareCount(fileIds.length + folderIds.length)
     setShowExpirationDialog(true)
-  }, [selectedFileIds, selectedFolderIds])
+  }, [folders, selectedFileIds, selectedFolderIds])
 
   const executeShare = useCallback(
     async (expiration: LinkExpiration) => {
@@ -808,7 +823,9 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       if (fileIds.length === 0 && folderIds.length === 0) return
 
       const isBulk = (fileIds.length + folderIds.length) > 1
-      setPendingFileId(isBulk ? "bulk-share" : `share-${fileIds[0]}`)
+      setPendingFileId(
+        isBulk ? "bulk-share" : `share-${fileIds[0] ?? folderIds[0]}`
+      )
 
       try {
         const shareToken = await shareFiles(
