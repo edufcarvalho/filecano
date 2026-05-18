@@ -4,9 +4,8 @@ from io import BytesIO
 from typing import BinaryIO, Optional
 from uuid import UUID
 
-import PIL.Image
 from fastapi import UploadFile
-from PIL import UnidentifiedImageError
+from PIL import UnidentifiedImageError, Image
 from sqlalchemy.exc import SQLAlchemyError
 from urllib3.response import BaseHTTPResponse
 from uuid6 import uuid7
@@ -299,7 +298,7 @@ class FileService(BaseService):
   def _generate_preview(self, data: BinaryIO) -> tuple[BinaryIO, int, str]:
     """Generate a thumbnail preview for images."""
     data.seek(0)
-    img = PIL.Image.open(data)
+    img = Image.open(data)
 
     # Convert to RGB if necessary (for PNG with alpha, etc.)
     if img.mode in ("RGBA", "P"):
