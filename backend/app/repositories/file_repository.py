@@ -2,7 +2,7 @@ from typing import Optional
 from uuid import UUID
 
 from sqlalchemy.orm import selectinload
-from sqlmodel import func, or_, select, and_
+from sqlmodel import and_, func, or_, select
 
 from app.models import File, Folder
 from app.models.file_link_relation import FileLinkRelation
@@ -162,11 +162,8 @@ class FileRepository(BaseRepository[File]):
         File.user_id == user_id,
         or_(
           File.deleted_at.is_not(None),
-          and_(
-            File.deleted_at.is_not(None),
-            Folder.deleted_at.is_(None)
-          )
-        )
+          and_(File.deleted_at.is_not(None), Folder.deleted_at.is_(None)),
+        ),
       )
       .order_by(File.id.desc())
     )

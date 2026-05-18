@@ -2,7 +2,6 @@ from typing import Optional
 from uuid import UUID
 
 from sqlmodel import delete, func, or_, select
-from sqlmodel.sql.expression import SelectOfScalar
 
 from app.models import File, Folder, FolderLinkRelation
 from app.repositories.base_repository import BaseRepository
@@ -42,9 +41,7 @@ class FolderRepository(BaseRepository[Folder]):
 
     return self.session.exec(query).all()
 
-  def list_by_user(
-    self, user_id: UUID, deleted: bool = False
-  ) -> list[Folder]:
+  def list_by_user(self, user_id: UUID, deleted: bool = False) -> list[Folder]:
     query = select(Folder).where(Folder.user_id == user_id).order_by(Folder.id.desc())
 
     if deleted:

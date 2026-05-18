@@ -27,4 +27,3 @@ class FolderResponse(BaseModel):
   deleted_at: Optional[datetime] = None
 
   model_config = ConfigDict(from_attributes=True)
-
