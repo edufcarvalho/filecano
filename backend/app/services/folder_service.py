@@ -54,7 +54,7 @@ class FolderService(BaseService):
     if folder.deleted_at is not None:
       raise GoneError("One or more folders you're trying to clone have been deleted")
 
-    clone = self._duplicate_folder(user, folder, parent)
+    clone = self._duplicate_folder(user, folder, parent.id if parent else None)
 
     self.repository.add(clone)
 
@@ -67,9 +67,9 @@ class FolderService(BaseService):
     return clone
 
   def _duplicate_folder(
-    self, user: User, folder: Folder, parent: Optional[Folder] = None
+    self, user: User, folder: Folder, parent_id: Optional[UUID] = None
   ) -> Folder:
-    name = self._get_unique_foldername(user.id, folder.name)
+    name = self._get_unique_foldername(user.id, folder.name, parent_id)
 
     clone = Folder.model_validate(
       folder.model_dump()
@@ -77,7 +77,7 @@ class FolderService(BaseService):
         "id": uuid7(),
         "user_id": user.id,
         "name": name,
-        "parent_id": parent.id if parent else None,
+        "parent_id": parent_id,
         "created_at": current_datetime(),
       }
     )
@@ -177,8 +177,12 @@ class FolderService(BaseService):
 
     return folder
 
-  def _get_unique_foldername(self, user_id: UUID, original_name: str) -> str:
-    count = self.repository.foldername_stored_by_user_count(original_name, user_id)
+  def _get_unique_foldername(
+    self, user_id: UUID, original_name: str, parent_id: UUID | None
+  ) -> str:
+    count = self.repository.foldername_stored_by_user_count(
+      original_name, user_id, parent_id
+    )
 
     if count > 0:
       return f"{original_name} ({count})"

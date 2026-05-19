@@ -5,13 +5,14 @@ from typing import BinaryIO, Optional
 from uuid import UUID
 
 from fastapi import UploadFile
-from PIL import UnidentifiedImageError, Image
+from PIL import Image, UnidentifiedImageError
 from sqlalchemy.exc import SQLAlchemyError
 from urllib3.response import BaseHTTPResponse
 from uuid6 import uuid7
 
 from app.core import (
   FileTooLargeError,
+  ForbiddenError,
   GoneError,
   NotFoundError,
   Settings,
@@ -178,14 +179,19 @@ class FileService(BaseService):
 
     if params.original_name is not None:
       file.original_name = params.original_name
-      file.display_name = self._get_unique_filename(user.id, params.original_name)
+      file.display_name = self._get_unique_filename(
+        user.id, params.original_name, params.folder_id or file.folder_id
+      )
 
     if "folder_id" in params.model_fields_set:
       if params.folder_id is not None:
         folder = self.folder_repository.get_by_id(params.folder_id)
 
-        if not folder or folder.user_id != user.id or folder.deleted_at is not None:
+        if not folder or folder.deleted_at is not None:
           raise NotFoundError("Folder not found")
+
+        if folder.user_id != user.id:
+          raise ForbiddenError("You do not have permission to access this folder")
 
       file.folder_id = params.folder_id
 
@@ -270,9 +276,13 @@ class FileService(BaseService):
 
     raise UnsupportedFileTypeError("File type not supported")
 
-  def _get_unique_filename(self, user_id: UUID, original_name: str) -> str:
+  def _get_unique_filename(
+    self, user_id: UUID, original_name: str, folder_id: UUID | None
+  ) -> str:
     original_name = self._remove_file_extensions(original_name)
-    count = self.repository.filename_stored_by_user_count(original_name, user_id)
+    count = self.repository.filename_stored_by_user_count(
+      original_name, user_id, folder_id
+    )
 
     if count > 0:
       return f"{original_name} ({count})"

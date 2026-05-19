@@ -118,12 +118,15 @@ class FolderRepository(BaseRepository[Folder]):
 
     return self.session.exec(query).all()
 
-  def foldername_stored_by_user_count(self, name: str, user_id: UUID) -> int:
+  def foldername_stored_by_user_count(
+    self, name: str, user_id: UUID, parent_id: UUID | None
+  ) -> int:
     pattern = rf"^{name} \([0-9]+\)$"
 
     query = select(func.count()).where(
       Folder.deleted_at.is_(None),
       Folder.user_id == user_id,
+      Folder.parent_id == parent_id,
       or_(
         Folder.name == name,
         Folder.name.op("~")(pattern),
