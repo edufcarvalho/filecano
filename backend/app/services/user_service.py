@@ -1,5 +1,3 @@
-from sqlalchemy.exc import IntegrityError
-
 from app.core import ConflictError, hash_password
 from app.models import User
 from app.repositories import UserRepository
@@ -24,8 +22,8 @@ class UserService:
     )
 
     self.repository.add(user)
-
-    self._try_save_user(user)
+    self.repository.commit()
+    self.repository.refresh(user)
 
     return user
 
@@ -43,8 +41,8 @@ class UserService:
       user.hashed_password = hash_password(params.password)
 
     self.repository.add(user)
-
-    self._try_save_user(user)
+    self.repository.commit()
+    self.repository.refresh(user)
 
     return user
 
@@ -52,11 +50,3 @@ class UserService:
     user = self.repository.get_by_email(email)
 
     return user is not None
-
-  def _try_save_user(self, user: User) -> User:
-    try:
-      self.repository.commit()
-      self.repository.refresh(user)
-    except IntegrityError as error:
-      self.repository.rollback()
-      raise ConflictError("Email already registered") from error
