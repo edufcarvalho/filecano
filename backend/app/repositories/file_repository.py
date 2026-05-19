@@ -190,7 +190,6 @@ class FileRepository(BaseRepository[File]):
     file.folder_id = None
 
     self.add(file)
-    self.commit()
     self.refresh(file)
 
     return file
@@ -202,4 +201,3 @@ class FileRepository(BaseRepository[File]):
     query = update(File).where(File.folder_id.in_(folder_ids)).values(deleted_at=None)
 
     self.session.exec(query)
-    self.session.commit()

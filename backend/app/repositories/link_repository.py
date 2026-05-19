@@ -31,4 +31,3 @@ class LinkRepository(BaseRepository[Link]):
 
   def delete(self, link: Link) -> None:
     self.hard_delete(link)
-    self.commit()

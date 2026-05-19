@@ -13,7 +13,7 @@ class TestUserService(DatabaseTestCase):
     from app.repositories import UserRepository
 
     self.repo = UserRepository(self.session)
-    self.service = UserService(self.repo, self.session)
+    self.service = UserService(self.repo)
 
   def test_create_user_success(self):
     """create_user should create and return a new user."""
@@ -115,8 +115,8 @@ class TestUserService(DatabaseTestCase):
     params = UserUpdateParams(email="conflict@test.com")
 
     with (
-      patch.object(self.service.session, "commit") as mock_commit,
-      patch.object(self.service.session, "rollback") as mock_rollback,
+      patch.object(self.service.repository, "commit") as mock_commit,
+      patch.object(self.service.repository, "rollback") as mock_rollback,
     ):
       mock_commit.side_effect = IntegrityError("mock", None, None)
       with self.assertRaises(

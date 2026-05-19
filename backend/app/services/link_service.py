@@ -64,6 +64,7 @@ class LinkService(BaseService):
     link.token = self._generate_token(link)
 
     link = self.repository.save(link)
+    self.repository.commit()
 
     return {
       "access_token": link.token,
@@ -147,7 +148,12 @@ class LinkService(BaseService):
     self._ensure_user_has_rights(user.id, link.user_id)
 
     link.custom_name = custom_name
-    return self.repository.update(link)
+
+    link = self.repository.update(link)
+
+    self.repository.commit()
+
+    return link
 
   def restore_link(
     self, user: User, token: str, params: Optional[LinkRestoreParams] = None
@@ -162,13 +168,18 @@ class LinkService(BaseService):
     else:
       link.expires_at = self._resolve_expires_at()
 
-    return self.repository.update(link)
+    link = self.repository.update(link)
+
+    self.repository.commit()
+
+    return link
 
   def delete_link(self, user: User, token: str) -> None:
     link = self._get_link(token)
     self._ensure_user_has_rights(user.id, link.user_id)
 
     self.repository.delete(link)
+    self.repository.commit()
 
   def clone_shared_objects(
     self,

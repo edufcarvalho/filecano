@@ -81,9 +81,8 @@ def get_user_repository(session: Session = Depends(get_session)) -> UserReposito
 
 def get_user_service(
   repository: UserRepository = Depends(get_user_repository),
-  session: Session = Depends(get_session),
 ) -> UserService:
-  return UserService(repository, session)
+  return UserService(repository)
 
 
 def get_auth_service(

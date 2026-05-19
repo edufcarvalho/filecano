@@ -196,6 +196,7 @@ class FileService(BaseService):
       file.folder_id = params.folder_id
 
     self.repository.save(file)
+    self.repository.commit()
 
     return file
 
@@ -226,7 +227,15 @@ class FileService(BaseService):
       return file
 
     self.storage.restore_soft_deleted(file.object_key)
-    return self.repository.restore(file)
+
+    file = self.repository.restore(file)
+
+    try:
+      self.repository.commit()
+    except:
+      self.storage.soft_delete(file.object_key)
+
+    return file
 
   def stream_response(self, response: BaseHTTPResponse):
     return self.storage.iter_response(response)
@@ -303,7 +312,9 @@ class FileService(BaseService):
       return None
 
     self.storage.restore_soft_deleted(file.object_key)
-    return self.repository.restore(file)
+    file = self.repository.restore(file)
+    self.repository.commit()
+    return file
 
   def _generate_preview(self, data: BinaryIO) -> tuple[BinaryIO, int, str]:
     """Generate a thumbnail preview for images."""

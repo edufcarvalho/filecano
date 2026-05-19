@@ -88,7 +88,6 @@ class FolderRepository(BaseRepository[Folder]):
       .values(deleted_at=current_datetime())
     )
     self.session.exec(query)
-    self.session.commit()
 
   def delete_by_id(self, folder_id: UUID) -> None:
     folder = self.session.get(Folder, folder_id)
@@ -153,7 +152,6 @@ class FolderRepository(BaseRepository[Folder]):
     query = delete(Folder).where(Folder.id == folder_id)
 
     self.session.exec(query)
-    self.session.commit()
 
   def restore_by_ids(self, folder_ids: list[UUID]) -> None:
     if not folder_ids:
@@ -161,4 +159,3 @@ class FolderRepository(BaseRepository[Folder]):
 
     query = update(Folder).where(Folder.id.in_(folder_ids)).values(deleted_at=None)
     self.session.exec(query)
-    self.session.commit()
