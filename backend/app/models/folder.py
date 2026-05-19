@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlmodel import (
   DateTime,
   Field,
+  Index,
   Relationship,
   SQLModel,
   and_,
@@ -81,4 +82,13 @@ class Folder(SQLModel, table=True):
   )
   links: list["Link"] = Relationship(
     back_populates="folders", link_model=FolderLinkRelation
+  )
+
+  __table_args__ = (
+    Index(
+      "ix_name_trgm",
+      "name",
+      postgresql_using="gin",
+      postgresql_ops={"name": "gin_trgm_ops"},
+    ),
   )

@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
-from sqlmodel import BigInteger, Column, DateTime, Field, Relationship, SQLModel
+from sqlmodel import BigInteger, Column, DateTime, Field, Index, Relationship, SQLModel
 from uuid6 import uuid7
 
 from app.models.file_link_relation import FileLinkRelation
@@ -23,7 +23,7 @@ class File(SQLModel, table=True):
     foreign_key="folders.id", nullable=True, ondelete="CASCADE"
   )
   object_key: str = Field(nullable=False, unique=True)
-  original_name: str = Field(nullable=False, index=True)
+  original_name: str = Field(nullable=False)
   display_name: str = Field(nullable=False)
 
   content_type: Optional[str] = Field(default=None)
@@ -49,3 +49,19 @@ class File(SQLModel, table=True):
     back_populates="files", link_model=FileLinkRelation
   )
   folder: "Folder" = Relationship(back_populates="files")
+
+  __table_args__ = (
+    Index(
+      "ix_original_name_trgm",
+      "original_name",
+      postgresql_using="gin",
+      postgresql_ops={"original_name": "gin_trgm_ops"}
+    ),
+    Index(
+      "ix_display_name_trgm",
+      "display_name",
+      postgresql_using="gin",
+      postgresql_ops={"display_name": "gin_trgm_ops"}
+    ),
+  )
+
