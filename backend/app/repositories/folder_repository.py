@@ -87,10 +87,12 @@ class FolderRepository(BaseRepository[Folder]):
       .where(Folder.id.in_(folder_ids))
       .values(deleted_at=current_datetime())
     )
+
     self.session.exec(query)
 
   def delete_by_id(self, folder_id: UUID) -> None:
     folder = self.session.get(Folder, folder_id)
+
     if folder:
       self.session.delete(folder)
 

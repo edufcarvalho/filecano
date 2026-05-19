@@ -19,10 +19,14 @@ class BaseRepository(Generic[Model]):
 
   def add(self, entity: Model) -> Model:
     self.session.add(entity)
+    self.session.flush()
+
     return entity
 
   def add_all(self, entities: list[Model]) -> list[Model]:
     self.session.add_all(entities)
+    self.session.flush()
+
     return entities
 
   def commit(self) -> None:
@@ -37,16 +41,21 @@ class BaseRepository(Generic[Model]):
   def save(self, entity: Model) -> Model:
     self.add(entity)
     self.refresh(entity)
+
     return entity
 
   def save_all(self, entities: list[Model]) -> list[Model]:
     self.add_all(entities)
+    self.session.flush()
+
     for entity in entities:
       self.refresh(entity)
+
     return entities
 
   def hard_delete(self, entity: Model) -> None:
     self.session.delete(entity)
+    self.session.flush()
 
   def soft_delete_by_parent(
     self, model: type, parent_field: str, parent_id: UUID
@@ -76,10 +85,5 @@ class BaseRepository(Generic[Model]):
       .where(getattr(model, parent_field) == parent_id)
       .values(deleted_at=None)
     )
-    self.session.exec(query)
 
-  @staticmethod
-  def _active_filter(model: type, include_deleted: bool = False):
-    if include_deleted:
-      return model.deleted_at.is_not(None)
-    return model.deleted_at.is_(None)
+    self.session.exec(query)
