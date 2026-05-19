@@ -55,13 +55,12 @@ class File(SQLModel, table=True):
       "ix_original_name_trgm",
       "original_name",
       postgresql_using="gin",
-      postgresql_ops={"original_name": "gin_trgm_ops"}
+      postgresql_ops={"original_name": "gin_trgm_ops"},
     ),
     Index(
       "ix_display_name_trgm",
       "display_name",
       postgresql_using="gin",
-      postgresql_ops={"display_name": "gin_trgm_ops"}
+      postgresql_ops={"display_name": "gin_trgm_ops"},
     ),
   )
-
