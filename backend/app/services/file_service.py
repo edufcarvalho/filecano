@@ -240,13 +240,21 @@ class FileService(BaseService):
   def stream_response(self, response: BaseHTTPResponse):
     return self.storage.iter_response(response)
 
-  def _delete_file_permanently(self, file: File) -> None:
+  def _delete_file_permanently(self, file: File, commit: bool = True) -> None:
     self.storage.delete_all_versions(file.object_key)
 
     if file.preview_object_key:
       self.storage.delete_all_versions(file.preview_object_key)
 
     self.repository.hard_delete(file)
+
+    if commit:
+      self.repository.commit()
+
+  def enforce_retention_policy(self) -> None:
+    for file in self.repository.list_not_retainable():
+      self._delete_file_permanently(file, commit=False)
+
     self.repository.commit()
 
   def _get_user_file(self, user: User, file_id: UUID) -> File:

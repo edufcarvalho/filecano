@@ -1,8 +1,10 @@
+from datetime import timedelta
 from typing import Generic, Optional, TypeVar
 from uuid import UUID
 
-from sqlmodel import Session, SQLModel, update
+from sqlmodel import Session, SQLModel, select, update
 
+from app.core import Settings
 from app.utils.time import current_datetime
 
 Model = TypeVar("Model", bound="SQLModel")
@@ -11,8 +13,9 @@ Model = TypeVar("Model", bound="SQLModel")
 class BaseRepository(Generic[Model]):
   model: type[Model]
 
-  def __init__(self, session: Session):
+  def __init__(self, session: Session, settings: Settings):
     self.session = session
+    self.settings = settings
 
   def get_by_id(self, id: UUID) -> Optional[Model]:
     return self.session.get(self.model, id)
@@ -83,3 +86,12 @@ class BaseRepository(Generic[Model]):
     )
 
     self.session.exec(query)
+
+  def list_not_retainable(self):
+    query = select(self.model).where(
+      self.model.deleted_at.is_not(None),
+      self.model.deleted_at + timedelta(days=self.settings.data_retention_policy)
+      <= current_datetime(),
+    )
+
+    return self.session.exec(query).all()

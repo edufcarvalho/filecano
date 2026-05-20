@@ -173,6 +173,10 @@ class FolderService(BaseService):
       FileListParams(deleted=True, by_folder=True),
     )
 
+  def enforce_retention_policy(self) -> None:
+    for folder in self.repository.list_not_retainable():
+      self._delete_folder_permanently(folder)
+
   def _get_folder(self, folder_id: UUID) -> Folder:
     folder = self.repository.get_by_id(folder_id)
 

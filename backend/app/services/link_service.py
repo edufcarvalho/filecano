@@ -199,6 +199,9 @@ class LinkService(BaseService):
       self.settings.share_token_length
     )
 
+  def enforce_retention_policy(self) -> None:
+    self.repository.delete_not_retainable()
+
   def _resolve_expires_at(
     self,
     expires_at: Optional[datetime] = None,

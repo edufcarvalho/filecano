@@ -46,6 +46,9 @@ class UserService:
 
     return user
 
+  def enforce_retention_policy(self) -> None:
+    self.repository.delete_not_retainable()
+
   def _user_exists(self, email: str) -> bool:
     user = self.repository.get_by_email(email)
 

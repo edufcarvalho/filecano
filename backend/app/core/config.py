@@ -25,6 +25,7 @@ class Settings(BaseSettings):
   max_file_size_bytes: int = 2147483648
   redis_url: str = "redis://:1234:6379/0"
   celery_broker_url: str = "redis://:1234:6379/0"
+  data_retention_policy: int = 45
 
   @property
   def cors_origin_list(self) -> list[str]:

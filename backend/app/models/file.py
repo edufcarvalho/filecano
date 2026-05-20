@@ -2,7 +2,15 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
-from sqlmodel import BigInteger, Column, DateTime, Field, ForeignKey, Index, Relationship, SQLModel
+from sqlmodel import (
+  BigInteger,
+  Column,
+  DateTime,
+  Field,
+  Index,
+  Relationship,
+  SQLModel,
+)
 from uuid6 import uuid7
 
 from app.models.file_link_relation import FileLinkRelation

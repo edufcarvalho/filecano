@@ -19,8 +19,10 @@ from app.services import (
 )
 
 
-def get_file_repository(session: Session = Depends(get_session)) -> FileRepository:
-  return FileRepository(session)
+def get_file_repository(
+  session: Session = Depends(get_session), settings: Settings = Depends(get_settings)
+) -> FileRepository:
+  return FileRepository(session, settings)
 
 
 def get_file_storage_service(
@@ -29,8 +31,10 @@ def get_file_storage_service(
   return FileStorageService(settings)
 
 
-def get_folder_repository(session: Session = Depends(get_session)) -> FolderRepository:
-  return FolderRepository(session)
+def get_folder_repository(
+  session: Session = Depends(get_session), settings: Settings = Depends(get_settings)
+) -> FolderRepository:
+  return FolderRepository(session, settings)
 
 
 def get_file_service(
@@ -51,8 +55,10 @@ def get_folder_service(
   return FolderService(repository, file_repository, file_service, storage_service)
 
 
-def get_link_repository(session: Session = Depends(get_session)) -> LinkRepository:
-  return LinkRepository(session)
+def get_link_repository(
+  session: Session = Depends(get_session), settings: Settings = Depends(get_settings)
+) -> LinkRepository:
+  return LinkRepository(session, settings)
 
 
 def get_link_service(
@@ -75,8 +81,10 @@ def get_link_service(
   )
 
 
-def get_user_repository(session: Session = Depends(get_session)) -> UserRepository:
-  return UserRepository(session)
+def get_user_repository(
+  session: Session = Depends(get_session), settings: Settings = Depends(get_settings)
+) -> UserRepository:
+  return UserRepository(session, settings)
 
 
 def get_user_service(
