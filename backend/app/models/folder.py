@@ -43,7 +43,7 @@ class Folder(SQLModel, table=True):
     sa_relationship_kwargs={
       "lazy": "selectin",
       "primaryjoin": lambda: and_(
-        Folder.id == File.folder_id,
+        Folder.id == File.parent_id,
         or_(
           and_(
             Folder.deleted_at.is_(None),

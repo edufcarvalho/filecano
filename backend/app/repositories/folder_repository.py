@@ -32,8 +32,10 @@ class FolderRepository(BaseRepository[Folder]):
       select(Folder)
       .join(
         FolderLinkRelation,
-        FolderLinkRelation.link_id == link_id,
-        FolderLinkRelation.folder_id == Folder.id,
+        and_(
+          FolderLinkRelation.link_id == link_id,
+          FolderLinkRelation.folder_id == Folder.id,
+        ),
       )
       .where(
         Folder.id.in_(folder_ids),
@@ -79,7 +81,7 @@ class FolderRepository(BaseRepository[Folder]):
     return self.session.exec(query).all()
 
   def delete_children(self, parent_id: UUID) -> None:
-    self.soft_delete_by_parent(Folder, "parent_id", parent_id)
+    self.soft_delete_by_parent(parent_id)
 
   def soft_delete_by_ids(self, folder_ids: list[UUID]) -> None:
     query = (
@@ -115,7 +117,7 @@ class FolderRepository(BaseRepository[Folder]):
     return list(descendants)
 
   def get_files_by_folder_ids(self, folder_ids: list[UUID]) -> list[File]:
-    query = select(File).where(File.folder_id.in_(folder_ids))
+    query = select(File).where(File.parent_id.in_(folder_ids))
 
     return self.session.exec(query).all()
 

@@ -57,32 +57,28 @@ class BaseRepository(Generic[Model]):
     self.session.delete(entity)
     self.session.flush()
 
-  def soft_delete_by_parent(
-    self, model: type, parent_field: str, parent_id: UUID
-  ) -> None:
+  def soft_delete_by_parent(self, parent_id: UUID) -> None:
     query = (
-      update(model)
-      .where(getattr(model, parent_field) == parent_id)
+      update(self.model)
+      .where(self.model.parent_id == parent_id)
       .values(deleted_at=current_datetime())
     )
 
     self.session.exec(query)
 
-  def soft_delete_by_parents(
-    self, model: type, parent_field: str, parent_ids: list[UUID]
-  ) -> None:
+  def soft_delete_by_parents(self, parent_ids: list[UUID]) -> None:
     query = (
-      update(model)
-      .where(getattr(model, parent_field).in_(parent_ids))
+      update(self.model)
+      .where(self.model.parent_id.in_(parent_ids))
       .values(deleted_at=current_datetime())
     )
 
     self.session.exec(query)
 
-  def restore_by_parent(self, model: type, parent_field: str, parent_id: UUID) -> None:
+  def restore_by_parent(self, parent_id: UUID) -> None:
     query = (
-      update(model)
-      .where(getattr(model, parent_field) == parent_id)
+      update(self.model)
+      .where(self.model.parent_id == parent_id)
       .values(deleted_at=None)
     )
 

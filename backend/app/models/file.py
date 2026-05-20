@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
-from sqlmodel import BigInteger, Column, DateTime, Field, Index, Relationship, SQLModel
+from sqlmodel import BigInteger, Column, DateTime, Field, ForeignKey, Index, Relationship, SQLModel
 from uuid6 import uuid7
 
 from app.models.file_link_relation import FileLinkRelation
@@ -19,7 +19,7 @@ class File(SQLModel, table=True):
 
   id: UUID = Field(default_factory=uuid7, primary_key=True)
   user_id: UUID = Field(foreign_key="users.id", nullable=False, ondelete="CASCADE")
-  folder_id: Optional[UUID] = Field(
+  parent_id: Optional[UUID] = Field(
     foreign_key="folders.id", nullable=True, ondelete="CASCADE"
   )
   object_key: str = Field(nullable=False, unique=True)
@@ -49,6 +49,14 @@ class File(SQLModel, table=True):
     back_populates="files", link_model=FileLinkRelation
   )
   folder: "Folder" = Relationship(back_populates="files")
+
+  @property
+  def folder_id(self) -> Optional[UUID]:
+    return self.parent_id
+
+  @folder_id.setter
+  def folder_id(self, value: Optional[UUID]) -> None:
+    self.parent_id = value
 
   __table_args__ = (
     Index(

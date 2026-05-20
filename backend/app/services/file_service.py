@@ -52,7 +52,7 @@ class FileService(BaseService):
   ) -> File:
     checksum, size_bytes = self._checksum_and_size(upload.file)
     original_name = upload.filename or "unnamed"
-    display_name = self._get_unique_filename(user.id, original_name)
+    display_name = self._get_unique_filename(user.id, original_name, folder_id)
 
     if size_bytes > self.settings.max_file_size_bytes:
       raise FileTooLargeError(
@@ -71,7 +71,7 @@ class FileService(BaseService):
       original_name=original_name,
       display_name=display_name,
       content_type=upload.content_type,
-      folder_id=folder_id,
+      parent_id=folder_id,
     )
 
     file.object_key = f"users/{user.id}/files/{file.id}"
@@ -180,7 +180,7 @@ class FileService(BaseService):
     if params.original_name is not None:
       file.original_name = params.original_name
       file.display_name = self._get_unique_filename(
-        user.id, params.original_name, params.folder_id or file.folder_id
+        user.id, params.original_name, params.folder_id or file.parent_id
       )
 
     if "folder_id" in params.model_fields_set:
@@ -193,7 +193,7 @@ class FileService(BaseService):
         if folder.user_id != user.id:
           raise ForbiddenError("You do not have permission to access this folder")
 
-      file.folder_id = params.folder_id
+      file.parent_id = params.folder_id
 
     self.repository.save(file)
     self.repository.commit()
@@ -232,7 +232,7 @@ class FileService(BaseService):
 
     try:
       self.repository.commit()
-    except:
+    except Exception:
       self.storage.soft_delete(file.object_key)
 
     return file
@@ -286,7 +286,7 @@ class FileService(BaseService):
     raise UnsupportedFileTypeError("File type not supported")
 
   def _get_unique_filename(
-    self, user_id: UUID, original_name: str, folder_id: UUID | None
+    self, user_id: UUID, original_name: str, folder_id: UUID | None = None
   ) -> str:
     original_name = self._remove_file_extensions(original_name)
     count = self.repository.filename_stored_by_user_count(
@@ -363,7 +363,7 @@ class FileService(BaseService):
         "user_id": user_id,
         "original_name": file.display_name,
         "display_name": display_name,
-        "folder_id": None,
+        "parent_id": None,
         "created_at": current_datetime(),
         "object_key": object_key,
         "preview_object_key": preview_object_key,

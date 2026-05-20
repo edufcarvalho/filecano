@@ -35,14 +35,18 @@ class FileRepository(BaseRepository[File]):
     query = (
       select(File)
       .join(FileLinkRelation, FileLinkRelation.file_id == File.id)
-      .join(FolderLinkRelation, FolderLinkRelation.folder_id == File.folder_id)
+      .join(
+        FolderLinkRelation,
+        FolderLinkRelation.folder_id == File.parent_id,
+        isouter=True,
+      )
       .where(
         File.id == file_id,
         File.deleted_at.is_(None),
         or_(
           FileLinkRelation.link_id == link_id,
           and_(
-            FolderLinkRelation.folder_id == File.folder_id,
+            FolderLinkRelation.folder_id == File.parent_id,
             FolderLinkRelation.link_id == link_id,
           ),
         ),
@@ -58,8 +62,10 @@ class FileRepository(BaseRepository[File]):
       select(File)
       .join(
         FileLinkRelation,
-        FileLinkRelation.file_id == File.id,
-        FileLinkRelation.link_id == link_id,
+        and_(
+          FileLinkRelation.file_id == File.id,
+          FileLinkRelation.link_id == link_id,
+        ),
       )
       .where(
         File.id.in_(file_ids),
@@ -111,7 +117,7 @@ class FileRepository(BaseRepository[File]):
   def list_by_user(self, user_id: UUID, deleted: bool = False) -> list[File]:
     query = (
       select(File)
-      .where(File.user_id == user_id, File.folder_id.is_(None))
+      .where(File.user_id == user_id, File.parent_id.is_(None))
       .order_by(File.id.desc())
     )
 
@@ -139,7 +145,7 @@ class FileRepository(BaseRepository[File]):
     query = select(func.count()).where(
       File.deleted_at.is_(None),
       File.user_id == user_id,
-      File.folder_id == folder_id,
+      File.parent_id == folder_id,
       or_(
         File.original_name == original_name,
         File.display_name.op("~")(pattern),
@@ -149,10 +155,10 @@ class FileRepository(BaseRepository[File]):
     return self.session.exec(query).one()
 
   def delete_by_folder(self, folder_id: UUID) -> None:
-    self.soft_delete_by_parent(File, "folder_id", folder_id)
+    self.soft_delete_by_parent(folder_id)
 
   def delete_by_folders(self, folder_ids: list[UUID]) -> None:
-    self.soft_delete_by_parents(File, "folder_id", folder_ids)
+    self.soft_delete_by_parents(folder_ids)
 
   def get_deleted_file_by_checksum_and_user(
     self, checksum: str, display_name: str, user_id: UUID
@@ -173,7 +179,7 @@ class FileRepository(BaseRepository[File]):
       select(File)
       .where(
         File.user_id == user_id,
-        File.folder_id.is_(None),
+        File.parent_id.is_(None),
       )
       .order_by(File.id.desc())
     )
@@ -187,7 +193,7 @@ class FileRepository(BaseRepository[File]):
 
   def restore(self, file: File) -> File:
     file.deleted_at = None
-    file.folder_id = None
+    file.parent_id = None
 
     self.add(file)
     self.refresh(file)
@@ -195,9 +201,9 @@ class FileRepository(BaseRepository[File]):
     return file
 
   def restore_by_folder(self, folder_id: UUID) -> None:
-    self.restore_by_parent(File, "folder_id", folder_id)
+    self.restore_by_parent(folder_id)
 
   def restore_by_folders(self, folder_ids: list[UUID]) -> None:
-    query = update(File).where(File.folder_id.in_(folder_ids)).values(deleted_at=None)
+    query = update(File).where(File.parent_id.in_(folder_ids)).values(deleted_at=None)
 
     self.session.exec(query)

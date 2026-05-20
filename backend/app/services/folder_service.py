@@ -40,7 +40,7 @@ class FolderService(BaseService):
       parent = self._get_folder(params.parent_id)
       self._ensure_user_has_rights(user.id, parent.user_id)
 
-    name = self._get_unique_foldername(user.id, params.name)
+    name = self._get_unique_foldername(user.id, params.name, params.parent_id)
 
     folder = Folder(user=user, name=name, parent_id=params.parent_id)
 
