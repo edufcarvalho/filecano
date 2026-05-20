@@ -168,6 +168,37 @@ class TestFolderService(DatabaseTestCase):
     self.assertIsNone(result.deleted_at, "folder should be active")
     self.file_service.list_files.assert_not_called()
 
+  def test_restore_folder_clears_parent_id_when_parent_is_deleted(self):
+    """restore_folder should clear parent_id when the parent is still deleted."""
+    parent = self._create_folder(self.user.id, name="DeletedParent")
+    parent.deleted_at = parent.created_at
+    self.session.add(parent)
+    self.session.commit()
+
+    child = self._create_folder(self.user.id, name="Child", parent_id=parent.id)
+    child.deleted_at = child.created_at
+    self.session.add(child)
+    self.session.commit()
+
+    self.service.restore_folder(self.user, child.id)
+    self.session.refresh(child)
+    self.assertIsNone(child.parent_id, "parent_id should be cleared to None")
+    self.assertIsNone(child.deleted_at, "child should be restored")
+
+  def test_restore_folder_keeps_parent_id_when_parent_is_active(self):
+    """restore_folder should keep parent_id when the parent is not deleted."""
+    parent = self._create_folder(self.user.id, name="ActiveParent")
+
+    child = self._create_folder(self.user.id, name="Child", parent_id=parent.id)
+    child.deleted_at = child.created_at
+    self.session.add(child)
+    self.session.commit()
+
+    self.service.restore_folder(self.user, child.id)
+    self.session.refresh(child)
+    self.assertEqual(child.parent_id, parent.id, "parent_id should remain")
+    self.assertIsNone(child.deleted_at, "child should be restored")
+
   def test_get_folder_nonexistent_raises(self):
     """_get_folder should raise NotFoundError for nonexistent folder."""
     with self.assertRaises(
