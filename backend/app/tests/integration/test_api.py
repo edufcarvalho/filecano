@@ -157,10 +157,11 @@ class TestFileEndpoints(ApiTestCase):
     self.token = self._register_and_login(email="filetest@test.com")
 
   def _upload_text_file(self, filename="test.txt"):
+    content = b"hello world"
     resp = self.client.post(
       "/api/v1/files",
       files={
-        "file": (filename, BytesIO(b"hello world"), "text/plain"),
+        "file": (filename, BytesIO(content), "text/plain"),
       },
       headers=self._auth_headers(self.token),
     )
@@ -323,6 +324,29 @@ class TestFileEndpoints(ApiTestCase):
       headers=self._auth_headers(self.token),
     )
     self.assertEqual(resp.status_code, 204, "permanent delete should return 204")
+
+  def test_upload_file_too_large(self):
+    """POST /api/v1/files should reject files exceeding max size."""
+    from app.core import Settings, get_settings
+
+    small_settings = Settings(
+      max_file_size_bytes=5,
+      jwt_secret_key="test-key",
+    )
+
+    self.app.dependency_overrides[get_settings] = lambda: small_settings
+    try:
+      content = b"much larger content than allowed"
+      resp = self.client.post(
+        "/api/v1/files",
+        files={
+          "file": ("big.txt", BytesIO(content), "text/plain"),
+        },
+        headers=self._auth_headers(self.token),
+      )
+      self.assertEqual(resp.status_code, 413, "oversized file should return 413")
+    finally:
+      del self.app.dependency_overrides[get_settings]
 
   def _upload_jpeg_file(self, filename="photo.jpg"):
     """Upload a real JPEG image and return its file_id."""

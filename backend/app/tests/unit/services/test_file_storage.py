@@ -4,25 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from app.core import NotFoundError, Settings, StorageError
 from app.services.file_storage_service import FileStorageService
-
-
-def _make_s3error(code="Error", message="test error"):
-  from minio.error import S3Error
-
-  mock_response = MagicMock()
-  mock_response.data = b""
-  mock_response.status = 500
-  mock_response.headers = {}
-  return S3Error(
-    response=mock_response,
-    code=code,
-    message=message,
-    resource="test-resource",
-    request_id="test-id",
-    host_id="test-host",
-    bucket_name="test-bucket",
-    object_name="test-object",
-  )
+from app.tests.unit.helpers import make_s3_error, make_versioned_object
 
 
 class TestFileStorageService(unittest.TestCase):
@@ -47,23 +29,35 @@ class TestFileStorageService(unittest.TestCase):
 
   def test_init_creates_minio_client(self):
     """__init__ should create a Minio client with settings."""
-    self.mock_minio.assert_called_once()
+    self.mock_minio.assert_called_once_with(
+      "localhost:9000",
+      access_key="minioadmin",
+      secret_key="minioadmin",
+      secure=False,
+    )
 
   def test_upload_calls_put_object(self):
     """upload should call put_object on the Minio client."""
     data = BytesIO(b"test data")
     self.storage.upload("test/key", data, 9, "text/plain")
-    self.minio_instance.put_object.assert_called_once()
+    self.minio_instance.put_object.assert_called_once_with(
+      "filecano-test",
+      "test/key",
+      data,
+      9,
+      content_type="text/plain",
+    )
 
   def test_upload_creates_bucket_if_missing(self):
     """upload should ensure bucket exists before uploading."""
     data = BytesIO(b"test data")
     self.storage.upload("test/key", data, 9, "text/plain")
-    self.minio_instance.bucket_exists.assert_called_once()
+    self.minio_instance.bucket_exists.assert_called_once_with("filecano-test")
+    self.minio_instance.set_bucket_versioning.assert_called_once()
 
   def test_upload_s3error_raises_storage_error(self):
     """upload should raise StorageError on S3Error."""
-    self.minio_instance.put_object.side_effect = _make_s3error()
+    self.minio_instance.put_object.side_effect = make_s3_error()
     data = BytesIO(b"test data")
     with self.assertRaises(
       StorageError, msg="S3Error should be wrapped as StorageError"
@@ -83,13 +77,13 @@ class TestFileStorageService(unittest.TestCase):
 
   def test_download_no_such_key_raises_not_found(self):
     """download should raise NotFoundError for NoSuchKey."""
-    self.minio_instance.get_object.side_effect = _make_s3error(code="NoSuchKey")
+    self.minio_instance.get_object.side_effect = make_s3_error(code="NoSuchKey")
     with self.assertRaises(NotFoundError, msg="NoSuchKey should raise NotFoundError"):
       self.storage.download("test/key")
 
   def test_download_s3error_raises_storage_error(self):
     """download should raise StorageError for generic S3Error."""
-    self.minio_instance.get_object.side_effect = _make_s3error(code="ServerError")
+    self.minio_instance.get_object.side_effect = make_s3_error(code="ServerError")
     with self.assertRaises(
       StorageError, msg="generic S3Error should raise StorageError"
     ):
@@ -105,44 +99,50 @@ class TestFileStorageService(unittest.TestCase):
 
   def test_soft_delete_no_such_key_is_silent(self):
     """soft_delete should not raise for NoSuchKey."""
-    self.minio_instance.remove_object.side_effect = _make_s3error(code="NoSuchKey")
-    try:
-      self.storage.soft_delete("test/key")
-    except Exception:
-      self.fail("soft_delete should not raise for NoSuchKey")
+    self.minio_instance.remove_object.side_effect = make_s3_error(code="NoSuchKey")
+    self.assertIsNone(self.storage.soft_delete("test/key"))
+    self.minio_instance.remove_object.assert_called_once_with(
+      "filecano-test",
+      "test/key",
+    )
 
   def test_delete_all_versions_no_objects(self):
     """delete_all_versions should handle no objects gracefully."""
     self.minio_instance.list_objects.return_value = []
-    try:
-      self.storage.delete_all_versions("test/key")
-    except Exception:
-      self.fail("delete_all_versions should not raise for no objects")
+    self.assertIsNone(self.storage.delete_all_versions("test/key"))
+    self.minio_instance.remove_object.assert_called_once_with(
+      "filecano-test",
+      "test/key",
+    )
+    self.minio_instance.remove_objects.assert_not_called()
 
   def test_delete_all_versions_with_objects(self):
     """delete_all_versions should delete all versions of an object."""
-    from unittest.mock import MagicMock
-
-    item1 = MagicMock()
-    item1.object_name = "test/key"
-    item1.version_id = "v1"
-    item2 = MagicMock()
-    item2.object_name = "test/key"
-    item2.version_id = "v2"
+    item1 = make_versioned_object(version_id="v1")
+    item2 = make_versioned_object(version_id="v2")
     self.minio_instance.list_objects.return_value = [item1, item2]
     self.minio_instance.remove_objects.return_value = []
 
     self.storage.delete_all_versions("test/key")
     self.minio_instance.remove_objects.assert_called_once()
+    bucket, delete_objects = self.minio_instance.remove_objects.call_args[0]
+    self.assertEqual(bucket, "filecano-test")
+    self.assertEqual([obj.name for obj in delete_objects], ["test/key", "test/key"])
+    self.assertEqual([obj.version_id for obj in delete_objects], ["v1", "v2"])
 
   def test_copy_object_calls_copy_object(self):
     """copy_object should call copy_object on the Minio client."""
     self.storage.copy_object("source/key", "dest/key")
     self.minio_instance.copy_object.assert_called_once()
+    bucket, dest_key, source = self.minio_instance.copy_object.call_args[0]
+    self.assertEqual(bucket, "filecano-test")
+    self.assertEqual(dest_key, "dest/key")
+    self.assertEqual(source.bucket_name, "filecano-test")
+    self.assertEqual(source.object_name, "source/key")
 
   def test_copy_object_s3error_raises_storage_error(self):
     """copy_object should raise StorageError on S3Error."""
-    self.minio_instance.copy_object.side_effect = _make_s3error()
+    self.minio_instance.copy_object.side_effect = make_s3_error()
     with self.assertRaises(StorageError, msg="S3Error should raise StorageError"):
       self.storage.copy_object("src", "dst")
 
@@ -172,6 +172,9 @@ class TestFileStorageService(unittest.TestCase):
     self.storage._ensure_bucket()
     self.minio_instance.make_bucket.assert_called_once_with("filecano-test")
     self.minio_instance.set_bucket_versioning.assert_called_once()
+    bucket, versioning = self.minio_instance.set_bucket_versioning.call_args[0]
+    self.assertEqual(bucket, "filecano-test")
+    self.assertEqual(versioning.status, "Enabled")
 
   def test_ensure_bucket_already_exists(self):
     """_ensure_bucket should not recreate existing bucket."""

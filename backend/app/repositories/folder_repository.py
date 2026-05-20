@@ -1,10 +1,12 @@
 from typing import Optional
 from uuid import UUID
 
-from sqlmodel import delete, func, or_, select
+from sqlalchemy.orm import aliased
+from sqlmodel import and_, delete, func, or_, select, update
 
 from app.models import File, Folder, FolderLinkRelation
 from app.repositories.base_repository import BaseRepository
+from app.utils.time import current_datetime
 
 
 class FolderRepository(BaseRepository[Folder]):
@@ -30,8 +32,10 @@ class FolderRepository(BaseRepository[Folder]):
       select(Folder)
       .join(
         FolderLinkRelation,
-        FolderLinkRelation.link_id == link_id,
-        FolderLinkRelation.folder_id == Folder.id,
+        and_(
+          FolderLinkRelation.link_id == link_id,
+          FolderLinkRelation.folder_id == Folder.id,
+        ),
       )
       .where(
         Folder.id.in_(folder_ids),
@@ -44,26 +48,60 @@ class FolderRepository(BaseRepository[Folder]):
   def list_by_user(self, user_id: UUID, deleted: bool = False) -> list[Folder]:
     query = select(Folder).where(Folder.user_id == user_id).order_by(Folder.id.desc())
 
-    if deleted:
-      query = query.where(Folder.deleted_at.is_not(None))
-    else:
-      query = query.where(
-        Folder.deleted_at.is_(None),
-        Folder.parent_id.is_(None),
+    if not deleted:
+      query = (
+        select(Folder)
+        .where(
+          Folder.user_id == user_id,
+          Folder.deleted_at.is_(None),
+          Folder.parent_id.is_(None),
+        )
+        .order_by(Folder.id.desc())
       )
+
+      return self.session.exec(query).all()
+
+    parent = aliased(Folder)
+
+    query = (
+      select(Folder)
+      .join(
+        parent,
+        and_(
+          Folder.parent_id == parent.id,
+          parent.deleted_at.is_not(None),
+        ),
+        isouter=True,
+      )
+      .where(
+        Folder.user_id == user_id,
+        Folder.deleted_at.is_not(None),
+        parent.id.is_(None),
+      )
+    )
 
     return self.session.exec(query).all()
 
   def delete_children(self, parent_id: UUID) -> None:
-    self.soft_delete_by_parent(Folder, "parent_id", parent_id)
+    self.soft_delete_by_parent(parent_id)
+
+  def soft_delete_by_ids(self, folder_ids: list[UUID]) -> None:
+    query = (
+      update(Folder)
+      .where(Folder.id.in_(folder_ids))
+      .values(deleted_at=current_datetime())
+    )
+
+    self.session.exec(query)
 
   def delete_by_id(self, folder_id: UUID) -> None:
     folder = self.session.get(Folder, folder_id)
+
     if folder:
       self.session.delete(folder)
 
   def get_all_descendant_ids(self, folder_id: UUID) -> list[UUID]:
-    descendants: list[UUID] = {folder_id}
+    descendants: set[UUID] = {folder_id}
     pending: list[UUID] = [folder_id]
 
     while pending:
@@ -81,16 +119,19 @@ class FolderRepository(BaseRepository[Folder]):
     return list(descendants)
 
   def get_files_by_folder_ids(self, folder_ids: list[UUID]) -> list[File]:
-    query = select(File).where(File.folder_id.in_(folder_ids))
+    query = select(File).where(File.parent_id.in_(folder_ids))
 
     return self.session.exec(query).all()
 
-  def foldername_stored_by_user_count(self, name: str, user_id: UUID) -> int:
+  def foldername_stored_by_user_count(
+    self, name: str, user_id: UUID, parent_id: UUID | None
+  ) -> int:
     pattern = rf"^{name} \([0-9]+\)$"
 
     query = select(func.count()).where(
       Folder.deleted_at.is_(None),
       Folder.user_id == user_id,
+      Folder.parent_id == parent_id,
       or_(
         Folder.name == name,
         Folder.name.op("~")(pattern),
@@ -117,4 +158,10 @@ class FolderRepository(BaseRepository[Folder]):
     query = delete(Folder).where(Folder.id == folder_id)
 
     self.session.exec(query)
-    self.session.commit()
+
+  def restore_by_ids(self, folder_ids: list[UUID]) -> None:
+    if not folder_ids:
+      return
+
+    query = update(Folder).where(Folder.id.in_(folder_ids)).values(deleted_at=None)
+    self.session.exec(query)

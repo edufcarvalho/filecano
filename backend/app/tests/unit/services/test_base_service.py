@@ -12,10 +12,7 @@ class TestBaseService(unittest.TestCase):
   def test_ensure_user_has_rights_same_user(self):
     """_ensure_user_has_rights should not raise when user IDs match."""
     user_id = uuid4()
-    try:
-      self.service._ensure_user_has_rights(user_id, user_id)
-    except ForbiddenError:
-      self.fail("_ensure_user_has_rights should not raise when IDs match")
+    self.assertIsNone(self.service._ensure_user_has_rights(user_id, user_id))
 
   def test_ensure_user_has_rights_different_user(self):
     """_ensure_user_has_rights should raise ForbiddenError when IDs differ."""

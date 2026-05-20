@@ -8,10 +8,10 @@ os.environ["DATABASE_URL"] = os.environ.get(
 )
 
 from fastapi.testclient import TestClient
-from sqlmodel import Session, SQLModel
+from sqlmodel import Session
 
 from app.db import get_session
-from app.services import FileStorageService
+from app.api.dependencies.services import get_file_storage_service
 from app.tests.unit.helpers import _get_test_engine
 
 
@@ -19,19 +19,17 @@ class ApiTestCase(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
     cls._engine = _get_test_engine()
-    SQLModel.metadata.drop_all(cls._engine)
-    SQLModel.metadata.create_all(cls._engine)
 
     from app.main import app
 
     cls.mock_storage = MagicMock()
     cls.mock_storage.iter_response.return_value = iter([])
-    app.dependency_overrides[FileStorageService] = lambda: cls.mock_storage
+    app.dependency_overrides[get_file_storage_service] = lambda: cls.mock_storage
     cls.app = app
 
   @classmethod
   def tearDownClass(cls):
-    SQLModel.metadata.drop_all(cls._engine)
+    pass
 
   def setUp(self):
     self._connection = self._engine.connect()

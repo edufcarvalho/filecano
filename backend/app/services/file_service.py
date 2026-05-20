@@ -4,15 +4,15 @@ from io import BytesIO
 from typing import BinaryIO, Optional
 from uuid import UUID
 
-import PIL.Image
 from fastapi import UploadFile
-from PIL import UnidentifiedImageError
+from PIL import Image, UnidentifiedImageError
 from sqlalchemy.exc import SQLAlchemyError
 from urllib3.response import BaseHTTPResponse
 from uuid6 import uuid7
 
 from app.core import (
   FileTooLargeError,
+  ForbiddenError,
   GoneError,
   NotFoundError,
   Settings,
@@ -28,12 +28,10 @@ from app.schemas import (
 )
 from app.services.base_service import BaseService
 from app.services.file_storage_service import FileStorageService
-from app.utils.file import is_content_type_supported
+from app.utils.file import GB_SCALE, is_content_type_supported
 from app.utils.time import current_datetime
 
 SUPPORTED_PREVIEW_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
-
-GB_SCALE = 1024 * 1024 * 1024
 
 
 class FileService(BaseService):
@@ -54,7 +52,7 @@ class FileService(BaseService):
   ) -> File:
     checksum, size_bytes = self._checksum_and_size(upload.file)
     original_name = upload.filename or "unnamed"
-    display_name = self._get_unique_filename(user.id, original_name)
+    display_name = self._get_unique_filename(user.id, original_name, folder_id)
 
     if size_bytes > self.settings.max_file_size_bytes:
       raise FileTooLargeError(
@@ -73,7 +71,7 @@ class FileService(BaseService):
       original_name=original_name,
       display_name=display_name,
       content_type=upload.content_type,
-      folder_id=folder_id,
+      parent_id=folder_id,
     )
 
     file.object_key = f"users/{user.id}/files/{file.id}"
@@ -181,18 +179,24 @@ class FileService(BaseService):
 
     if params.original_name is not None:
       file.original_name = params.original_name
-      file.display_name = self._get_unique_filename(user.id, params.original_name)
+      file.display_name = self._get_unique_filename(
+        user.id, params.original_name, params.folder_id or file.parent_id
+      )
 
     if "folder_id" in params.model_fields_set:
       if params.folder_id is not None:
         folder = self.folder_repository.get_by_id(params.folder_id)
 
-        if not folder or folder.user_id != user.id or folder.deleted_at is not None:
+        if not folder or folder.deleted_at is not None:
           raise NotFoundError("Folder not found")
 
-      file.folder_id = params.folder_id
+        if folder.user_id != user.id:
+          raise ForbiddenError("You do not have permission to access this folder")
+
+      file.parent_id = params.folder_id
 
     self.repository.save(file)
+    self.repository.commit()
 
     return file
 
@@ -223,18 +227,34 @@ class FileService(BaseService):
       return file
 
     self.storage.restore_soft_deleted(file.object_key)
-    return self.repository.restore(file)
+
+    file = self.repository.restore(file)
+
+    try:
+      self.repository.commit()
+    except Exception:
+      self.storage.soft_delete(file.object_key)
+
+    return file
 
   def stream_response(self, response: BaseHTTPResponse):
     return self.storage.iter_response(response)
 
-  def _delete_file_permanently(self, file: File) -> None:
+  def _delete_file_permanently(self, file: File, commit: bool = True) -> None:
     self.storage.delete_all_versions(file.object_key)
 
     if file.preview_object_key:
       self.storage.delete_all_versions(file.preview_object_key)
 
     self.repository.hard_delete(file)
+
+    if commit:
+      self.repository.commit()
+
+  def enforce_retention_policy(self) -> None:
+    for file in self.repository.list_not_retainable():
+      self._delete_file_permanently(file, commit=False)
+
     self.repository.commit()
 
   def _get_user_file(self, user: User, file_id: UUID) -> File:
@@ -254,7 +274,11 @@ class FileService(BaseService):
 
     while chunk := data.read(1024 * 1024):
       size_bytes += len(chunk)
-      checksum.update(chunk)
+
+      if size_bytes > self.settings.max_file_size_bytes:
+        raise FileTooLargeError(
+          f"Uploaded file is bigger than max allowed size ({(self.settings.max_file_size_bytes / GB_SCALE):.2f} GB)"
+        )
 
     data.seek(0)
 
@@ -269,9 +293,13 @@ class FileService(BaseService):
 
     raise UnsupportedFileTypeError("File type not supported")
 
-  def _get_unique_filename(self, user_id: UUID, original_name: str) -> str:
+  def _get_unique_filename(
+    self, user_id: UUID, original_name: str, folder_id: UUID | None = None
+  ) -> str:
     original_name = self._remove_file_extensions(original_name)
-    count = self.repository.filename_stored_by_user_count(original_name, user_id)
+    count = self.repository.filename_stored_by_user_count(
+      original_name, user_id, folder_id
+    )
 
     if count > 0:
       return f"{original_name} ({count})"
@@ -292,12 +320,14 @@ class FileService(BaseService):
       return None
 
     self.storage.restore_soft_deleted(file.object_key)
-    return self.repository.restore(file)
+    file = self.repository.restore(file)
+    self.repository.commit()
+    return file
 
   def _generate_preview(self, data: BinaryIO) -> tuple[BinaryIO, int, str]:
     """Generate a thumbnail preview for images."""
     data.seek(0)
-    img = PIL.Image.open(data)
+    img = Image.open(data)
 
     # Convert to RGB if necessary (for PNG with alpha, etc.)
     if img.mode in ("RGBA", "P"):
@@ -340,7 +370,7 @@ class FileService(BaseService):
         "user_id": user_id,
         "original_name": file.display_name,
         "display_name": display_name,
-        "folder_id": None,
+        "parent_id": None,
         "created_at": current_datetime(),
         "object_key": object_key,
         "preview_object_key": preview_object_key,

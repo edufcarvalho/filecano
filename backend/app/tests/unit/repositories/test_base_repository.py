@@ -1,17 +1,18 @@
 import unittest
+from datetime import timedelta
 from uuid import uuid4
 
-from app.models import User
+from app.models import File, User
 from app.repositories.base_repository import BaseRepository
-from app.tests.unit.helpers import DatabaseTestCase
+from app.tests.unit.helpers import DatabaseTestCase, get_test_settings
+from app.utils.time import current_datetime
 
 
 class TestBaseRepository(DatabaseTestCase):
   def setUp(self):
     super().setUp()
-    from app.repositories import BaseRepository
 
-    self.repo = BaseRepository[User](self.session)
+    self.repo = BaseRepository[User](self.session, get_test_settings())
     self.repo.model = User
 
   def test_add_entity(self):
@@ -100,20 +101,42 @@ class TestBaseRepository(DatabaseTestCase):
     )
 
 
-class TestActiveFilter(unittest.TestCase):
-  def test_active_filter_returns_is_none_when_not_deleted(self):
-    """_active_filter should return is_(None) when include_deleted is False."""
-    from app.models import File
+class TestSoftDeleteByParents(DatabaseTestCase):
+  def setUp(self):
+    super().setUp()
+    self.repo = BaseRepository[File](self.session, get_test_settings())
+    self.repo.model = File
+    self.user = self._create_user(email="softdel@test.com")
 
-    result = BaseRepository._active_filter(File, include_deleted=False)
-    self.assertIsNotNone(result, "filter should not be None")
+  def test_soft_delete_by_parents_sets_deleted_at(self):
+    """soft_delete_by_parents should set deleted_at on all matching entities."""
+    folder = self._create_folder(self.user.id)
+    f1 = self._create_file(self.user.id, folder_id=folder.id)
+    f2 = self._create_file(self.user.id, folder_id=folder.id)
 
-  def test_active_filter_returns_is_not_none_when_deleted(self):
-    """_active_filter should return is_not(None) when include_deleted is True."""
-    from app.models import File
+    self.repo.soft_delete_by_parents([folder.id])
+    self.session.refresh(f1)
+    self.session.refresh(f2)
+    self.assertIsNotNone(f1.deleted_at, "f1 should be soft-deleted")
+    self.assertIsNotNone(f2.deleted_at, "f2 should be soft-deleted")
 
-    result = BaseRepository._active_filter(File, include_deleted=True)
-    self.assertIsNotNone(result, "filter should not be None")
+
+  def test_list_not_retainable_returns_old_deleted_entities(self):
+    """list_not_retainable should return entities past the retention period."""
+    old = self._create_file(self.user.id, display_name="old-del.txt")
+    old.deleted_at = current_datetime() - timedelta(days=100)
+    self.session.add(old)
+    self.session.commit()
+
+    recent = self._create_file(self.user.id, display_name="recent-del.txt")
+    recent.deleted_at = current_datetime() - timedelta(days=1)
+    self.session.add(recent)
+    self.session.commit()
+
+    files = self.repo.list_not_retainable()
+    ids = {f.id for f in files}
+    self.assertIn(old.id, ids, "old deleted entity should be retainable")
+    self.assertNotIn(recent.id, ids, "recent deleted entity should not be retainable")
 
 
 if __name__ == "__main__":

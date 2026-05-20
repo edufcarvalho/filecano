@@ -1,15 +1,16 @@
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.models import Link
 from app.repositories import LinkRepository
-from app.tests.unit.helpers import DatabaseTestCase
+from app.tests.unit.helpers import DatabaseTestCase, get_test_settings
+from app.utils.time import current_datetime
 
 
 class TestLinkRepository(DatabaseTestCase):
   def setUp(self):
     super().setUp()
-    self.repo = LinkRepository(self.session)
+    self.repo = LinkRepository(self.session, get_test_settings())
     self.user = self._create_user(email="linkrepo@test.com")
 
   def test_get_by_token_finds_by_token(self):
@@ -83,6 +84,24 @@ class TestLinkRepository(DatabaseTestCase):
     self.repo.delete(link)
     result = self.session.get(Link, link_id)
     self.assertIsNone(result, "link should be hard-deleted")
+
+
+  def test_delete_not_retainable_deletes_old_expired_links(self):
+    """delete_not_retainable should delete links past the retention period."""
+    old = self._create_link(self.user.id, token="old-link-tok")
+    old.expires_at = current_datetime() - timedelta(days=100)
+    self.session.add(old)
+    self.session.commit()
+
+    recent = self._create_link(self.user.id, token="recent-link-tok")
+    recent.expires_at = current_datetime() - timedelta(days=1)
+    self.session.add(recent)
+    self.session.commit()
+
+    self.repo.delete_not_retainable()
+
+    self.assertIsNone(self.session.get(Link, old.id), "old link should be deleted")
+    self.assertIsNotNone(self.session.get(Link, recent.id), "recent link should remain")
 
 
 if __name__ == "__main__":

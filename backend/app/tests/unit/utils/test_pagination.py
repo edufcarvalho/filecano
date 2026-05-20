@@ -12,13 +12,17 @@ class TestPaginate(unittest.TestCase):
     self.model = MagicMock()
     self.model.id = MagicMock()
 
-  def test_paginate_returns_paginated_response(self):
-    """_paginate should return a PaginatedResponse."""
+  def _query(self, items=None):
     query = MagicMock()
     query.offset = MagicMock(return_value=query)
     query.limit = MagicMock(return_value=query)
     query.order_by = MagicMock(return_value=query)
-    self.session.exec.return_value.all.return_value = []
+    self.session.exec.return_value.all.return_value = items or []
+    return query
+
+  def test_paginate_returns_paginated_response(self):
+    """_paginate should return a PaginatedResponse."""
+    query = self._query()
 
     params = PaginateParams(page=0, page_size=10, total=100)
     result = _paginate(self, query, params)
@@ -29,11 +33,7 @@ class TestPaginate(unittest.TestCase):
 
   def test_paginate_calculates_pages(self):
     """_paginate should correctly calculate total pages."""
-    query = MagicMock()
-    query.offset = MagicMock(return_value=query)
-    query.limit = MagicMock(return_value=query)
-    query.order_by = MagicMock(return_value=query)
-    self.session.exec.return_value.all.return_value = []
+    query = self._query()
 
     params = PaginateParams(page=0, page_size=10, total=100)
     result = _paginate(self, query, params)
@@ -42,11 +42,7 @@ class TestPaginate(unittest.TestCase):
   def test_paginate_returns_items(self):
     """_paginate should include query results in the response."""
     items = []
-    query = MagicMock()
-    query.offset = MagicMock(return_value=query)
-    query.limit = MagicMock(return_value=query)
-    query.order_by = MagicMock(return_value=query)
-    self.session.exec.return_value.all.return_value = items
+    query = self._query(items)
 
     params = PaginateParams(page=0, page_size=10, total=5)
     result = _paginate(self, query, params)
@@ -56,11 +52,7 @@ class TestPaginate(unittest.TestCase):
 
   def test_paginate_offset_calculation(self):
     """_paginate should calculate offset as page * page_size."""
-    query = MagicMock()
-    query.offset = MagicMock(return_value=query)
-    query.limit = MagicMock(return_value=query)
-    query.order_by = MagicMock(return_value=query)
-    self.session.exec.return_value.all.return_value = []
+    query = self._query()
 
     params = PaginateParams(page=3, page_size=20, total=100)
     _paginate(self, query, params)
@@ -69,11 +61,7 @@ class TestPaginate(unittest.TestCase):
 
   def test_paginate_rounds_up_pages(self):
     """_paginate should round up for fractional page counts."""
-    query = MagicMock()
-    query.offset = MagicMock(return_value=query)
-    query.limit = MagicMock(return_value=query)
-    query.order_by = MagicMock(return_value=query)
-    self.session.exec.return_value.all.return_value = []
+    query = self._query()
 
     params = PaginateParams(page=0, page_size=10, total=21)
     result = _paginate(self, query, params)
@@ -81,11 +69,7 @@ class TestPaginate(unittest.TestCase):
 
   def test_paginate_zero_items(self):
     """_paginate should handle zero total items."""
-    query = MagicMock()
-    query.offset = MagicMock(return_value=query)
-    query.limit = MagicMock(return_value=query)
-    query.order_by = MagicMock(return_value=query)
-    self.session.exec.return_value.all.return_value = []
+    query = self._query()
 
     params = PaginateParams(page=0, page_size=10, total=0)
     result = _paginate(self, query, params)

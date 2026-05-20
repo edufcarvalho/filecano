@@ -40,11 +40,12 @@ class FolderService(BaseService):
       parent = self._get_folder(params.parent_id)
       self._ensure_user_has_rights(user.id, parent.user_id)
 
-    name = self._get_unique_foldername(user.id, params.name)
+    name = self._get_unique_foldername(user.id, params.name, params.parent_id)
 
     folder = Folder(user=user, name=name, parent_id=params.parent_id)
 
     self.repository.save(folder)
+    self.repository.commit()
 
     return folder
 
@@ -54,7 +55,7 @@ class FolderService(BaseService):
     if folder.deleted_at is not None:
       raise GoneError("One or more folders you're trying to clone have been deleted")
 
-    clone = self._duplicate_folder(user, folder, parent)
+    clone = self._duplicate_folder(user, folder, parent.id if parent else None)
 
     self.repository.add(clone)
 
@@ -67,9 +68,9 @@ class FolderService(BaseService):
     return clone
 
   def _duplicate_folder(
-    self, user: User, folder: Folder, parent: Optional[Folder] = None
+    self, user: User, folder: Folder, parent_id: Optional[UUID] = None
   ) -> Folder:
-    name = self._get_unique_foldername(user.id, folder.name)
+    name = self._get_unique_foldername(user.id, folder.name, parent_id)
 
     clone = Folder.model_validate(
       folder.model_dump()
@@ -77,7 +78,7 @@ class FolderService(BaseService):
         "id": uuid7(),
         "user_id": user.id,
         "name": name,
-        "parent_id": parent.id if parent else None,
+        "parent_id": parent_id,
         "created_at": current_datetime(),
       }
     )
@@ -117,6 +118,7 @@ class FolderService(BaseService):
       folder.parent_id = params.parent_id
 
     self.repository.save(folder)
+    self.repository.commit()
 
     return folder
 
@@ -138,6 +140,7 @@ class FolderService(BaseService):
     self.repository.delete_children(folder.id)
 
     self.repository.save(folder)
+    self.repository.commit()
 
     return folder
 
@@ -152,25 +155,36 @@ class FolderService(BaseService):
         self.storage.delete_all_versions(file.preview_object_key)
 
     self.repository.hard_delete(folder)
+    self.repository.commit()
 
   def restore_folder(self, user: User, folder_id: UUID) -> FolderWithFilesResponse:
     folder = self._get_folder(folder_id)
+    self._ensure_user_has_rights(user.id, folder.user_id)
 
-    if folder.deleted_at is not None:
-      folder.deleted_at = None
-      parent = folder.parent
+    if folder.deleted_at is None:
+      return folder
 
-      if parent is not None and parent.deleted_at is not None:
-        folder.parent_id = None
+    folder.deleted_at = None
+    parent = folder.parent
 
-      self.file_repository.restore_by_folder(folder.id)
+    if parent is not None and parent.deleted_at is not None:
+      folder.parent_id = None
 
-      self.repository.save(folder)
+    folder_ids = self.repository.get_all_descendant_ids(folder.id) + [folder.id]
+
+    self.repository.restore_by_ids(folder_ids)
+    self.file_repository.restore_by_folders(folder_ids)
+    self.repository.refresh(folder)
+    self.repository.commit()
 
     return self.file_service.list_files(
       user,
       FileListParams(deleted=True, by_folder=True),
     )
+
+  def enforce_retention_policy(self) -> None:
+    for folder in self.repository.list_not_retainable():
+      self._delete_folder_permanently(folder)
 
   def _get_folder(self, folder_id: UUID) -> Folder:
     folder = self.repository.get_by_id(folder_id)
@@ -180,8 +194,12 @@ class FolderService(BaseService):
 
     return folder
 
-  def _get_unique_foldername(self, user_id: UUID, original_name: str) -> str:
-    count = self.repository.foldername_stored_by_user_count(original_name, user_id)
+  def _get_unique_foldername(
+    self, user_id: UUID, original_name: str, parent_id: UUID | None
+  ) -> str:
+    count = self.repository.foldername_stored_by_user_count(
+      original_name, user_id, parent_id
+    )
 
     if count > 0:
       return f"{original_name} ({count})"

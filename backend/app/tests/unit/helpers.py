@@ -3,8 +3,25 @@ import unittest
 from uuid import uuid4
 
 from argon2 import PasswordHasher
+from sqlalchemy import create_engine as sa_create_engine
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ProgrammingError
+from sqlalchemy.sql import text
 from sqlmodel import Session, SQLModel, create_engine
 from uuid6 import uuid7
+
+from app.core import Settings
+
+_test_settings = Settings(
+  jwt_secret_key="test-key",
+  max_file_size_bytes=104857600,
+  data_retention_policy=45,
+  _env_file=None,
+)
+
+
+def get_test_settings() -> Settings:
+  return _test_settings
 
 TEST_DATABASE_URL = os.environ.get(
   "TEST_DATABASE_URL",
@@ -12,12 +29,77 @@ TEST_DATABASE_URL = os.environ.get(
 )
 
 _engine = None
+_schema_initialized = False
+
+
+def make_s3_error(code="Error", message="test error"):
+  from unittest.mock import MagicMock
+
+  from minio.error import S3Error
+
+  mock_response = MagicMock()
+  mock_response.data = b""
+  mock_response.status = 500
+  mock_response.headers = {}
+  return S3Error(
+    response=mock_response,
+    code=code,
+    message=message,
+    resource="test-resource",
+    request_id="test-id",
+    host_id="test-host",
+    bucket_name="test-bucket",
+    object_name="test-object",
+  )
+
+
+def make_versioned_object(
+  object_name="test/key",
+  version_id="v1",
+  *,
+  is_latest=True,
+  is_delete_marker=True,
+):
+  from unittest.mock import MagicMock
+
+  item = MagicMock()
+  item.object_name = object_name
+  item.version_id = version_id
+  item.is_latest = is_latest
+  item.is_delete_marker = is_delete_marker
+  return item
 
 
 def _get_test_engine():
   global _engine
+  global _schema_initialized
   if _engine is None:
+    test_url = make_url(TEST_DATABASE_URL)
+    db_name = test_url.database
+    admin_url = test_url.set(database="template1")
+
+    admin_engine = sa_create_engine(admin_url, isolation_level="AUTOCOMMIT")
+    try:
+      with admin_engine.connect() as conn:
+        conn.execute(text(f"CREATE DATABASE {db_name}"))
+    except ProgrammingError:
+      pass
+    finally:
+      admin_engine.dispose()
+
     _engine = create_engine(TEST_DATABASE_URL, echo=False)
+
+    with _engine.connect() as conn:
+      conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+      conn.commit()
+
+  if not _schema_initialized:
+    import app.models  # noqa: F401
+
+    SQLModel.metadata.drop_all(_engine)
+    SQLModel.metadata.create_all(_engine)
+    _schema_initialized = True
+
   return _engine
 
 
@@ -25,11 +107,10 @@ class DatabaseTestCase(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
     cls._engine = _get_test_engine()
-    SQLModel.metadata.create_all(cls._engine)
 
   @classmethod
   def tearDownClass(cls):
-    SQLModel.metadata.drop_all(cls._engine)
+    pass
 
   def setUp(self):
     self._connection = self._engine.connect()
@@ -80,7 +161,7 @@ class DatabaseTestCase(unittest.TestCase):
       content_type=content_type,
       size_bytes=size_bytes,
       checksum=checksum,
-      folder_id=folder_id,
+      parent_id=folder_id,
     )
     self.session.add(file)
     self.session.commit()

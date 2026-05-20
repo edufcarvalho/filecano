@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 
 from app.core import AppError
 
@@ -21,6 +22,14 @@ def request_validation_error_handler(
     request,
     status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
     message=str(error),
+  )
+
+
+def integrity_error_handler(request: Request, error: IntegrityError) -> JSONResponse:
+  return _error_response(
+    request,
+    status_code=status.HTTP_409_CONFLICT,
+    message="Resource is causing conflicts",
   )
 
 
@@ -44,4 +53,5 @@ def _error_response(
 
 def register_exception_handlers(app: FastAPI) -> None:
   app.add_exception_handler(AppError, app_error_handler)
+  app.add_exception_handler(IntegrityError, integrity_error_handler)
   app.add_exception_handler(RequestValidationError, request_validation_error_handler)
