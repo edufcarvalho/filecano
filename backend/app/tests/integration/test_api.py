@@ -157,10 +157,11 @@ class TestFileEndpoints(ApiTestCase):
     self.token = self._register_and_login(email="filetest@test.com")
 
   def _upload_text_file(self, filename="test.txt"):
+    content = b"hello world"
     resp = self.client.post(
       "/api/v1/files",
       files={
-        "file": (filename, BytesIO(b"hello world"), "text/plain"),
+        "file": (filename, BytesIO(content), "text/plain"),
       },
       headers=self._auth_headers(self.token),
     )

@@ -3,6 +3,10 @@ import unittest
 from uuid import uuid4
 
 from argon2 import PasswordHasher
+from sqlalchemy import create_engine as sa_create_engine
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ProgrammingError
+from sqlalchemy.sql import text
 from sqlmodel import Session, SQLModel, create_engine
 from uuid6 import uuid7
 
@@ -17,7 +21,25 @@ _engine = None
 def _get_test_engine():
   global _engine
   if _engine is None:
+    test_url = make_url(TEST_DATABASE_URL)
+    db_name = test_url.database
+    admin_url = test_url.set(database="template1")
+
+    admin_engine = sa_create_engine(admin_url, isolation_level="AUTOCOMMIT")
+    try:
+      with admin_engine.connect() as conn:
+        conn.execute(text(f"CREATE DATABASE {db_name}"))
+    except ProgrammingError:
+      pass
+    finally:
+      admin_engine.dispose()
+
     _engine = create_engine(TEST_DATABASE_URL, echo=False)
+
+    with _engine.connect() as conn:
+      conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+      conn.commit()
+
   return _engine
 
 
@@ -80,7 +102,7 @@ class DatabaseTestCase(unittest.TestCase):
       content_type=content_type,
       size_bytes=size_bytes,
       checksum=checksum,
-      folder_id=folder_id,
+      parent_id=folder_id,
     )
     self.session.add(file)
     self.session.commit()

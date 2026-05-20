@@ -767,7 +767,7 @@ function uploadFileWithToken(
 
     xhr.open("POST", `${API_URL}/v1/files`)
     xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`)
-    xhr.setRequestHeader("X-File-Size-Bytes", String(file.size))
+    xhr.setRequestHeader("Content-Length", String(file.size))
     xhr.send(formData)
   })
 }

@@ -20,7 +20,7 @@ router = APIRouter(prefix="/files", tags=["files"])
 
 
 def ensure_upload_size_allowed(
-  file_size_bytes: Annotated[int, Header(alias="X-File-Size-Bytes")],
+  file_size_bytes: Annotated[int, Header(alias="Content-Length")],
   settings: Settings = Depends(get_settings),
 ) -> None:
   if file_size_bytes <= settings.max_file_size_bytes:

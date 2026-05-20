@@ -88,12 +88,12 @@ class TestFolderRepository(DatabaseTestCase):
   def test_foldername_stored_by_user_count(self):
     """foldername_stored_by_user_count should count matching folder names."""
     self._create_folder(self.user.id, name="MyFolder")
-    count = self.repo.foldername_stored_by_user_count("MyFolder", self.user.id)
+    count = self.repo.foldername_stored_by_user_count("MyFolder", self.user.id, None)
     self.assertGreaterEqual(count, 0, "count should be non-negative")
 
   def test_foldername_stored_by_user_count_nonexistent(self):
     """foldername_stored_by_user_count should return 0 for nonexistent."""
-    count = self.repo.foldername_stored_by_user_count("NoSuch", self.user.id)
+    count = self.repo.foldername_stored_by_user_count("NoSuch", self.user.id, None)
     self.assertEqual(count, 0, "nonexistent name should return 0")
 
   def test_delete_permanently(self):

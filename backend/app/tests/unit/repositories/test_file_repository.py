@@ -75,7 +75,7 @@ class TestFileRepository(DatabaseTestCase):
 
     restored = self.repo.restore(f)
     self.assertIsNone(restored.deleted_at, "restored file should have deleted_at=None")
-    self.assertIsNone(restored.folder_id, "restored file should have folder_id=None")
+    self.assertIsNone(restored.parent_id, "restored file should have folder_id=None")
 
   def test_delete_by_folder(self):
     """delete_by_folder should soft-delete all files in a folder."""
@@ -204,7 +204,7 @@ class TestFileRepository(DatabaseTestCase):
     self._create_file(self.user.id, original_name="unique", display_name="unique")
     self._create_file(self.user.id, original_name="dup", display_name="dup (1)")
 
-    count = self.repo.filename_stored_by_user_count("unique", self.user.id)
+    count = self.repo.filename_stored_by_user_count("unique", self.user.id, None)
     self.assertGreaterEqual(count, 0, "count should be a non-negative integer")
 
   def test_get_deleted_file_by_checksum_and_user(self):

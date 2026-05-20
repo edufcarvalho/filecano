@@ -240,8 +240,10 @@ class TestFolderService(DatabaseTestCase):
   def test_clone_folders(self):
     """clone_folders should clone multiple folders by id."""
     folder = self._create_folder(self.user.id, name="BatchSource")
+    link = self._create_link(self.user.id, token="clonefolders_link")
+    self._create_folder_link_relation(folder.id, link.id)
 
-    clones = self.service.clone_folders(self.user, [folder.id])
+    clones = self.service.clone_folders(self.user, link, [folder.id])
     self.assertEqual(len(clones), 1, "should clone the folder")
 
   def test_clone_folder_deleted_raises(self):

@@ -174,7 +174,7 @@ class TestFileService(DatabaseTestCase):
       self.user, f.id, FileUpdateParams(folder_id=folder.id)
     )
     self.assertEqual(
-      result.folder_id, folder.id, "file should be moved to the specified folder"
+      result.parent_id, folder.id, "file should be moved to the specified folder"
     )
 
   def test_update_file_nonexistent_folder_raises(self):
@@ -377,8 +377,11 @@ class TestFileService(DatabaseTestCase):
     """clone_files_by_id should fetch files by id and clone them."""
     f1 = self._create_file(self.user.id, display_name="clonebyid1.txt")
     f2 = self._create_file(self.user.id, display_name="clonebyid2.txt")
+    link = self._create_link(self.user.id, token="clonebyid_link")
+    self._create_file_link_relation(f1.id, link.id)
+    self._create_file_link_relation(f2.id, link.id)
 
-    clones = self.service.clone_files_by_id(self.user, [f1.id, f2.id])
+    clones = self.service.clone_files_by_id(self.user, link, [f1.id, f2.id])
     self.assertEqual(len(clones), 2, "should create 2 clones")
     for clone in clones:
       self.assertIsNotNone(clone.id)

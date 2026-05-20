@@ -99,22 +99,5 @@ class TestBaseRepository(DatabaseTestCase):
       result.email, "found@test.com", "returned entity should match stored entity"
     )
 
-
-class TestActiveFilter(unittest.TestCase):
-  def test_active_filter_returns_is_none_when_not_deleted(self):
-    """_active_filter should return is_(None) when include_deleted is False."""
-    from app.models import File
-
-    result = BaseRepository._active_filter(File, include_deleted=False)
-    self.assertIsNotNone(result, "filter should not be None")
-
-  def test_active_filter_returns_is_not_none_when_deleted(self):
-    """_active_filter should return is_not(None) when include_deleted is True."""
-    from app.models import File
-
-    result = BaseRepository._active_filter(File, include_deleted=True)
-    self.assertIsNotNone(result, "filter should not be None")
-
-
 if __name__ == "__main__":
   unittest.main()

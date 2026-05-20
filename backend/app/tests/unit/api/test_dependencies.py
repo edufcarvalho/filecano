@@ -106,7 +106,7 @@ class TestExceptionHandlers(unittest.TestCase):
     app = MagicMock(spec=FastAPI)
     register_exception_handlers(app)
     self.assertEqual(
-      app.add_exception_handler.call_count, 2, "should register 2 exception handlers"
+      app.add_exception_handler.call_count, 3, "should register 3 exception handlers"
     )
 
   def test_app_error_handler_returns_json_response(self):

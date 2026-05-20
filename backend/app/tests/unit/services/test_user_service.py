@@ -109,21 +109,15 @@ class TestUserService(DatabaseTestCase):
     """update_user should raise ConflictError on IntegrityError."""
     from sqlalchemy.exc import IntegrityError
 
-    from app.core import ConflictError
-
     user = self._create_user(name="Test", email="keep@test.com")
     params = UserUpdateParams(email="conflict@test.com")
 
-    with (
-      patch.object(self.service.repository, "commit") as mock_commit,
-      patch.object(self.service.repository, "rollback") as mock_rollback,
-    ):
+    with patch.object(self.service.repository, "commit") as mock_commit:
       mock_commit.side_effect = IntegrityError("mock", None, None)
       with self.assertRaises(
-        ConflictError, msg="IntegrityError should be caught as ConflictError"
+        IntegrityError, msg="IntegrityError should propagate to the API layer"
       ):
         self.service.update_user(user, params)
-      mock_rollback.assert_called_once()
 
 
 if __name__ == "__main__":
