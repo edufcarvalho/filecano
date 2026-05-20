@@ -3,7 +3,13 @@ from unittest.mock import MagicMock
 from uuid import uuid4
 
 from app.core import Settings
-from app.core.exceptions import BadRequestError, ConflictError, GoneError, NotFoundError
+from app.core.exceptions import (
+  BadRequestError,
+  ConflictError,
+  ForbiddenError,
+  GoneError,
+  NotFoundError,
+)
 from app.services.link_service import LinkService
 from app.tests.unit.helpers import DatabaseTestCase
 
@@ -152,13 +158,15 @@ class TestLinkService(DatabaseTestCase):
 
   def test_list_user_links(self):
     """list_user_links should return links for a user."""
-    self.service.list_user_links(self.user, self.user.id)
+    link = self._create_link(self.user.id, token="owned-link")
+    result = self.service.list_user_links(self.user, self.user.id)
+    self.assertEqual([item.id for item in result], [link.id])
 
   def test_list_user_links_different_user_raises(self):
     """list_user_links should raise ForbiddenError for other user."""
     other = self._create_user(email="other@test.com")
     with self.assertRaises(
-      Exception, msg="should raise when listing other user's links"
+      ForbiddenError, msg="should raise when listing other user's links"
     ):
       self.service.list_user_links(self.user, other.id)
 
@@ -220,13 +228,18 @@ class TestLinkService(DatabaseTestCase):
     self.assertIsInstance(
       result, FolderWithFilesResponse, "should return FolderWithFilesResponse"
     )
+    self.file_service.clone_files_by_id.assert_called_once()
+    self.folder_service.clone_folders.assert_called_once()
+    self.assertEqual(result.other_files, [])
+    self.assertEqual(result.folders, [])
 
   def test_stream_response(self):
     """stream_response should delegate to storage."""
     mock_response = MagicMock()
     self.storage.iter_response.return_value = iter([])
     gen = self.service.stream_response(mock_response)
-    self.assertIsNotNone(gen, "stream_response should return an iterator")
+    self.assertIs(gen, self.storage.iter_response.return_value)
+    self.storage.iter_response.assert_called_once_with(mock_response)
 
   def test_get_preview_download_success(self):
     """get_preview_download should return file and download response for preview."""
@@ -302,7 +315,7 @@ class TestLinkService(DatabaseTestCase):
     past = datetime(2020, 1, 1, tzinfo=timezone.utc)
     params = LinkRestoreParams(expires_at=past)
     with self.assertRaises(
-      Exception, msg="past expires_at should raise BadRequestError"
+      BadRequestError, msg="past expires_at should raise BadRequestError"
     ):
       self.service.restore_link(self.user, "restore-past-tok", params)
 
@@ -310,11 +323,13 @@ class TestLinkService(DatabaseTestCase):
     """restore_link without params should reset expires_at to default."""
     link = self._create_link(self.user.id, token="restore-noparam-tok")
     link.deleted_at = link.created_at
+    previous_expires_at = link.expires_at
     self.session.add(link)
     self.session.commit()
 
     result = self.service.restore_link(self.user, "restore-noparam-tok")
     self.assertIsNone(result.deleted_at, "restored link should have deleted_at=None")
+    self.assertGreater(result.expires_at, previous_expires_at)
 
 
 if __name__ == "__main__":

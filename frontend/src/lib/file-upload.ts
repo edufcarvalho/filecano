@@ -31,7 +31,7 @@ export function createUploadId(file: File) {
   return `${file.name}-${file.size}-${file.lastModified}-${Math.random()}`
 }
 
-function getImageFileExtension(contentType: string) {
+export function getImageFileExtension(contentType: string) {
   switch (contentType) {
     case "image/jpeg":
       return "jpg"

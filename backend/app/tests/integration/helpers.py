@@ -8,7 +8,7 @@ os.environ["DATABASE_URL"] = os.environ.get(
 )
 
 from fastapi.testclient import TestClient
-from sqlmodel import Session, SQLModel
+from sqlmodel import Session
 
 from app.db import get_session
 from app.services import FileStorageService
@@ -19,8 +19,6 @@ class ApiTestCase(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
     cls._engine = _get_test_engine()
-    SQLModel.metadata.drop_all(cls._engine)
-    SQLModel.metadata.create_all(cls._engine)
 
     from app.main import app
 
@@ -31,7 +29,7 @@ class ApiTestCase(unittest.TestCase):
 
   @classmethod
   def tearDownClass(cls):
-    SQLModel.metadata.drop_all(cls._engine)
+    pass
 
   def setUp(self):
     self._connection = self._engine.connect()

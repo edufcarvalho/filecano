@@ -1,7 +1,7 @@
 import unittest
 from uuid import uuid4
 
-from app.models import User
+from app.models import File, User
 from app.repositories.base_repository import BaseRepository
 from app.tests.unit.helpers import DatabaseTestCase
 
@@ -9,7 +9,6 @@ from app.tests.unit.helpers import DatabaseTestCase
 class TestBaseRepository(DatabaseTestCase):
   def setUp(self):
     super().setUp()
-    from app.repositories import BaseRepository
 
     self.repo = BaseRepository[User](self.session)
     self.repo.model = User
@@ -98,6 +97,27 @@ class TestBaseRepository(DatabaseTestCase):
     self.assertEqual(
       result.email, "found@test.com", "returned entity should match stored entity"
     )
+
+
+class TestSoftDeleteByParents(DatabaseTestCase):
+  def setUp(self):
+    super().setUp()
+    self.repo = BaseRepository[File](self.session)
+    self.repo.model = File
+    self.user = self._create_user(email="softdel@test.com")
+
+  def test_soft_delete_by_parents_sets_deleted_at(self):
+    """soft_delete_by_parents should set deleted_at on all matching entities."""
+    folder = self._create_folder(self.user.id)
+    f1 = self._create_file(self.user.id, folder_id=folder.id)
+    f2 = self._create_file(self.user.id, folder_id=folder.id)
+
+    self.repo.soft_delete_by_parents([folder.id])
+    self.session.refresh(f1)
+    self.session.refresh(f2)
+    self.assertIsNotNone(f1.deleted_at, "f1 should be soft-deleted")
+    self.assertIsNotNone(f2.deleted_at, "f2 should be soft-deleted")
+
 
 if __name__ == "__main__":
   unittest.main()

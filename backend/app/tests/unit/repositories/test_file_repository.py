@@ -89,6 +89,19 @@ class TestFileRepository(DatabaseTestCase):
     self.assertIsNotNone(f1.deleted_at, "f1 should be soft-deleted")
     self.assertIsNotNone(f2.deleted_at, "f2 should be soft-deleted")
 
+  def test_delete_by_folders(self):
+    """delete_by_folders should soft-delete files across multiple folders."""
+    f1 = self._create_folder(self.user.id, name="FolderA")
+    f2 = self._create_folder(self.user.id, name="FolderB")
+    file_a = self._create_file(self.user.id, folder_id=f1.id)
+    file_b = self._create_file(self.user.id, folder_id=f2.id)
+
+    self.repo.delete_by_folders([f1.id, f2.id])
+    self.session.refresh(file_a)
+    self.session.refresh(file_b)
+    self.assertIsNotNone(file_a.deleted_at, "file in FolderA should be soft-deleted")
+    self.assertIsNotNone(file_b.deleted_at, "file in FolderB should be soft-deleted")
+
   def test_restore_by_folder(self):
     """restore_by_folder should restore all soft-deleted files in a folder."""
     folder = self._create_folder(self.user.id)
@@ -205,7 +218,7 @@ class TestFileRepository(DatabaseTestCase):
     self._create_file(self.user.id, original_name="dup", display_name="dup (1)")
 
     count = self.repo.filename_stored_by_user_count("unique", self.user.id, None)
-    self.assertGreaterEqual(count, 0, "count should be a non-negative integer")
+    self.assertEqual(count, 1, "only the matching active file should be counted")
 
   def test_get_deleted_file_by_checksum_and_user(self):
     """get_deleted_file_by_checksum_and_user should find deleted file by checksum."""
@@ -340,6 +353,25 @@ class TestFileRepository(DatabaseTestCase):
     """list_folder_orphans_by_user should return empty for user with no orphans."""
     result = self.repo.list_folder_orphans_by_user(self.user.id)
     self.assertEqual(result, [], "should return empty list for no orphans")
+
+
+class TestFileModel(unittest.TestCase):
+  def test_folder_id_setter_updates_parent_id(self):
+    """File.folder_id setter should update parent_id."""
+    from uuid import uuid4
+
+    from app.models import File
+
+    folder_id = uuid4()
+    f = File(
+      user_id=uuid4(),
+      original_name="setter.txt",
+      display_name="setter",
+      object_key="pk/setter",
+    )
+    f.folder_id = folder_id
+    self.assertEqual(f.parent_id, folder_id, "parent_id should be set via folder_id")
+    self.assertEqual(f.folder_id, folder_id, "folder_id getter should return parent_id")
 
 
 if __name__ == "__main__":

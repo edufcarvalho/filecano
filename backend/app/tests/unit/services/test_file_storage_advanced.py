@@ -1,33 +1,14 @@
 import unittest
-from unittest.mock import MagicMock
 
 from app.services.file_storage_service import FileStorageService
-
-
-def _make_s3error(code="Error", message="test error"):
-  from minio.error import S3Error
-
-  mock_response = MagicMock()
-  mock_response.data = b""
-  mock_response.status = 500
-  mock_response.headers = {}
-  return S3Error(
-    response=mock_response,
-    code=code,
-    message=message,
-    resource="test-resource",
-    request_id="test-id",
-    host_id="test-host",
-    bucket_name="test-bucket",
-    object_name="test-object",
-  )
+from app.tests.unit.helpers import make_s3_error, make_versioned_object
 
 
 class TestFileStorageAdvanced(unittest.TestCase):
   """Additional tests for FileStorageService coverage gaps."""
 
   def setUp(self):
-    from unittest.mock import patch
+    from unittest.mock import MagicMock, patch
 
     from app.core import Settings
 
@@ -51,11 +32,7 @@ class TestFileStorageAdvanced(unittest.TestCase):
 
   def test_restore_soft_deleted_removes_delete_marker(self):
     """restore_soft_deleted should remove the delete marker for a deleted object."""
-    item = MagicMock()
-    item.object_name = "test/key"
-    item.is_latest = True
-    item.is_delete_marker = True
-    item.version_id = "v1"
+    item = make_versioned_object()
     self.minio_instance.list_objects.return_value = [item]
 
     self.storage.restore_soft_deleted("test/key")
@@ -65,11 +42,7 @@ class TestFileStorageAdvanced(unittest.TestCase):
 
   def test_restore_soft_deleted_skips_non_delete_marker(self):
     """restore_soft_deleted should skip items that are not delete markers."""
-    item = MagicMock()
-    item.object_name = "test/key"
-    item.is_latest = True
-    item.is_delete_marker = False
-    item.version_id = "v1"
+    item = make_versioned_object(is_delete_marker=False)
     self.minio_instance.list_objects.return_value = [item]
 
     self.storage.restore_soft_deleted("test/key")
@@ -77,11 +50,7 @@ class TestFileStorageAdvanced(unittest.TestCase):
 
   def test_restore_soft_deleted_skips_non_latest(self):
     """restore_soft_deleted should skip non-latest versions."""
-    item = MagicMock()
-    item.object_name = "test/key"
-    item.is_latest = False
-    item.is_delete_marker = True
-    item.version_id = "v1"
+    item = make_versioned_object(is_latest=False)
     self.minio_instance.list_objects.return_value = [item]
 
     self.storage.restore_soft_deleted("test/key")
@@ -89,11 +58,7 @@ class TestFileStorageAdvanced(unittest.TestCase):
 
   def test_restore_soft_deleted_skips_other_objects(self):
     """restore_soft_deleted should skip objects not matching the key."""
-    item = MagicMock()
-    item.object_name = "other/key"
-    item.is_latest = True
-    item.is_delete_marker = True
-    item.version_id = "v1"
+    item = make_versioned_object(object_name="other/key")
     self.minio_instance.list_objects.return_value = [item]
 
     self.storage.restore_soft_deleted("test/key")
@@ -101,36 +66,33 @@ class TestFileStorageAdvanced(unittest.TestCase):
 
   def test_restore_soft_deleted_is_latest_string_true(self):
     """restore_soft_deleted should handle is_latest as string 'true'."""
-    item = MagicMock()
-    item.object_name = "test/key"
-    item.is_latest = "true"
-    item.is_delete_marker = True
-    item.version_id = "v1"
+    item = make_versioned_object(is_latest="true")
     self.minio_instance.list_objects.return_value = [item]
 
     self.storage.restore_soft_deleted("test/key")
-    self.minio_instance.remove_object.assert_called_once()
+    self.minio_instance.remove_object.assert_called_once_with(
+      "filecano-test",
+      "test/key",
+      version_id="v1",
+    )
 
   def test_restore_soft_deleted_no_such_key_returns(self):
     """restore_soft_deleted should return silently for NoSuchKey."""
-    self.minio_instance.list_objects.side_effect = _make_s3error(code="NoSuchKey")
-    try:
-      self.storage.restore_soft_deleted("test/key")
-    except Exception:
-      self.fail("restore_soft_deleted should not raise for NoSuchKey")
+    self.minio_instance.list_objects.side_effect = make_s3_error(code="NoSuchKey")
+    self.assertIsNone(self.storage.restore_soft_deleted("test/key"))
+    self.minio_instance.remove_object.assert_not_called()
 
   def test_restore_soft_deleted_s3error_raises_storage_error(self):
     """restore_soft_deleted should raise StorageError for generic S3Error."""
     from app.core import StorageError
 
-    self.minio_instance.list_objects.side_effect = _make_s3error(code="ServerError")
+    self.minio_instance.list_objects.side_effect = make_s3_error(code="ServerError")
     with self.assertRaises(StorageError, msg="S3Error should raise StorageError"):
       self.storage.restore_soft_deleted("test/key")
 
   def test_restore_soft_deleted_no_matching_object_returns(self):
     """restore_soft_deleted should return if no matching delete marker found."""
-    item = MagicMock()
-    item.object_name = "other/key"
+    item = make_versioned_object(object_name="other/key")
     self.minio_instance.list_objects.return_value = [item]
 
     result = self.storage.restore_soft_deleted("test/key")
@@ -138,29 +100,28 @@ class TestFileStorageAdvanced(unittest.TestCase):
 
   def test_delete_all_versions_no_such_key_returns(self):
     """delete_all_versions should return silently for NoSuchKey."""
-    self.minio_instance.list_objects.side_effect = _make_s3error(code="NoSuchKey")
-    try:
-      self.storage.delete_all_versions("test/key")
-    except Exception:
-      self.fail("delete_all_versions should not raise for NoSuchKey")
+    self.minio_instance.list_objects.side_effect = make_s3_error(code="NoSuchKey")
+    self.assertIsNone(self.storage.delete_all_versions("test/key"))
+    self.minio_instance.remove_object.assert_not_called()
+    self.minio_instance.remove_objects.assert_not_called()
 
   def test_delete_all_versions_s3error_raises_storage_error(self):
     """delete_all_versions should raise StorageError for generic S3Error."""
     from app.core import StorageError
 
-    self.minio_instance.list_objects.side_effect = _make_s3error(code="ServerError")
+    self.minio_instance.list_objects.side_effect = make_s3_error(code="ServerError")
     with self.assertRaises(StorageError, msg="S3Error should raise StorageError"):
       self.storage.delete_all_versions("test/key")
 
   def test_delete_all_versions_errors_from_remove_objects(self):
     """delete_all_versions should raise StorageError when remove_objects returns errors."""
+    from unittest.mock import MagicMock
+
     from minio.error import S3Error
 
     from app.core import StorageError
 
-    item = MagicMock()
-    item.object_name = "test/key"
-    item.version_id = "v1"
+    item = make_versioned_object()
     self.minio_instance.list_objects.return_value = [item]
 
     err_response = MagicMock()
@@ -186,9 +147,7 @@ class TestFileStorageAdvanced(unittest.TestCase):
 
   def test_delete_all_versions_no_matching_items(self):
     """delete_all_versions should call remove_object when no matching items."""
-    item = MagicMock()
-    item.object_name = "other/key"
-    item.version_id = "v1"
+    item = make_versioned_object(object_name="other/key")
     self.minio_instance.list_objects.return_value = [item]
 
     self.storage.delete_all_versions("test/key")
@@ -198,12 +157,11 @@ class TestFileStorageAdvanced(unittest.TestCase):
 
   def test_delete_all_versions_filters_by_object_name(self):
     """delete_all_versions should only delete versions of the target object."""
-    matching = MagicMock()
-    matching.object_name = "test/key"
-    matching.version_id = "v1"
-    non_matching = MagicMock()
-    non_matching.object_name = "test/key/subkey"
-    non_matching.version_id = "v2"
+    matching = make_versioned_object(version_id="v1")
+    non_matching = make_versioned_object(
+      object_name="test/key/subkey",
+      version_id="v2",
+    )
     self.minio_instance.list_objects.return_value = [matching, non_matching]
     self.minio_instance.remove_objects.return_value = []
 
@@ -217,7 +175,7 @@ class TestFileStorageAdvanced(unittest.TestCase):
     """_ensure_bucket should raise StorageError on S3Error."""
     from app.core import StorageError
 
-    self.minio_instance.bucket_exists.side_effect = _make_s3error(code="ServerError")
+    self.minio_instance.bucket_exists.side_effect = make_s3_error(code="ServerError")
     with self.assertRaises(
       StorageError, msg="S3Error in validate should raise StorageError"
     ):
@@ -227,7 +185,7 @@ class TestFileStorageAdvanced(unittest.TestCase):
     """soft_delete should raise StorageError for generic S3Error."""
     from app.core import StorageError
 
-    self.minio_instance.remove_object.side_effect = _make_s3error(code="ServerError")
+    self.minio_instance.remove_object.side_effect = make_s3_error(code="ServerError")
     with self.assertRaises(
       StorageError, msg="generic S3Error should raise StorageError"
     ):
@@ -235,11 +193,7 @@ class TestFileStorageAdvanced(unittest.TestCase):
 
   def test_restore_soft_deleted_skips_no_version_id(self):
     """restore_soft_deleted should skip items without version_id."""
-    item = MagicMock()
-    item.object_name = "test/key"
-    item.is_latest = True
-    item.is_delete_marker = True
-    item.version_id = None
+    item = make_versioned_object(version_id=None)
     self.minio_instance.list_objects.return_value = [item]
 
     self.storage.restore_soft_deleted("test/key")
@@ -247,27 +201,25 @@ class TestFileStorageAdvanced(unittest.TestCase):
 
   def test_restore_soft_deleted_no_such_object_returns(self):
     """restore_soft_deleted should return silently for NoSuchObject."""
-    self.minio_instance.list_objects.side_effect = _make_s3error(code="NoSuchObject")
-    try:
-      self.storage.restore_soft_deleted("test/key")
-    except Exception:
-      self.fail("restore_soft_deleted should not raise for NoSuchObject")
+    self.minio_instance.list_objects.side_effect = make_s3_error(code="NoSuchObject")
+    self.assertIsNone(self.storage.restore_soft_deleted("test/key"))
+    self.minio_instance.remove_object.assert_not_called()
 
   def test_delete_all_versions_no_such_object_returns(self):
     """delete_all_versions should return silently for NoSuchObject."""
-    self.minio_instance.list_objects.side_effect = _make_s3error(code="NoSuchObject")
-    try:
-      self.storage.delete_all_versions("test/key")
-    except Exception:
-      self.fail("delete_all_versions should not raise for NoSuchObject")
+    self.minio_instance.list_objects.side_effect = make_s3_error(code="NoSuchObject")
+    self.assertIsNone(self.storage.delete_all_versions("test/key"))
+    self.minio_instance.remove_object.assert_not_called()
+    self.minio_instance.remove_objects.assert_not_called()
 
   def test_soft_delete_no_such_object_is_silent(self):
     """soft_delete should not raise for NoSuchObject."""
-    self.minio_instance.remove_object.side_effect = _make_s3error(code="NoSuchObject")
-    try:
-      self.storage.soft_delete("test/key")
-    except Exception:
-      self.fail("soft_delete should not raise for NoSuchObject")
+    self.minio_instance.remove_object.side_effect = make_s3_error(code="NoSuchObject")
+    self.assertIsNone(self.storage.soft_delete("test/key"))
+    self.minio_instance.remove_object.assert_called_once_with(
+      "filecano-test",
+      "test/key",
+    )
 
 
 if __name__ == "__main__":

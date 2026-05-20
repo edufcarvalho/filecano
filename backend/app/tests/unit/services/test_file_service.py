@@ -154,6 +154,22 @@ class TestFileService(DatabaseTestCase):
     result = self.service.restore_file(self.user, f.id)
     self.assertIsNone(result.deleted_at, "file should remain active")
 
+  def test_restore_file_commit_error_soft_deletes_storage(self):
+    """restore_file should soft-delete storage object when commit fails."""
+    from unittest.mock import patch
+
+    f = self._create_file(self.user.id)
+    f.deleted_at = f.created_at
+    self.session.add(f)
+    self.session.commit()
+
+    with patch.object(self.service.repository, "commit") as mock_commit:
+      mock_commit.side_effect = Exception("commit failed")
+      result = self.service.restore_file(self.user, f.id)
+      self.assertEqual(result.id, f.id)
+      self.assertIsNone(result.deleted_at)
+      self.storage.soft_delete.assert_called_once_with(f.object_key)
+
   def test_update_file_name(self):
     """update_file should update file's original_name and display_name."""
     f = self._create_file(self.user.id, original_name="old.txt", display_name="old.txt")
@@ -187,6 +203,20 @@ class TestFileService(DatabaseTestCase):
     ):
       self.service.update_file(self.user, f.id, FileUpdateParams(folder_id=uuid4()))
 
+  def test_update_file_move_to_other_user_folder_raises(self):
+    """update_file should raise ForbiddenError when moving to another user's folder."""
+    f = self._create_file(self.user.id)
+    other_user = self._create_user(email="otherfolder@test.com")
+    other_folder = self._create_folder(other_user.id, name="OthersFolder")
+    from app.schemas import FileUpdateParams
+
+    with self.assertRaises(
+      ForbiddenError, msg="moving to other user's folder should raise ForbiddenError"
+    ):
+      self.service.update_file(
+        self.user, f.id, FileUpdateParams(folder_id=other_folder.id)
+      )
+
   def test_validate_file_type_unsupported(self):
     """_validate_file_type should raise for unsupported types."""
     with self.assertRaises(
@@ -197,10 +227,7 @@ class TestFileService(DatabaseTestCase):
 
   def test_validate_file_type_supported(self):
     """_validate_file_type should not raise for supported types."""
-    try:
-      self.service._validate_file_type("text/plain")
-    except UnsupportedFileTypeError:
-      self.fail("_validate_file_type should not raise for supported type")
+    self.assertIsNone(self.service._validate_file_type("text/plain"))
 
   def test_get_unique_filename_no_duplicates(self):
     """_get_unique_filename should return original name when no duplicates."""
@@ -267,7 +294,8 @@ class TestFileService(DatabaseTestCase):
     mock_response = MagicMock()
     self.storage.iter_response.return_value = iter([])
     result = self.service.stream_response(mock_response)
-    self.assertIsNotNone(result)
+    self.assertIs(result, self.storage.iter_response.return_value)
+    self.storage.iter_response.assert_called_once_with(mock_response)
 
   def test_get_preview_download_success(self):
     """get_preview_download should return storage response when preview exists."""
@@ -297,6 +325,8 @@ class TestFileService(DatabaseTestCase):
     self.session.commit()
 
     self.service.delete_file(self.user, f.id, permanent=True)
+    self.storage.delete_all_versions.assert_any_call(f.object_key)
+    self.storage.delete_all_versions.assert_any_call(f.preview_object_key)
     self.assertEqual(self.storage.delete_all_versions.call_count, 2)
 
   def test_create_file_too_large_raises(self):
@@ -309,6 +339,22 @@ class TestFileService(DatabaseTestCase):
       FileTooLargeError, msg="oversized file should raise FileTooLargeError"
     ):
       self.service.create_file(self.user, upload)
+
+  def test_create_file_size_check_at_service_level(self):
+    """create_file should raise FileTooLargeError at the service-level check."""
+    from unittest.mock import patch
+
+    from app.core.exceptions import FileTooLargeError
+
+    self.settings.max_file_size_bytes = 10
+    upload = _mock_upload_file()
+    with patch.object(
+      self.service, "_checksum_and_size", return_value=("mockhash", 100)
+    ):
+      with self.assertRaises(
+        FileTooLargeError, msg="should raise at service-level size check"
+      ):
+        self.service.create_file(self.user, upload)
 
   def test_create_file_restores_deleted_file(self):
     """create_file should restore a previously deleted file with same checksum."""
@@ -333,7 +379,7 @@ class TestFileService(DatabaseTestCase):
     ):
       result = self.service.create_file(self.user, upload)
       self.assertIsNone(result.deleted_at, "restored file should have deleted_at=None")
-      self.storage.restore_soft_deleted.assert_called_once()
+      self.storage.restore_soft_deleted.assert_called_once_with(f.object_key)
 
   def _create_image_file(self, user_id, content_type="image/jpeg"):
     """Create a file with preview support."""
@@ -404,8 +450,8 @@ class TestFileService(DatabaseTestCase):
 
     clone = self.service._duplicate_file(f, self.user.id)
     self.assertIsNotNone(clone)
-    self.storage.copy_object.assert_called_once()
     self.assertNotEqual(clone.id, f.id)
+    self.storage.copy_object.assert_called_once_with(f.object_key, clone.object_key)
 
   def test_duplicate_file_with_preview(self):
     """_duplicate_file should copy preview when it exists."""
@@ -420,6 +466,11 @@ class TestFileService(DatabaseTestCase):
 
     clone = self.service._duplicate_file(f, self.user.id)
     self.assertIsNotNone(clone)
+    self.storage.copy_object.assert_any_call(f.object_key, clone.object_key)
+    self.storage.copy_object.assert_any_call(
+      f.preview_object_key,
+      clone.preview_object_key,
+    )
     self.assertEqual(self.storage.copy_object.call_count, 2)
 
   def test_generate_preview_jpeg(self):
@@ -482,11 +533,8 @@ class TestFileService(DatabaseTestCase):
       result.preview_content_type, "preview should have content_type"
     )
     self.assertIsNotNone(result.preview_size_bytes, "preview should have size")
-    self.assertGreater(
-      self.storage.upload.call_count,
-      1,
-      "should upload both file and preview",
-    )
+    uploaded_keys = [call.args[0] for call in self.storage.upload.call_args_list]
+    self.assertEqual(uploaded_keys, [result.object_key, result.preview_object_key])
 
   def test_create_file_sqlalchemy_error_rollback(self):
     """create_file should rollback and cleanup on SQLAlchemyError."""
@@ -511,7 +559,8 @@ class TestFileService(DatabaseTestCase):
       mock_commit.side_effect = SQLAlchemyError("mock error")
       with self.assertRaises(SQLAlchemyError):
         self.service.create_file(self.user, upload)
-      self.storage.delete_all_versions.assert_called()
+      uploaded_key = self.storage.upload.call_args.args[0]
+      self.storage.delete_all_versions.assert_called_once_with(uploaded_key)
 
   def test_create_file_sqlalchemy_error_with_preview(self):
     """create_file should cleanup preview on SQLAlchemyError."""
@@ -529,11 +578,11 @@ class TestFileService(DatabaseTestCase):
       mock_commit.side_effect = SQLAlchemyError("mock error")
       with self.assertRaises(SQLAlchemyError):
         self.service.create_file(self.user, upload)
-    self.assertGreaterEqual(
-      self.storage.delete_all_versions.call_count,
-      2,
-      "should attempt to cleanup both file and preview",
-    )
+    uploaded_keys = [call.args[0] for call in self.storage.upload.call_args_list]
+    deleted_keys = [
+      call.args[0] for call in self.storage.delete_all_versions.call_args_list
+    ]
+    self.assertEqual(deleted_keys, uploaded_keys)
 
 
 if __name__ == "__main__":

@@ -89,7 +89,7 @@ class TestFolderRepository(DatabaseTestCase):
     """foldername_stored_by_user_count should count matching folder names."""
     self._create_folder(self.user.id, name="MyFolder")
     count = self.repo.foldername_stored_by_user_count("MyFolder", self.user.id, None)
-    self.assertGreaterEqual(count, 0, "count should be non-negative")
+    self.assertEqual(count, 1, "only the matching active folder should be counted")
 
   def test_foldername_stored_by_user_count_nonexistent(self):
     """foldername_stored_by_user_count should return 0 for nonexistent."""
@@ -117,10 +117,37 @@ class TestFolderRepository(DatabaseTestCase):
     """delete_by_id should not raise for nonexistent folder ID."""
     from uuid import uuid4
 
-    try:
-      self.repo.delete_by_id(uuid4())
-    except Exception:
-      self.fail("delete_by_id should not raise for nonexistent folder")
+    self.assertIsNone(self.repo.delete_by_id(uuid4()))
+    self.assertEqual(
+      self.repo.list_by_user(self.user.id),
+      [],
+      "deleting a nonexistent folder should not affect existing state",
+    )
+
+  def test_soft_delete_by_ids(self):
+    """soft_delete_by_ids should set deleted_at on given folders."""
+    f1 = self._create_folder(self.user.id, name="SoftDel1")
+    f2 = self._create_folder(self.user.id, name="SoftDel2")
+
+    self.repo.soft_delete_by_ids([f1.id, f2.id])
+    self.session.refresh(f1)
+    self.session.refresh(f2)
+    self.assertIsNotNone(f1.deleted_at, "f1 should be soft-deleted")
+    self.assertIsNotNone(f2.deleted_at, "f2 should be soft-deleted")
+
+  def test_restore_by_ids_empty_list(self):
+    """restore_by_ids should return early when folder_ids is empty."""
+    deleted_folder = self._create_folder(self.user.id, name="StillDeleted")
+    deleted_folder.deleted_at = deleted_folder.created_at
+    self.session.add(deleted_folder)
+    self.session.commit()
+
+    self.assertIsNone(self.repo.restore_by_ids([]))
+    self.session.refresh(deleted_folder)
+    self.assertIsNotNone(
+      deleted_folder.deleted_at,
+      "empty restore input should not restore any folder",
+    )
 
 
 if __name__ == "__main__":

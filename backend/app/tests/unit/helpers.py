@@ -16,10 +16,50 @@ TEST_DATABASE_URL = os.environ.get(
 )
 
 _engine = None
+_schema_initialized = False
+
+
+def make_s3_error(code="Error", message="test error"):
+  from unittest.mock import MagicMock
+
+  from minio.error import S3Error
+
+  mock_response = MagicMock()
+  mock_response.data = b""
+  mock_response.status = 500
+  mock_response.headers = {}
+  return S3Error(
+    response=mock_response,
+    code=code,
+    message=message,
+    resource="test-resource",
+    request_id="test-id",
+    host_id="test-host",
+    bucket_name="test-bucket",
+    object_name="test-object",
+  )
+
+
+def make_versioned_object(
+  object_name="test/key",
+  version_id="v1",
+  *,
+  is_latest=True,
+  is_delete_marker=True,
+):
+  from unittest.mock import MagicMock
+
+  item = MagicMock()
+  item.object_name = object_name
+  item.version_id = version_id
+  item.is_latest = is_latest
+  item.is_delete_marker = is_delete_marker
+  return item
 
 
 def _get_test_engine():
   global _engine
+  global _schema_initialized
   if _engine is None:
     test_url = make_url(TEST_DATABASE_URL)
     db_name = test_url.database
@@ -40,6 +80,13 @@ def _get_test_engine():
       conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
       conn.commit()
 
+  if not _schema_initialized:
+    import app.models  # noqa: F401
+
+    SQLModel.metadata.drop_all(_engine)
+    SQLModel.metadata.create_all(_engine)
+    _schema_initialized = True
+
   return _engine
 
 
@@ -47,11 +94,10 @@ class DatabaseTestCase(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
     cls._engine = _get_test_engine()
-    SQLModel.metadata.create_all(cls._engine)
 
   @classmethod
   def tearDownClass(cls):
-    SQLModel.metadata.drop_all(cls._engine)
+    pass
 
   def setUp(self):
     self._connection = self._engine.connect()

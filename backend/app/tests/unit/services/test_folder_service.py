@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import MagicMock
 from uuid import uuid4
 
-from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
+from app.core.exceptions import ConflictError, ForbiddenError, GoneError, NotFoundError
 from app.services.folder_service import FolderService
 from app.tests.unit.helpers import DatabaseTestCase
 
@@ -150,13 +150,21 @@ class TestFolderService(DatabaseTestCase):
     self.session.commit()
 
     result = self.service.restore_folder(self.user, folder.id)
-    self.assertIsNotNone(result, "should return FolderWithFilesResponse")
+    self.session.refresh(folder)
+    self.assertIsNone(folder.deleted_at, "folder should be restored")
+    self.assertIs(result, self.file_service.list_files.return_value)
+    self.file_service.list_files.assert_called_once()
+    called_user, called_params = self.file_service.list_files.call_args.args
+    self.assertEqual(called_user.id, self.user.id)
+    self.assertTrue(called_params.deleted)
+    self.assertTrue(called_params.by_folder)
 
   def test_restore_folder_already_active(self):
     """restore_folder should return response even for active folder."""
     folder = self._create_folder(self.user.id)
     result = self.service.restore_folder(self.user, folder.id)
-    self.assertIsNotNone(result, "should return response for active folder")
+    self.assertIs(result, self.file_service.list_files.return_value)
+    self.file_service.list_files.assert_called_once()
 
   def test_get_folder_nonexistent_raises(self):
     """_get_folder should raise NotFoundError for nonexistent folder."""
@@ -169,10 +177,7 @@ class TestFolderService(DatabaseTestCase):
     """_ensure_not_descendant should not raise when not a descendant."""
     f1 = self._create_folder(self.user.id, name="F1")
     f2 = self._create_folder(self.user.id, name="F2")
-    try:
-      self.service._ensure_not_descendant(f1.id, f2.id)
-    except ConflictError:
-      self.fail("should not raise for unrelated folders")
+    self.assertIsNone(self.service._ensure_not_descendant(f1.id, f2.id))
 
   def test_ensure_not_descendant_when_is_descendant(self):
     """_ensure_not_descendant should raise when potential parent IS a descendant."""
@@ -253,7 +258,7 @@ class TestFolderService(DatabaseTestCase):
     self.session.add(folder)
     self.session.commit()
 
-    with self.assertRaises(Exception, msg="cloning deleted folder should raise"):
+    with self.assertRaises(GoneError, msg="cloning deleted folder should raise"):
       self.service.clone_folder(self.user, folder)
 
   def test_update_folder_nonexistent_parent_raises(self):
@@ -276,7 +281,7 @@ class TestFolderService(DatabaseTestCase):
     self.session.commit()
 
     self.service.delete_folder(self.user, folder.id, permanent=True)
-    self.storage.delete_all_versions.assert_called()
+    self.storage.delete_all_versions.assert_called_once_with(f.object_key)
 
   def test_delete_folder_permanent_with_preview_files(self):
     """delete_folder permanent should also delete preview objects."""
@@ -293,7 +298,9 @@ class TestFolderService(DatabaseTestCase):
     self.session.commit()
 
     self.service.delete_folder(self.user, folder.id, permanent=True)
-    self.storage.delete_all_versions.assert_called()
+    self.storage.delete_all_versions.assert_any_call(f.object_key)
+    self.storage.delete_all_versions.assert_any_call(f.preview_object_key)
+    self.assertEqual(self.storage.delete_all_versions.call_count, 2)
 
   def test_delete_folder_with_children(self):
     """delete_folder should soft-delete folder and its children."""
