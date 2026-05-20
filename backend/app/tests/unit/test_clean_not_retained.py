@@ -177,9 +177,7 @@ class TestLinkRetentionPolicy(DatabaseTestCase):
     self.assertIsNone(
       self.session.get(Link, old.id), "old expired link should be deleted"
     )
-    self.assertIsNotNone(
-      self.session.get(Link, recent.id), "recent link should remain"
-    )
+    self.assertIsNotNone(self.session.get(Link, recent.id), "recent link should remain")
 
 
 class TestUserRetentionPolicy(DatabaseTestCase):

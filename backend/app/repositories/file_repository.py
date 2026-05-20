@@ -177,22 +177,17 @@ class FileRepository(BaseRepository[File]):
   ) -> list[File]:
     query = (
       select(File)
-      .join(Folder, File.folder_id == Folder.id)
-      .where(
-        File.user_id == user_id,
-        or_(
-          File.deleted_at.is_not(None),
-          and_(
-            File.deleted_at.is_not(None),
-            Folder.deleted_at.is_(None)
-          )
-        )
-      )
+      .where(File.user_id == user_id, File.parent_id.is_(None))
       .order_by(File.id.desc())
     )
 
     if deleted:
-      query = query.where(File.deleted_at.is_not(None))
+      query = query.join(Folder, File.parent_id == Folder.id, isouter=True).where(
+        or_(
+          File.deleted_at.is_not(None),
+          and_(File.deleted_at.is_not(None), Folder.deleted_at.is_(None)),
+        )
+      )
     else:
       query = query.where(File.deleted_at.is_(None))
 

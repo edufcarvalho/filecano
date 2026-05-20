@@ -23,6 +23,7 @@ _test_settings = Settings(
 def get_test_settings() -> Settings:
   return _test_settings
 
+
 TEST_DATABASE_URL = os.environ.get(
   "TEST_DATABASE_URL",
   "postgresql+psycopg://filecano:filecano@localhost:5432/filecano_test",

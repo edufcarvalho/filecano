@@ -160,11 +160,13 @@ class TestFolderService(DatabaseTestCase):
     self.assertTrue(called_params.by_folder)
 
   def test_restore_folder_already_active(self):
-    """restore_folder should return response even for active folder."""
+    """restore_folder should return folder directly when already active."""
     folder = self._create_folder(self.user.id)
     result = self.service.restore_folder(self.user, folder.id)
-    self.assertIs(result, self.file_service.list_files.return_value)
-    self.file_service.list_files.assert_called_once()
+
+    self.assertEqual(result.id, folder.id, "should return the same folder")
+    self.assertIsNone(result.deleted_at, "folder should be active")
+    self.file_service.list_files.assert_not_called()
 
   def test_get_folder_nonexistent_raises(self):
     """_get_folder should raise NotFoundError for nonexistent folder."""

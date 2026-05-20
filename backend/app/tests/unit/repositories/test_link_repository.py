@@ -85,7 +85,6 @@ class TestLinkRepository(DatabaseTestCase):
     result = self.session.get(Link, link_id)
     self.assertIsNone(result, "link should be hard-deleted")
 
-
   def test_delete_not_retainable_deletes_old_expired_links(self):
     """delete_not_retainable should delete links past the retention period."""
     old = self._create_link(self.user.id, token="old-link-tok")

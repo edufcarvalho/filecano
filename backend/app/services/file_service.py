@@ -364,7 +364,7 @@ class FileService(BaseService):
       preview_object_key = f"users/{user_id}/previews/{clone_id}"
       self.storage.copy_object(file.preview_object_key, preview_object_key)
 
-    return File.model_copy(
+    return file.model_copy(
       update={
         "id": clone_id,
         "user_id": user_id,

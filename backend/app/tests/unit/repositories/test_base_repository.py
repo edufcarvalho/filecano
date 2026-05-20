@@ -120,7 +120,6 @@ class TestSoftDeleteByParents(DatabaseTestCase):
     self.assertIsNotNone(f1.deleted_at, "f1 should be soft-deleted")
     self.assertIsNotNone(f2.deleted_at, "f2 should be soft-deleted")
 
-
   def test_list_not_retainable_returns_old_deleted_entities(self):
     """list_not_retainable should return entities past the retention period."""
     old = self._create_file(self.user.id, display_name="old-del.txt")

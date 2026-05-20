@@ -61,7 +61,7 @@ class TestFileRepository(DatabaseTestCase):
     self.assertEqual(len(result), 2, "should return all deleted files")
 
   def test_restore_sets_deleted_at_to_none(self):
-    """restore should set deleted_at to None and clear folder_id."""
+    """restore should set deleted_at to None and keep folder_id when folder is active."""
     folder = self._create_folder(self.user.id, name="TestFolder")
     f = self._create_file(
       self.user.id,
@@ -75,7 +75,32 @@ class TestFileRepository(DatabaseTestCase):
 
     restored = self.repo.restore(f)
     self.assertIsNone(restored.deleted_at, "restored file should have deleted_at=None")
-    self.assertIsNone(restored.parent_id, "restored file should have folder_id=None")
+    self.assertEqual(
+      restored.parent_id, folder.id, "restored file should keep folder when active"
+    )
+
+  def test_restore_clears_folder_id_when_folder_is_deleted(self):
+    """restore should clear folder_id when parent folder is deleted."""
+    folder = self._create_folder(self.user.id, name="DeadFolder")
+    folder.deleted_at = folder.created_at
+    self.session.add(folder)
+    self.session.commit()
+
+    f = self._create_file(
+      self.user.id,
+      display_name="orphan-restore.txt",
+      original_name="orphan-restore.txt",
+      folder_id=folder.id,
+    )
+    f.deleted_at = f.created_at
+    self.session.add(f)
+    self.session.commit()
+
+    restored = self.repo.restore(f)
+    self.assertIsNone(restored.deleted_at, "restored file should have deleted_at=None")
+    self.assertIsNone(
+      restored.parent_id, "restored file should have folder_id=None when folder deleted"
+    )
 
   def test_delete_by_folder(self):
     """delete_by_folder should soft-delete all files in a folder."""

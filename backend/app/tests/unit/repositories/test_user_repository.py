@@ -71,9 +71,7 @@ class TestUserRepository(DatabaseTestCase):
     self.repo.delete_not_retainable()
 
     self.assertIsNone(self.session.get(User, old.id), "old user should be deleted")
-    self.assertIsNotNone(
-      self.session.get(User, recent.id), "recent user should remain"
-    )
+    self.assertIsNotNone(self.session.get(User, recent.id), "recent user should remain")
 
 
 if __name__ == "__main__":

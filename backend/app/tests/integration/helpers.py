@@ -10,8 +10,8 @@ os.environ["DATABASE_URL"] = os.environ.get(
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from app.db import get_session
 from app.api.dependencies.services import get_file_storage_service
+from app.db import get_session
 from app.tests.unit.helpers import _get_test_engine
 
 
