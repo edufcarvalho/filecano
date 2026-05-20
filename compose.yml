@@ -61,6 +61,7 @@ services:
 
   data:
     image: minio/minio:latest
+    container_name: filecano-minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
@@ -79,6 +80,7 @@ services:
 
   database:
     image: postgres:16-alpine
+    container_name: filecano-database
     environment:
       POSTGRES_DB: filecano
       POSTGRES_USER: filecano
@@ -96,6 +98,7 @@ services:
 
   cache:
     image: 'docker.dragonflydb.io/dragonflydb/dragonfly'
+    container_name: filecano-cache
     environment:
       DFLY_requirepass: ${REDIS_PASSWORD:-1234}
     ulimits:
