@@ -17,6 +17,7 @@ from app.api.dependencies.services import (
   get_user_repository,
 )
 from app.core import AuthenticationError, Settings
+from app.tests.unit.helpers import get_test_settings
 
 
 class TestAuthDependencies(unittest.TestCase):
@@ -67,32 +68,33 @@ class TestAuthDependencies(unittest.TestCase):
 class TestDIProviderFunctions(unittest.TestCase):
   def setUp(self):
     self.mock_session = MagicMock()
+    self.settings = get_test_settings()
 
   def test_get_file_repository_returns_file_repository(self):
     from app.repositories import FileRepository
 
-    result = get_file_repository(session=self.mock_session)
+    result = get_file_repository(session=self.mock_session, settings=self.settings)
     self.assertIsInstance(result, FileRepository, "should return a FileRepository")
     self.assertIs(result.session, self.mock_session)
 
   def test_get_folder_repository_returns_folder_repository(self):
     from app.repositories import FolderRepository
 
-    result = get_folder_repository(session=self.mock_session)
+    result = get_folder_repository(session=self.mock_session, settings=self.settings)
     self.assertIsInstance(result, FolderRepository, "should return a FolderRepository")
     self.assertIs(result.session, self.mock_session)
 
   def test_get_link_repository_returns_link_repository(self):
     from app.repositories import LinkRepository
 
-    result = get_link_repository(session=self.mock_session)
+    result = get_link_repository(session=self.mock_session, settings=self.settings)
     self.assertIsInstance(result, LinkRepository, "should return a LinkRepository")
     self.assertIs(result.session, self.mock_session)
 
   def test_get_user_repository_returns_user_repository(self):
     from app.repositories import UserRepository
 
-    result = get_user_repository(session=self.mock_session)
+    result = get_user_repository(session=self.mock_session, settings=self.settings)
     self.assertIsInstance(result, UserRepository, "should return a UserRepository")
     self.assertIs(result.session, self.mock_session)
 

@@ -11,7 +11,7 @@ from app.core.exceptions import (
   NotFoundError,
 )
 from app.services.link_service import LinkService
-from app.tests.unit.helpers import DatabaseTestCase
+from app.tests.unit.helpers import DatabaseTestCase, get_test_settings
 
 
 class TestLinkService(DatabaseTestCase):
@@ -19,9 +19,9 @@ class TestLinkService(DatabaseTestCase):
     super().setUp()
     from app.repositories import FileRepository, FolderRepository, LinkRepository
 
-    self.repo = LinkRepository(self.session)
-    self.file_repo = FileRepository(self.session)
-    self.folder_repo = FolderRepository(self.session)
+    self.repo = LinkRepository(self.session, get_test_settings())
+    self.file_repo = FileRepository(self.session, get_test_settings())
+    self.folder_repo = FolderRepository(self.session, get_test_settings())
     self.file_service = MagicMock()
     self.folder_service = MagicMock()
     self.storage = MagicMock()
@@ -330,6 +330,15 @@ class TestLinkService(DatabaseTestCase):
     result = self.service.restore_link(self.user, "restore-noparam-tok")
     self.assertIsNone(result.deleted_at, "restored link should have deleted_at=None")
     self.assertGreater(result.expires_at, previous_expires_at)
+
+  def test_enforce_retention_policy_delegates_to_repo(self):
+    """enforce_retention_policy should call repository's delete_not_retainable."""
+    from unittest.mock import patch
+
+    with patch.object(self.service.repository, "delete_not_retainable") as mock_del:
+      self.service.enforce_retention_policy()
+
+    mock_del.assert_called_once()
 
 
 if __name__ == "__main__":

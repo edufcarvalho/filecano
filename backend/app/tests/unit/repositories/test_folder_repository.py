@@ -2,13 +2,13 @@ import unittest
 
 from app.models import Folder
 from app.repositories import FolderRepository
-from app.tests.unit.helpers import DatabaseTestCase
+from app.tests.unit.helpers import DatabaseTestCase, get_test_settings
 
 
 class TestFolderRepository(DatabaseTestCase):
   def setUp(self):
     super().setUp()
-    self.repo = FolderRepository(self.session)
+    self.repo = FolderRepository(self.session, get_test_settings())
     self.user = self._create_user(email="folderrepo@test.com")
 
   def test_get_by_ids_returns_folders(self):

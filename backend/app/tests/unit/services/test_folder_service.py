@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from app.core.exceptions import ConflictError, ForbiddenError, GoneError, NotFoundError
 from app.services.folder_service import FolderService
-from app.tests.unit.helpers import DatabaseTestCase
+from app.tests.unit.helpers import DatabaseTestCase, get_test_settings
 
 
 class TestFolderService(DatabaseTestCase):
@@ -12,8 +12,8 @@ class TestFolderService(DatabaseTestCase):
     super().setUp()
     from app.repositories import FileRepository, FolderRepository
 
-    self.repo = FolderRepository(self.session)
-    self.file_repo = FileRepository(self.session)
+    self.repo = FolderRepository(self.session, get_test_settings())
+    self.file_repo = FileRepository(self.session, get_test_settings())
     self.file_service = MagicMock()
     self.storage = MagicMock()
     self.service = FolderService(
@@ -324,6 +324,34 @@ class TestFolderService(DatabaseTestCase):
     clone = self.service.clone_folder(self.user, parent)
     self.assertIsNotNone(clone)
     self.assertNotEqual(clone.id, parent.id, "clone should have new id")
+
+  def test_enforce_retention_policy_deletes_old_folders(self):
+    """enforce_retention_policy should permanently delete retainable folders."""
+    from unittest.mock import patch
+
+    f1 = self._create_folder(self.user.id, name="retain-folder1")
+    f2 = self._create_folder(self.user.id, name="retain-folder2")
+
+    with patch.object(
+      self.service.repository, "list_not_retainable", return_value=[f1, f2]
+    ) as mock_list:
+      with patch.object(self.service.repository, "commit") as mock_commit:
+        with patch.object(
+          self.service.repository, "get_all_descendant_ids", return_value=[]
+        ):
+          with patch.object(
+            self.service.repository, "get_files_by_folder_ids", return_value=[]
+          ):
+            with patch.object(
+              self.service.repository, "hard_delete"
+            ) as mock_hard_delete:
+              self.service.enforce_retention_policy()
+
+    mock_list.assert_called_once()
+    deleted_ids = {call.args[0].id for call in mock_hard_delete.mock_calls}
+    self.assertIn(f1.id, deleted_ids, "retainable folder1 should be hard-deleted")
+    self.assertIn(f2.id, deleted_ids, "retainable folder2 should be hard-deleted")
+    mock_commit.assert_called()
 
 
 if __name__ == "__main__":

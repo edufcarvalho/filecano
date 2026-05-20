@@ -1,13 +1,16 @@
 import unittest
+from datetime import timedelta
 
+from app.models import User
 from app.repositories import UserRepository
-from app.tests.unit.helpers import DatabaseTestCase
+from app.tests.unit.helpers import DatabaseTestCase, get_test_settings
+from app.utils.time import current_datetime
 
 
 class TestUserRepository(DatabaseTestCase):
   def setUp(self):
     super().setUp()
-    self.repo = UserRepository(self.session)
+    self.repo = UserRepository(self.session, get_test_settings())
 
   def test_get_by_email_returns_user(self):
     """get_by_email should return user when email matches."""
@@ -52,6 +55,25 @@ class TestUserRepository(DatabaseTestCase):
       IntegrityError, msg="duplicate email should raise IntegrityError"
     ):
       self._create_user(name="Second", email="dup@test.com")
+
+  def test_delete_not_retainable_deletes_old_deleted_users(self):
+    """delete_not_retainable should delete users past the retention period."""
+    old = self._create_user(name="Old", email="old@test.com")
+    old.deleted_at = current_datetime() - timedelta(days=100)
+    self.session.add(old)
+    self.session.commit()
+
+    recent = self._create_user(name="Recent", email="recent@test.com")
+    recent.deleted_at = current_datetime() - timedelta(days=1)
+    self.session.add(recent)
+    self.session.commit()
+
+    self.repo.delete_not_retainable()
+
+    self.assertIsNone(self.session.get(User, old.id), "old user should be deleted")
+    self.assertIsNotNone(
+      self.session.get(User, recent.id), "recent user should remain"
+    )
 
 
 if __name__ == "__main__":

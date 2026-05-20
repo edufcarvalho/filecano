@@ -10,6 +10,19 @@ from sqlalchemy.sql import text
 from sqlmodel import Session, SQLModel, create_engine
 from uuid6 import uuid7
 
+from app.core import Settings
+
+_test_settings = Settings(
+  jwt_secret_key="test-key",
+  max_file_size_bytes=104857600,
+  data_retention_policy=45,
+  _env_file=None,
+)
+
+
+def get_test_settings() -> Settings:
+  return _test_settings
+
 TEST_DATABASE_URL = os.environ.get(
   "TEST_DATABASE_URL",
   "postgresql+psycopg://filecano:filecano@localhost:5432/filecano_test",

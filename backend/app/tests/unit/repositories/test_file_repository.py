@@ -1,13 +1,13 @@
 import unittest
 
 from app.repositories import FileRepository
-from app.tests.unit.helpers import DatabaseTestCase
+from app.tests.unit.helpers import DatabaseTestCase, get_test_settings
 
 
 class TestFileRepository(DatabaseTestCase):
   def setUp(self):
     super().setUp()
-    self.repo = FileRepository(self.session)
+    self.repo = FileRepository(self.session, get_test_settings())
     self.user = self._create_user(email="filerepo@test.com")
 
   def test_list_by_user_returns_active_files(self):

@@ -4,7 +4,7 @@ from unittest.mock import patch
 from app.core import ConflictError
 from app.schemas import UserCreationParams, UserUpdateParams
 from app.services.user_service import UserService
-from app.tests.unit.helpers import DatabaseTestCase
+from app.tests.unit.helpers import DatabaseTestCase, get_test_settings
 
 
 class TestUserService(DatabaseTestCase):
@@ -12,7 +12,7 @@ class TestUserService(DatabaseTestCase):
     super().setUp()
     from app.repositories import UserRepository
 
-    self.repo = UserRepository(self.session)
+    self.repo = UserRepository(self.session, get_test_settings())
     self.service = UserService(self.repo)
 
   def test_create_user_success(self):
@@ -118,6 +118,15 @@ class TestUserService(DatabaseTestCase):
         IntegrityError, msg="IntegrityError should propagate to the API layer"
       ):
         self.service.update_user(user, params)
+
+  def test_enforce_retention_policy_delegates_to_repo(self):
+    """enforce_retention_policy should call repository's delete_not_retainable."""
+    from unittest.mock import patch
+
+    with patch.object(self.service.repository, "delete_not_retainable") as mock_del:
+      self.service.enforce_retention_policy()
+
+    mock_del.assert_called_once()
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ from app.core.exceptions import (
   UnsupportedFileTypeError,
 )
 from app.services.file_service import FileService
-from app.tests.unit.helpers import DatabaseTestCase
+from app.tests.unit.helpers import DatabaseTestCase, get_test_settings
 
 
 def _mock_upload_file(
@@ -32,8 +32,8 @@ class TestFileService(DatabaseTestCase):
     super().setUp()
     from app.repositories import FileRepository, FolderRepository
 
-    self.file_repo = FileRepository(self.session)
-    self.folder_repo = FolderRepository(self.session)
+    self.file_repo = FileRepository(self.session, get_test_settings())
+    self.folder_repo = FolderRepository(self.session, get_test_settings())
     self.storage = MagicMock()
     self.settings = Settings(
       max_file_size_bytes=104857600,
@@ -583,6 +583,27 @@ class TestFileService(DatabaseTestCase):
       call.args[0] for call in self.storage.delete_all_versions.call_args_list
     ]
     self.assertEqual(deleted_keys, uploaded_keys)
+
+  def test_enforce_retention_policy_deletes_old_files(self):
+    """enforce_retention_policy should permanently delete retainable files."""
+    from unittest.mock import patch
+
+    f1 = self._create_file(self.user.id, display_name="retain1.txt")
+    f2 = self._create_file(self.user.id, display_name="retain2.txt")
+
+    with (
+      patch.object(
+        self.service.repository, "list_not_retainable", return_value=[f1, f2]
+      ) as mock_list,
+      patch.object(self.service.repository, "commit") as mock_commit,
+    ):
+      self.service.enforce_retention_policy()
+
+    mock_list.assert_called_once()
+    self.storage.delete_all_versions.assert_any_call(f1.object_key)
+    self.storage.delete_all_versions.assert_any_call(f2.object_key)
+    self.assertEqual(self.storage.delete_all_versions.call_count, 2)
+    mock_commit.assert_called_once()
 
 
 if __name__ == "__main__":
