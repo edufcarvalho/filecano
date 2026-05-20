@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 from app.db import get_session
-from app.services import FileStorageService
+from app.api.dependencies.services import get_file_storage_service
 from app.tests.unit.helpers import _get_test_engine
 
 
@@ -24,7 +24,7 @@ class ApiTestCase(unittest.TestCase):
 
     cls.mock_storage = MagicMock()
     cls.mock_storage.iter_response.return_value = iter([])
-    app.dependency_overrides[FileStorageService] = lambda: cls.mock_storage
+    app.dependency_overrides[get_file_storage_service] = lambda: cls.mock_storage
     cls.app = app
 
   @classmethod
