@@ -257,7 +257,7 @@ type FolderNodeProps = {
   onExternalDrop?: (event: DragEvent, folderId: string) => void
   uploadingFolderIds?: Set<string>
   selectedFolderIds: Set<string>
-  openFolderIds: Set<string>
+  openFolderIds: string[]
   onFolderToggle?: (folderId: string) => void
 }
 
@@ -523,7 +523,7 @@ function FolderNode({
   }, [folder.id, newlyAddedFolderIds, onClearFolderNewlyAdded, onFolderToggle])
 
   const isFolderOpen = useMemo(
-    () => openFolderIds.has(folder.id),
+    () => openFolderIds.includes(folder.id),
     [folder.id, openFolderIds]
   )
 
@@ -864,17 +864,15 @@ export function FileList({
   }, [folderNameError])
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const [isCardDragOver, setIsCardDragOver] = useState(false)
-  const [openFolderIds, setOpenFolderIds] = useState<Set<string>>(new Set())
+  const [openFolderIds, setOpenFolderIds] = useState<string[]>([])
 
   const handleFolderToggle = useCallback((folderId: string) => {
     setOpenFolderIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(folderId)) {
-        next.delete(folderId)
-      } else {
-        next.add(folderId)
+      const idx = prev.indexOf(folderId)
+      if (idx !== -1) {
+        return prev.filter((id) => id !== folderId)
       }
-      return next
+      return [folderId, ...prev]
     })
   }, [])
 
@@ -1018,33 +1016,43 @@ export function FileList({
     [files, normalizedSearchQuery]
   )
 
-  const filteredTrashFolders = useMemo(
-    () =>
-      variant === "trash"
-        ? (folders ?? []).filter(
-            (folder) =>
-              !normalizedSearchQuery ||
-              folder.name.toLowerCase().includes(normalizedSearchQuery)
-          )
-        : [],
-    [variant, folders, normalizedSearchQuery]
-  )
-
   const { closedFolders, openFolders } = useMemo(() => {
-    if (variant === "trash" || !folders) {
-      return { closedFolders: folders, openFolders: [] as FolderResponse[] }
+    if (!folders) {
+      return { closedFolders: [], openFolders: [] as FolderResponse[] }
     }
-    const closed: FolderResponse[] = []
+    const folderById = new Map(folders.map((f) => [f.id, f]))
     const opened: FolderResponse[] = []
-    for (const folder of folders) {
-      if (openFolderIds.has(folder.id)) {
-        opened.push(folder)
-      } else {
-        closed.push(folder)
+    const closed: FolderResponse[] = []
+    const addedIds = new Set<string>()
+
+    for (const id of openFolderIds) {
+      const folder = folderById.get(id)
+      if (!folder) continue
+      if (
+        variant === "trash" &&
+        normalizedSearchQuery &&
+        !folder.name.toLowerCase().includes(normalizedSearchQuery)
+      ) {
+        continue
       }
+      opened.push(folder)
+      addedIds.add(id)
     }
+
+    for (const folder of folders) {
+      if (addedIds.has(folder.id)) continue
+      if (
+        variant === "trash" &&
+        normalizedSearchQuery &&
+        !folder.name.toLowerCase().includes(normalizedSearchQuery)
+      ) {
+        continue
+      }
+      closed.push(folder)
+    }
+
     return { closedFolders: closed, openFolders: opened }
-  }, [variant, folders, openFolderIds])
+  }, [variant, folders, openFolderIds, normalizedSearchQuery])
 
   const bulkActions = (
     <BulkActions
@@ -1178,6 +1186,7 @@ export function FileList({
               size="sm"
               onClick={handleCreateFolderOpen}
               disabled={pendingFileId !== null}
+              className="hidden sm:inline-flex"
             >
               <FolderPlusIcon data-icon="inline-start" />
               {t("files.createFolder")}
@@ -1205,6 +1214,19 @@ export function FileList({
             className="search-form-base"
           />
         </div>
+        {variant === "default" && onCreateFolder ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleCreateFolderOpen}
+            disabled={pendingFileId !== null}
+            className="sm:hidden w-full"
+          >
+            <FolderPlusIcon data-icon="inline-start" />
+            {t("files.createFolder")}
+          </Button>
+        ) : null}
         <div
           className={cn(
             "bulk-actions-mobile",
@@ -1246,8 +1268,8 @@ export function FileList({
                     : t("files.loadingFiles"))}
             </div>
           ) : filteredFiles.length === 0 &&
-            filteredTrashFolders.length === 0 &&
-            (!folders || variant === "trash" || folders.length === 0) ? (
+            openFolders.length === 0 &&
+            closedFolders.length === 0 ? (
             <div
               className={cn(
                 "empty-state-base",
@@ -1276,34 +1298,24 @@ export function FileList({
             </div>
           ) : (
             <ScrollableList stretch={stretch}>
-              {variant === "trash" && filteredTrashFolders.length > 0 ? (
-                <div
-                  className={cn(
-                    "file-list-grid",
-                    filteredFiles.length > 0 && "mb-3"
-                  )}
-                >
-                  {filteredTrashFolders.map(renderFolderNode)}
-                </div>
-              ) : null}
-              {variant !== "trash" && closedFolders && closedFolders.length > 0 ? (
-                <div
-                  className={cn(
-                    "file-list-grid",
-                    (openFolders.length > 0 || filteredFiles.length > 0) && "mb-3"
-                  )}
-                >
-                  {closedFolders.map(renderFolderNode)}
-                </div>
-              ) : null}
-              {variant !== "trash" && openFolders && openFolders.length > 0 ? (
+              {openFolders && openFolders.length > 0 ? (
                 <div
                   className={cn(
                     "flex flex-col gap-3",
-                    filteredFiles.length > 0 && "mb-3"
+                    (closedFolders.length > 0 || filteredFiles.length > 0) && "mb-3"
                   )}
                 >
                   {openFolders.map(renderFolderNode)}
+                </div>
+              ) : null}
+              {closedFolders && closedFolders.length > 0 ? (
+                <div
+                  className={cn(
+                    "file-list-grid",
+                    filteredFiles.length > 0 && "mb-3"
+                  )}
+                >
+                  {closedFolders.map(renderFolderNode)}
                 </div>
               ) : null}
               {filteredFiles.length > 0 ? (
