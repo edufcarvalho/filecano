@@ -16,8 +16,8 @@ x-backend-env: &backend-env
   SHARED_URL_EXPIRE_SECONDS: ${SHARED_URL_EXPIRE_SECONDS:-604800}
   SHARE_TOKEN_LENGTH: ${SHARE_TOKEN_LENGTH:-8}
   MAX_FILE_SIZE_BYTES: ${MAX_FILE_SIZE_BYTES:-2147483648}
-  REDIS_URL: ${REDIS_URL:-redis://:1234:6379/0}
-  CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://:1234:6379/0}
+  REDIS_URL: ${REDIS_URL:-redis://:1234@host.docker.internal:6379/0}
+  CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://:1234@host.docker.internal:6379/0}
   DATA_RETENTION_POLICY: ${DATA_RETENTION_POLICY:-45}
   WATCHFILES_FORCE_POLLING: ${WATCHFILES_FORCE_POLLING:-true}
 
@@ -38,6 +38,8 @@ services:
     working_dir: /app
     environment: *backend-env
     depends_on: *backend-depends-on
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8000:8000"
     healthcheck:
@@ -54,7 +56,12 @@ services:
     working_dir: /app
     command: ["celery", "-A", "app.tasks.celery", "worker", "-B", "--loglevel=info"]
     environment: *backend-env
-    depends_on: *backend-depends-on
+    depends_on:
+      <<: *backend-depends-on
+      cache:
+        condition: service_started
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes: *backend-volumes
 
   front:

@@ -1,5 +1,9 @@
+import logging
+from pathlib import Path
+
 from celery import Celery
 from celery.schedules import crontab
+from celery.signals import after_setup_logger
 
 from app.core import get_settings
 
@@ -11,7 +15,20 @@ celery = Celery(
   backend=settings.redis_url,
 )
 
+LOGS_DIR = Path(__file__).resolve().parent/"generated"
+LOGS_DIR.mkdir(exist_ok=True)
+
+
+@after_setup_logger.connect
+def setup_loggers(logger, *args, **kwargs):
+  handler = logging.FileHandler(LOGS_DIR/"celery.log")
+  handler.setFormatter(logging.Formatter(
+    "[%(asctime)s: %(levelname)s/%(processName)s] %(message)s"
+  ))
+  logger.addHandler(handler)
+
 celery.conf.update(
+  beat_schedule_filename=str(LOGS_DIR/"celerybeat-schedule.db"),
   # many of those are defaults, adding for visibility
   task_serializer="json",
   accept_content=["json"],
