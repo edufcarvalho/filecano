@@ -1,4 +1,4 @@
-import type { ComponentProps, RefObject } from "react"
+import { useCallback, useEffect, useRef, type ComponentProps, type RefObject } from "react"
 import {
   ChevronDownIcon,
   ChevronUpIcon,
@@ -21,6 +21,9 @@ type FileUploadDropzoneProps = {
   onFileSelect: NonNullable<ComponentProps<"input">["onChange"]>
 }
 
+const GAP = 16
+const DESKTOP_RESIDUAL = 4
+
 export function FileUploadDropzone({
   fileInputRef,
   isDragOver,
@@ -28,8 +31,123 @@ export function FileUploadDropzone({
   onFileSelect,
 }: FileUploadDropzoneProps) {
   const { t } = useTranslation()
+  const dropzoneRef = useRef<HTMLDivElement>(null)
+  const naturalHeightRef = useRef(0)
+  const scrollContainerRef = useRef<Element | null>(null)
+  const rafRef = useRef(0)
+  const isDraggingRef = useRef(false)
+
+  const applyTransform = useCallback((progress: number) => {
+    const dz = dropzoneRef.current
+    if (!dz) return
+    const p = Math.min(1, Math.max(0, progress))
+
+    if (!naturalHeightRef.current) {
+      naturalHeightRef.current = dz.offsetHeight + GAP
+    }
+    const totalH = naturalHeightRef.current
+
+    dz.style.transform = `scaleY(${(1 - p).toFixed(3)})`
+    dz.style.opacity = (1 - p).toFixed(3)
+
+    const step = Math.round(p * 8) / 8
+    const isDesktop = window.innerWidth >= 640
+    const cancelH = totalH - (isDesktop ? DESKTOP_RESIDUAL : 0)
+    dz.style.marginBottom = `${Math.round(-cancelH * step)}px`
+    dz.style.transition = "none"
+
+    dz.style.setProperty("--dropzone-progress", p.toFixed(3))
+  }, [])
+
+  const clearTransform = useCallback(() => {
+    const dz = dropzoneRef.current
+    if (!dz) return
+    dz.style.transition = ""
+    dz.style.transform = ""
+    dz.style.opacity = ""
+    dz.style.marginBottom = ""
+    dz.style.setProperty("--dropzone-progress", "0")
+  }, [])
+
+  const handleScroll = useCallback(() => {
+    if (isDraggingRef.current) return
+    if (rafRef.current) return
+
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = 0
+      const el = scrollContainerRef.current
+      if (!el) return
+
+      const y = Math.round(el.scrollTop)
+      const progress = Math.min(1, Math.max(0, y / 100))
+
+      applyTransform(progress)
+    })
+  }, [applyTransform])
+
+  useEffect(() => {
+    const el =
+      document.querySelector(".scrollable-list-container") ??
+      document.querySelector(".page-wrapper")
+    if (!el) return
+    scrollContainerRef.current = el
+    el.addEventListener("scroll", handleScroll, { passive: true })
+    return () => {
+      el.removeEventListener("scroll", handleScroll)
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current)
+        rafRef.current = 0
+      }
+    }
+  }, [handleScroll])
+
+  useEffect(() => {
+    if (isDragOver) {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current)
+        rafRef.current = 0
+      }
+      clearTransform()
+    }
+  }, [isDragOver, clearTransform])
+
+  useEffect(() => {
+    const onDragOver = (e: DragEvent) => {
+      const dt = e.dataTransfer
+      if (!dt) return
+      const hasFiles = dt.files.length > 0
+      const hasItems = dt.types.some(
+        (t) => t === "Files" || t === "text/plain" || t === "folder"
+      )
+      if (hasFiles || hasItems) {
+        isDraggingRef.current = true
+        if (rafRef.current) {
+          cancelAnimationFrame(rafRef.current)
+          rafRef.current = 0
+        }
+        clearTransform()
+      }
+    }
+
+    const onDragEnd = () => {
+      isDraggingRef.current = false
+    }
+
+    document.addEventListener("dragover", onDragOver)
+    document.addEventListener("dragend", onDragEnd)
+    document.addEventListener("drop", onDragEnd)
+
+    return () => {
+      document.removeEventListener("dragover", onDragOver)
+      document.removeEventListener("dragend", onDragEnd)
+      document.removeEventListener("drop", onDragEnd)
+      isDraggingRef.current = false
+    }
+  }, [clearTransform])
+
   return (
     <div
+      ref={dropzoneRef}
       role="region"
       aria-label={t("files.dropzone.area")}
       onClick={onBrowseFiles}
@@ -38,10 +156,12 @@ export function FileUploadDropzone({
         isDragOver ? "upload-dropzone-active" : "upload-dropzone-idle"
       )}
     >
-      <UploadIcon className="icon-muted mx-auto mb-2" size={32} />
-      <p className="text-sm text-muted-foreground">
-        {t("files.dropzone.instruction")}
-      </p>
+      <div className="upload-dropzone-content">
+        <UploadIcon className="icon-muted mx-auto mb-2" size={32} />
+        <p className="text-sm text-muted-foreground">
+          {t("files.dropzone.instruction")}
+        </p>
+      </div>
       <input
         ref={fileInputRef}
         type="file"

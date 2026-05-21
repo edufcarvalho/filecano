@@ -373,6 +373,9 @@
 
   .upload-dropzone {
     @apply cursor-pointer rounded-lg border-2 border-dashed p-8 text-center transition-colors;
+    transform-origin: top;
+    will-change: transform, opacity, margin-bottom;
+    transition: transform 0.25s ease, opacity 0.25s ease, margin-bottom 0.25s ease;
   }
 
   .upload-dropzone-active {
@@ -381,6 +384,14 @@
 
   .upload-dropzone-idle {
     @apply border-muted-foreground/25;
+  }
+
+  .upload-dropzone-content {
+    opacity: calc(1 - var(--dropzone-progress, 0) * 3);
+  }
+
+  .upload-dropzone-collapsed {
+    @apply max-h-0 border-0 py-0 mb-[-1rem] opacity-0 overflow-hidden pointer-events-none;
   }
 
   .upload-file-item {
