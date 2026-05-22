@@ -12,7 +12,7 @@ describe("useIsMobile", () => {
     const mql = {
       matches: false,
       addEventListener: (
-        event: string,
+        _event: string,
         listener: (e: { matches: boolean }) => void
       ) => {
         listeners.push(listener)
@@ -21,7 +21,7 @@ describe("useIsMobile", () => {
     }
 
     matchMediaMock = vi.fn().mockReturnValue(mql)
-    window.matchMedia = matchMediaMock
+    window.matchMedia = matchMediaMock as unknown as typeof window.matchMedia
   })
 
   it("returns false for desktop viewport", () => {

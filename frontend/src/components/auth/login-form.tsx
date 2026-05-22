@@ -10,12 +10,12 @@ import { AuthPasswordField, AuthTextField } from "@auth/auth-form-fields"
 import { AuthCard } from "@auth/auth-card"
 import { ErrorField } from "@misc/status-field"
 import { LoadingButton } from "@misc/loading-button"
-import { loginUser, type TokenResponse } from "@/lib/api"
+import { loginUser, type AuthResponse } from "@/lib/api"
 import type { FormSubmitHandler } from "@/lib/form-types"
 import { useAuthForm } from "@/hooks/use-auth-form"
 
 type LoginFormProps = Omit<ComponentProps<"div">, "onSubmit"> & {
-  onLogin?: (token: TokenResponse) => void
+  onLogin?: (token: AuthResponse) => void
 }
 
 export function LoginForm({ className, onLogin, ...props }: LoginFormProps) {

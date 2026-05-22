@@ -22,9 +22,10 @@ export class ApiError extends Error {
   }
 }
 
-export type TokenResponse = {
-  access_token: string
-  token_type: string
+export type AuthResponse = {
+  id: string
+  name: string
+  email: string
   expires_in: number
 }
 
@@ -69,15 +70,14 @@ export type LinkUpdateResponse = {
 }
 
 let onUnauthorized: (() => void) | null = null
-let onTokenRefresh: ((expiredToken: string) => Promise<string | null>) | null =
-  null
+let onTokenRefresh: (() => Promise<boolean>) | null = null
 
 export function setUnauthorizedCallback(cb: (() => void) | null) {
   onUnauthorized = cb
 }
 
 export function setTokenRefreshCallback(
-  cb: ((expiredToken: string) => Promise<string | null>) | null
+  cb: (() => Promise<boolean>) | null
 ) {
   onTokenRefresh = cb
 }
@@ -99,23 +99,19 @@ async function readError(response: Response, fallback: string) {
 
 async function authFetch(
   url: string,
-  accessToken: string,
   options: RequestInit = {},
   allowRefresh = true
 ) {
   const response = await fetch(url, {
     ...options,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      ...options.headers,
-    },
+    credentials: "include",
   })
 
   if (response.status === 401) {
     if (allowRefresh && onTokenRefresh) {
-      const refreshedToken = await onTokenRefresh(accessToken)
-      if (refreshedToken) {
-        return authFetch(url, refreshedToken, options, false)
+      const refreshed = await onTokenRefresh()
+      if (refreshed) {
+        return authFetch(url, options, false)
       }
     }
     onUnauthorized?.()
@@ -140,12 +136,13 @@ async function downloadResponse(response: Response, fileName: string) {
 export async function loginUser(credentials: {
   email: string
   password: string
-}): Promise<TokenResponse> {
+}): Promise<AuthResponse> {
   const response = await fetch(`${API_URL}/v1/users/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
+    credentials: "include",
     body: JSON.stringify(credentials),
   })
 
@@ -155,14 +152,10 @@ export async function loginUser(credentials: {
   return response.json()
 }
 
-export async function refreshAccessToken(
-  accessToken: string
-): Promise<TokenResponse> {
+export async function refreshAccessToken(): Promise<AuthResponse> {
   const response = await fetch(`${API_URL}/v1/users/token/refresh`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
+    credentials: "include",
   })
 
   if (!response.ok)
@@ -175,12 +168,13 @@ export async function signupUser(data: {
   name: string
   email: string
   password: string
-}): Promise<TokenResponse> {
+}): Promise<AuthResponse> {
   const response = await fetch(`${API_URL}/v1/users`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
+    credentials: "include",
     body: JSON.stringify(data),
   })
 
@@ -190,8 +184,23 @@ export async function signupUser(data: {
   return response.json()
 }
 
+export async function fetchMe(): Promise<UserResponse> {
+  const response = await authFetch(`${API_URL}/v1/users/me`)
+
+  if (!response.ok)
+    await readError(response, translate("api.error.refreshSession"))
+
+  return response.json()
+}
+
+export async function logoutUser(): Promise<void> {
+  await fetch(`${API_URL}/v1/users/logout`, {
+    method: "POST",
+    credentials: "include",
+  })
+}
+
 export async function updateUser(
-  accessToken: string,
   data: {
     current_password: string
     name?: string
@@ -199,10 +208,9 @@ export async function updateUser(
     password?: string
   }
 ): Promise<UserResponse> {
-  const response = await fetch(`${API_URL}/v1/users`, {
+  const response = await authFetch(`${API_URL}/v1/users`, {
     method: "PUT",
     headers: {
-      Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(data),
@@ -250,12 +258,10 @@ function toQueryString(params: Record<string, string | boolean | undefined>) {
 }
 
 export async function listFiles(
-  accessToken: string,
   filters: ListFilesFilters = {}
 ): Promise<FileResponse[]> {
   const response = await authFetch(
-    `${API_URL}/v1/files${toQueryString(filters)}`,
-    accessToken
+    `${API_URL}/v1/files${toQueryString(filters)}`
   )
 
   if (!response.ok)
@@ -265,12 +271,10 @@ export async function listFiles(
 }
 
 export async function listFolderedFiles(
-  accessToken: string,
   filters: ListFilesFilters = {}
 ): Promise<FolderListResponse> {
   const response = await authFetch(
-    `${API_URL}/v1/files${toQueryString({ ...filters, by_folder: true })}`,
-    accessToken
+    `${API_URL}/v1/files${toQueryString({ ...filters, by_folder: true })}`
   )
 
   if (!response.ok)
@@ -289,11 +293,10 @@ export async function listFolderedFiles(
 }
 
 export async function createFolder(
-  accessToken: string,
   name: string,
   parentId?: string
 ): Promise<FolderResponse> {
-  const response = await authFetch(`${API_URL}/v1/folders`, accessToken, {
+  const response = await authFetch(`${API_URL}/v1/folders`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -308,13 +311,11 @@ export async function createFolder(
 }
 
 export async function updateFolder(
-  accessToken: string,
   folderId: string,
   params: { name?: string; parent_id?: string | null }
 ): Promise<FolderResponse> {
   const response = await authFetch(
     `${API_URL}/v1/folders/${folderId}`,
-    accessToken,
     {
       method: "PUT",
       headers: {
@@ -335,13 +336,11 @@ type DeleteFolderFilters = {
 }
 
 export async function deleteFolder(
-  accessToken: string,
   folderId: string,
   filters: DeleteFolderFilters = {}
 ): Promise<void> {
   const response = await authFetch(
     `${API_URL}/v1/folders/${folderId}${toQueryString(filters)}`,
-    accessToken,
     { method: "DELETE" }
   )
 
@@ -349,12 +348,9 @@ export async function deleteFolder(
     await readError(response, translate("files.error.deleteFolder"))
 }
 
-export async function listDeletedFolders(
-  accessToken: string
-): Promise<FolderResponse[]> {
+export async function listDeletedFolders(): Promise<FolderResponse[]> {
   const response = await authFetch(
-    `${API_URL}/v1/folders?deleted=true`,
-    accessToken
+    `${API_URL}/v1/folders?deleted=true`
   )
 
   if (!response.ok)
@@ -364,12 +360,10 @@ export async function listDeletedFolders(
 }
 
 export async function restoreFolder(
-  accessToken: string,
   folderId: string
 ): Promise<FolderListResponse> {
   const response = await authFetch(
     `${API_URL}/v1/folders/${folderId}/restore`,
-    accessToken,
     { method: "POST" }
   )
 
@@ -379,8 +373,8 @@ export async function restoreFolder(
   return response.json()
 }
 
-export function listDeletedFiles(accessToken: string): Promise<FileResponse[]> {
-  return listFiles(accessToken, { deleted: true })
+export function listDeletedFiles(): Promise<FileResponse[]> {
+  return listFiles({ deleted: true })
 }
 
 export function getFilePreviewUrl(fileId: string) {
@@ -388,10 +382,9 @@ export function getFilePreviewUrl(fileId: string) {
 }
 
 export async function fetchFilePreviewAsDataUrl(
-  accessToken: string,
   fileId: string
 ): Promise<string> {
-  const response = await authFetch(getFilePreviewUrl(fileId), accessToken)
+  const response = await authFetch(getFilePreviewUrl(fileId))
 
   if (!response.ok)
     await readError(response, translate("api.error.loadPreview"))
@@ -416,7 +409,6 @@ export async function fetchSharedFilePreviewAsDataUrl(
 }
 
 export async function updateFile(
-  accessToken: string,
   fileId: string,
   data: {
     original_name?: string
@@ -425,7 +417,6 @@ export async function updateFile(
 ): Promise<FileResponse> {
   const response = await authFetch(
     `${API_URL}/v1/files/${fileId}`,
-    accessToken,
     {
       method: "PUT",
       headers: {
@@ -442,13 +433,11 @@ export async function updateFile(
 }
 
 export async function deleteFile(
-  accessToken: string,
   fileId: string,
   filters: DeleteFileFilters = {}
 ): Promise<void> {
   const response = await authFetch(
     `${API_URL}/v1/files/${fileId}${toQueryString(filters)}`,
-    accessToken,
     {
       method: "DELETE",
     }
@@ -459,12 +448,10 @@ export async function deleteFile(
 }
 
 export async function restoreFile(
-  accessToken: string,
   fileId: string
 ): Promise<FileResponse> {
   const response = await authFetch(
     `${API_URL}/v1/files/${fileId}/restore`,
-    accessToken,
     {
       method: "POST",
     }
@@ -477,16 +464,14 @@ export async function restoreFile(
 }
 
 export async function downloadFile(
-  accessToken: string,
   fileId: string,
   fileName: string
 ): Promise<void> {
-  const response = await authFetch(`${API_URL}/v1/files/${fileId}`, accessToken)
+  const response = await authFetch(`${API_URL}/v1/files/${fileId}`)
 
   if (!response.ok)
     await readError(response, translate("files.error.downloadFile"))
 
-  // Check for checksum mismatch
   const checksumError = response.headers.get("X-Checksum-Error")
   if (checksumError === "true") {
     throw new Error(translate("api.error.checksumMismatch"))
@@ -496,13 +481,11 @@ export async function downloadFile(
 }
 
 export async function bulkDeleteFiles(
-  accessToken: string,
   fileIds: string[],
   filters: DeleteFileFilters = {}
 ): Promise<void> {
   const response = await authFetch(
     `${API_URL}/v1/files/delete/bulk${toQueryString(filters)}`,
-    accessToken,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -515,12 +498,10 @@ export async function bulkDeleteFiles(
 }
 
 export async function bulkRestoreFiles(
-  accessToken: string,
   fileIds: string[]
 ): Promise<void> {
   const response = await authFetch(
     `${API_URL}/v1/files/restore/bulk`,
-    accessToken,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -533,13 +514,11 @@ export async function bulkRestoreFiles(
 }
 
 export async function bulkDeleteFolders(
-  accessToken: string,
   folderIds: string[],
   filters: DeleteFileFilters = {}
 ): Promise<void> {
   const response = await authFetch(
     `${API_URL}/v1/folders/delete/bulk${toQueryString(filters)}`,
-    accessToken,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -552,12 +531,10 @@ export async function bulkDeleteFolders(
 }
 
 export async function bulkRestoreFolders(
-  accessToken: string,
   folderIds: string[]
 ): Promise<void> {
   const response = await authFetch(
     `${API_URL}/v1/folders/restore/bulk`,
-    accessToken,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -570,11 +547,10 @@ export async function bulkRestoreFolders(
 }
 
 export async function downloadMultipleFiles(
-  accessToken: string,
   files: Array<{ id: string; original_name: string }>
 ): Promise<void> {
   const downloadPromises = files.map((file) =>
-    downloadFile(accessToken, file.id, file.original_name)
+    downloadFile(file.id, file.original_name)
   )
 
   try {
@@ -585,18 +561,17 @@ export async function downloadMultipleFiles(
 }
 
 export async function shareFiles(
-  accessToken: string,
   files: FileReference[],
   expiresAt?: string,
   folderIds?: string[]
-): Promise<TokenResponse> {
+): Promise<{ access_token: string }> {
   const body: Record<string, unknown> = {
     files: files.map((file) => file.file_id),
   }
   if (folderIds && folderIds.length > 0) body.folders = folderIds
   if (expiresAt) body.expires_at = expiresAt
 
-  const response = await authFetch(`${API_URL}/v1/share`, accessToken, {
+  const response = await authFetch(`${API_URL}/v1/share`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -611,12 +586,10 @@ export async function shareFiles(
 }
 
 export async function listUserLinks(
-  accessToken: string,
   userId: string
 ): Promise<LinkResponse[]> {
   const response = await authFetch(
-    `${API_URL}/v1/share/user/${userId}`,
-    accessToken
+    `${API_URL}/v1/share/user/${userId}`
   )
 
   if (!response.ok) await readError(response, translate("api.error.loadLinks"))
@@ -625,13 +598,11 @@ export async function listUserLinks(
 }
 
 export async function updateLinkName(
-  accessToken: string,
   token: string,
   customName: string
 ): Promise<LinkUpdateResponse> {
   const response = await authFetch(
     `${API_URL}/v1/share/${encodeURIComponent(token)}`,
-    accessToken,
     {
       method: "PUT",
       headers: {
@@ -647,12 +618,10 @@ export async function updateLinkName(
 }
 
 export async function deleteLink(
-  accessToken: string,
   token: string
 ): Promise<void> {
   const response = await authFetch(
     `${API_URL}/v1/share/${token}`,
-    accessToken,
     {
       method: "DELETE",
     }
@@ -662,7 +631,6 @@ export async function deleteLink(
 }
 
 export async function restoreLink(
-  accessToken: string,
   token: string,
   expiresAt?: string
 ): Promise<{ id: string; expires_at: string }> {
@@ -671,7 +639,6 @@ export async function restoreLink(
 
   const response = await authFetch(
     `${API_URL}/v1/share/${encodeURIComponent(token)}/restore`,
-    accessToken,
     {
       method: "POST",
       headers: {
@@ -718,7 +685,6 @@ export async function downloadSharedFile(
 }
 
 export async function cloneSharedFiles(
-  accessToken: string,
   token: string,
   files?: FileReference[],
   folderIds?: string[]
@@ -729,7 +695,6 @@ export async function cloneSharedFiles(
 
   const response = await authFetch(
     `${API_URL}/v1/share/${token}/files/clone`,
-    accessToken,
     {
       method: "POST",
       headers: {
@@ -746,7 +711,6 @@ export async function cloneSharedFiles(
 }
 
 export async function uploadFile(
-  accessToken: string,
   file: File,
   onProgress?: (progress: {
     uploadedBytes: number
@@ -754,11 +718,10 @@ export async function uploadFile(
   }) => void,
   folderId?: string
 ): Promise<FileResponse> {
-  return uploadFileWithToken(accessToken, file, onProgress, true, folderId)
+  return uploadFileWithToken(file, onProgress, true, folderId)
 }
 
 function uploadFileWithToken(
-  accessToken: string,
   file: File,
   onProgress:
     | ((progress: { uploadedBytes: number; totalBytes: number }) => void)
@@ -786,16 +749,15 @@ function uploadFileWithToken(
     xhr.addEventListener("load", () => {
       if (xhr.status === 401) {
         if (allowRefresh && onTokenRefresh) {
-          void onTokenRefresh(accessToken)
-            .then((refreshedToken) => {
-              if (!refreshedToken) {
+          void onTokenRefresh()
+            .then((refreshed) => {
+              if (!refreshed) {
                 onUnauthorized?.()
                 reject(new Error("Access token expired."))
                 return
               }
 
               return uploadFileWithToken(
-                refreshedToken,
                 file,
                 onProgress,
                 false,
@@ -840,8 +802,7 @@ function uploadFileWithToken(
     })
 
     xhr.open("POST", `${API_URL}/v1/files`)
-    xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`)
-    xhr.setRequestHeader("Content-Length", String(file.size))
+    xhr.withCredentials = true
     xhr.send(formData)
   })
 }

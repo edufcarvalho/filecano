@@ -40,7 +40,7 @@ import {
   setTokenRefreshCallback,
 } from "@/lib/api"
 import type {
-  TokenResponse,
+  AuthResponse,
   UserResponse,
   FileResponse,
   FolderResponse,
@@ -127,16 +127,13 @@ function makeFolderResponse(
   }
 }
 
-const mockAccessToken = "access-token-abc"
-const mockRefreshedToken = "refreshed-token-xyz"
-
 // ---------------------------------------------------------------------------
 // Global beforeEach / afterEach
 // ---------------------------------------------------------------------------
 
 beforeEach(() => {
   vi.resetAllMocks()
-  global.fetch = vi.fn()
+  globalThis.fetch = vi.fn()
 
   // After resetAllMocks, re-set the readBlobAsDataUrl mock behaviour
   vi.mocked(readBlobAsDataUrl).mockResolvedValue(
@@ -215,9 +212,10 @@ describe("setTokenRefreshCallback", () => {
 // ===================================================================
 
 describe("loginUser", () => {
-  const tokenData: TokenResponse = {
-    access_token: "tok-1",
-    token_type: "bearer",
+  const tokenData: AuthResponse = {
+    id: "user-1",
+    name: "Test User",
+    email: "a@b.com",
     expires_in: 3600,
   }
 
@@ -273,21 +271,22 @@ describe("loginUser", () => {
 })
 
 describe("refreshAccessToken", () => {
-  const tokenData: TokenResponse = {
-    access_token: "fresh",
-    token_type: "bearer",
+  const tokenData: AuthResponse = {
+    id: "user-1",
+    name: "Test User",
+    email: "a@b.com",
     expires_in: 7200,
   }
 
   it("returns new token on success", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(tokenData))
-    const result = await refreshAccessToken("old-token")
+    const result = await refreshAccessToken()
     expect(result).toEqual(tokenData)
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/users/token/refresh`,
       expect.objectContaining({
         method: "POST",
-        headers: { Authorization: "Bearer old-token" },
+        credentials: "include",
       }),
     )
   })
@@ -296,7 +295,7 @@ describe("refreshAccessToken", () => {
     vi.mocked(fetch).mockResolvedValue(
       errorResponse(401, { message: "Token invalid" }),
     )
-    await expect(refreshAccessToken("bad")).rejects.toMatchObject({
+    await expect(refreshAccessToken()).rejects.toMatchObject({
       message: "Token invalid",
       status: 401,
     })
@@ -309,7 +308,7 @@ describe("refreshAccessToken", () => {
       json: () => Promise.reject(new Error("bad json")),
       headers: new Headers(),
     } as Response)
-    await expect(refreshAccessToken("t")).rejects.toMatchObject({
+    await expect(refreshAccessToken()).rejects.toMatchObject({
       message: "api.error.refreshSession",
       status: 502,
     })
@@ -318,9 +317,10 @@ describe("refreshAccessToken", () => {
 
 describe("signupUser", () => {
   it("signs up successfully", async () => {
-    const token: TokenResponse = {
-      access_token: "t",
-      token_type: "bearer",
+    const token: AuthResponse = {
+      id: "u1",
+      name: "A",
+      email: "a@b.com",
       expires_in: 3600,
     }
     vi.mocked(fetch).mockResolvedValue(okResponse(token))
@@ -360,7 +360,7 @@ describe("updateUser", () => {
 
   it("updates user successfully", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(user))
-    const result = await updateUser(mockAccessToken, {
+    const result = await updateUser({
       current_password: "old",
       name: "New Name",
     })
@@ -372,19 +372,17 @@ describe("updateUser", () => {
       errorResponse(400, { message: "Bad password" }),
     )
     await expect(
-      updateUser(mockAccessToken, { current_password: "wrong" }),
+      updateUser({ current_password: "wrong" }),
     ).rejects.toMatchObject({ message: "Bad password", status: 400 })
   })
 
-  it("passes Authorization header", async () => {
+  it("uses cookie-based auth", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(user))
-    await updateUser(mockAccessToken, { current_password: "p", name: "A" })
+    await updateUser({ current_password: "p", name: "A" })
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/users`,
       expect.objectContaining({
-        headers: expect.objectContaining({
-          Authorization: `Bearer ${mockAccessToken}`,
-        }),
+        credentials: "include",
       }),
     )
   })
@@ -398,7 +396,7 @@ describe("authFetch (via updateFile)", () => {
   const file = makeFileResponse({ original_name: "renamed.txt" })
 
   it("retries with refreshed token on 401", async () => {
-    const refreshCb = vi.fn().mockResolvedValue(mockRefreshedToken)
+    const refreshCb = vi.fn().mockResolvedValue(true)
 
     // 401 first → refresh → ok second
     vi.mocked(fetch)
@@ -407,11 +405,11 @@ describe("authFetch (via updateFile)", () => {
 
     setTokenRefreshCallback(refreshCb)
 
-    const result = await updateFile(mockAccessToken, "f1", {
+    const result = await updateFile("f1", {
       original_name: "x",
     })
     expect(result).toEqual(file)
-    expect(refreshCb).toHaveBeenCalledWith(mockAccessToken)
+    expect(refreshCb).toHaveBeenCalled()
     // Second call uses refreshed token
     expect(fetch).toHaveBeenCalledTimes(2)
   })
@@ -423,7 +421,7 @@ describe("authFetch (via updateFile)", () => {
     vi.mocked(fetch).mockResolvedValue(errorResponse(401, {}))
 
     await expect(
-      updateFile(mockAccessToken, "f1", { original_name: "x" }),
+      updateFile("f1", { original_name: "x" }),
     ).rejects.toThrow("api.error.tokenExpired")
     expect(unauthCb).toHaveBeenCalled()
   })
@@ -438,14 +436,14 @@ describe("authFetch (via updateFile)", () => {
     vi.mocked(fetch).mockResolvedValue(errorResponse(401, {}))
 
     await expect(
-      updateFile(mockAccessToken, "f1", { original_name: "x" }),
+      updateFile("f1", { original_name: "x" }),
     ).rejects.toThrow("api.error.tokenExpired")
     expect(refreshCb).toHaveBeenCalled()
     expect(unauthCb).toHaveBeenCalled()
   })
 
   it("does not allow infinite refresh loop (allowRefresh=false on retry)", async () => {
-    const refreshCb = vi.fn().mockResolvedValue(mockRefreshedToken)
+    const refreshCb = vi.fn().mockResolvedValue(true)
 
     // Both calls return 401 — second should not trigger another refresh
     vi.mocked(fetch)
@@ -457,7 +455,7 @@ describe("authFetch (via updateFile)", () => {
     setTokenRefreshCallback(refreshCb)
 
     await expect(
-      updateFile(mockAccessToken, "f1", { original_name: "x" }),
+      updateFile("f1", { original_name: "x" }),
     ).rejects.toThrow("api.error.tokenExpired")
 
     expect(refreshCb).toHaveBeenCalledTimes(1)
@@ -477,21 +475,19 @@ describe("listFiles", () => {
 
   it("fetches files successfully", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(files))
-    const result = await listFiles(mockAccessToken)
+    const result = await listFiles()
     expect(result).toEqual(files)
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files`,
       expect.objectContaining({
-        headers: expect.objectContaining({
-          Authorization: `Bearer ${mockAccessToken}`,
-        }),
+        credentials: "include",
       }),
     )
   })
 
   it("appends query string for deleted filter", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse([]))
-    await listFiles(mockAccessToken, { deleted: true })
+    await listFiles({ deleted: true })
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files?deleted=true`,
       expect.anything(),
@@ -502,20 +498,20 @@ describe("listFiles", () => {
     vi.mocked(fetch).mockResolvedValue(
       errorResponse(500, { message: "Server down" }),
     )
-    await expect(listFiles(mockAccessToken)).rejects.toMatchObject({
+    await expect(listFiles()).rejects.toMatchObject({
       message: "Server down",
       status: 500,
     })
   })
 
   it("handles 401 with token refresh", async () => {
-    const refreshCb = vi.fn().mockResolvedValue(mockRefreshedToken)
+    const refreshCb = vi.fn().mockResolvedValue(true)
     vi.mocked(fetch)
       .mockResolvedValueOnce(errorResponse(401, {}))
       .mockResolvedValueOnce(okResponse(files))
 
     setTokenRefreshCallback(refreshCb)
-    const result = await listFiles(mockAccessToken)
+    const result = await listFiles()
     expect(result).toEqual(files)
     expect(refreshCb).toHaveBeenCalled()
   })
@@ -529,7 +525,7 @@ describe("listFolderedFiles", () => {
 
   it("fetches foldered files successfully", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(folderData))
-    const result = await listFolderedFiles(mockAccessToken)
+    const result = await listFolderedFiles()
     expect(result).toEqual(folderData)
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files?by_folder=true`,
@@ -539,7 +535,7 @@ describe("listFolderedFiles", () => {
 
   it("appends deleted query param when passed", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(folderData))
-    await listFolderedFiles(mockAccessToken, { deleted: true })
+    await listFolderedFiles({ deleted: true })
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files?deleted=true&by_folder=true`,
       expect.anything(),
@@ -549,13 +545,13 @@ describe("listFolderedFiles", () => {
   it("wraps array response in FolderListResponse shape", async () => {
     const flat: FileResponse[] = [makeFileResponse()]
     vi.mocked(fetch).mockResolvedValue(okResponse(flat))
-    const result = await listFolderedFiles(mockAccessToken)
+    const result = await listFolderedFiles()
     expect(result).toEqual({ folders: [], other_files: flat })
   })
 
   it("handles missing fields in response", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse({}))
-    const result = await listFolderedFiles(mockAccessToken)
+    const result = await listFolderedFiles()
     expect(result).toEqual({ folders: [], other_files: [] })
   })
 
@@ -563,7 +559,7 @@ describe("listFolderedFiles", () => {
     vi.mocked(fetch).mockResolvedValue(
       errorResponse(403, { message: "Forbidden" }),
     )
-    await expect(listFolderedFiles(mockAccessToken)).rejects.toMatchObject({
+    await expect(listFolderedFiles()).rejects.toMatchObject({
       message: "Forbidden",
       status: 403,
     })
@@ -579,13 +575,13 @@ describe("createFolder", () => {
 
   it("creates folder successfully", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(folder))
-    const result = await createFolder(mockAccessToken, "new-folder")
+    const result = await createFolder("new-folder")
     expect(result).toEqual(folder)
   })
 
   it("includes parentId when provided", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(folder))
-    await createFolder(mockAccessToken, "new-folder", "parent-1")
+    await createFolder("new-folder", "parent-1")
     const callArgs = vi.mocked(fetch).mock.calls[0]
     const body = JSON.parse((callArgs[1] as RequestInit).body as string)
     expect(body).toEqual({ name: "new-folder", parent_id: "parent-1" })
@@ -593,7 +589,7 @@ describe("createFolder", () => {
 
   it("sends null parent_id when not provided", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(folder))
-    await createFolder(mockAccessToken, "root-folder")
+    await createFolder("root-folder")
     const callArgs = vi.mocked(fetch).mock.calls[0]
     const body = JSON.parse((callArgs[1] as RequestInit).body as string)
     expect(body).toEqual({ name: "root-folder", parent_id: null })
@@ -603,7 +599,7 @@ describe("createFolder", () => {
     vi.mocked(fetch).mockResolvedValue(
       errorResponse(409, { message: "Duplicate" }),
     )
-    await expect(createFolder(mockAccessToken, "dup")).rejects.toMatchObject({
+    await expect(createFolder("dup")).rejects.toMatchObject({
       message: "Duplicate",
       status: 409,
     })
@@ -615,7 +611,7 @@ describe("updateFolder", () => {
 
   it("updates folder successfully", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(folder))
-    const result = await updateFolder(mockAccessToken, "f1", {
+    const result = await updateFolder("f1", {
       name: "renamed",
     })
     expect(result).toEqual(folder)
@@ -626,13 +622,13 @@ describe("updateFolder", () => {
   })
 
   it("handles 401 with token refresh", async () => {
-    const refreshCb = vi.fn().mockResolvedValue(mockRefreshedToken)
+    const refreshCb = vi.fn().mockResolvedValue(true)
     vi.mocked(fetch)
       .mockResolvedValueOnce(errorResponse(401, {}))
       .mockResolvedValueOnce(okResponse(folder))
 
     setTokenRefreshCallback(refreshCb)
-    const result = await updateFolder(mockAccessToken, "f1", { name: "x" })
+    const result = await updateFolder("f1", { name: "x" })
     expect(result).toEqual(folder)
     expect(refreshCb).toHaveBeenCalled()
     expect(fetch).toHaveBeenCalledTimes(2)
@@ -643,7 +639,7 @@ describe("updateFolder", () => {
       errorResponse(404, { message: "Not found" }),
     )
     await expect(
-      updateFolder(mockAccessToken, "bad", { name: "x" }),
+      updateFolder("bad", { name: "x" }),
     ).rejects.toMatchObject({ message: "Not found", status: 404 })
   })
 })
@@ -651,7 +647,7 @@ describe("updateFolder", () => {
 describe("deleteFolder", () => {
   it("deletes folder successfully (soft delete)", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(null))
-    await expect(deleteFolder(mockAccessToken, "f1")).resolves.toBeUndefined()
+    await expect(deleteFolder("f1")).resolves.toBeUndefined()
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/folders/f1`,
       expect.objectContaining({ method: "DELETE" }),
@@ -660,7 +656,7 @@ describe("deleteFolder", () => {
 
   it("appends permanent query string", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(null))
-    await deleteFolder(mockAccessToken, "f1", { permanent: true })
+    await deleteFolder("f1", { permanent: true })
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/folders/f1?permanent=true`,
       expect.objectContaining({ method: "DELETE" }),
@@ -671,7 +667,7 @@ describe("deleteFolder", () => {
     vi.mocked(fetch).mockResolvedValue(
       errorResponse(403, { message: "Forbidden" }),
     )
-    await expect(deleteFolder(mockAccessToken, "f1")).rejects.toMatchObject({
+    await expect(deleteFolder("f1")).rejects.toMatchObject({
       message: "Forbidden",
       status: 403,
     })
@@ -684,7 +680,7 @@ describe("listDeletedFolders", () => {
       makeFolderResponse({ id: "df1", deleted_at: "2025-05-01" }),
     ]
     vi.mocked(fetch).mockResolvedValue(okResponse(folders))
-    const result = await listDeletedFolders(mockAccessToken)
+    const result = await listDeletedFolders()
     expect(result).toEqual(folders)
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/folders?deleted=true`,
@@ -695,7 +691,7 @@ describe("listDeletedFolders", () => {
   it("handles error", async () => {
     vi.mocked(fetch).mockResolvedValue(errorResponse(500, { message: "fail" }))
     await expect(
-      listDeletedFolders(mockAccessToken),
+      listDeletedFolders(),
     ).rejects.toMatchObject({ message: "fail", status: 500 })
   })
 })
@@ -708,7 +704,7 @@ describe("restoreFolder", () => {
 
   it("restores a folder", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(restored))
-    const result = await restoreFolder(mockAccessToken, "f1")
+    const result = await restoreFolder("f1")
     expect(result).toEqual(restored)
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/folders/f1/restore`,
@@ -720,7 +716,7 @@ describe("restoreFolder", () => {
     vi.mocked(fetch).mockResolvedValue(
       errorResponse(404, { message: "Not found" }),
     )
-    await expect(restoreFolder(mockAccessToken, "bad")).rejects.toMatchObject({
+    await expect(restoreFolder("bad")).rejects.toMatchObject({
       message: "Not found",
       status: 404,
     })
@@ -731,7 +727,7 @@ describe("listDeletedFiles", () => {
   it("delegates to listFiles with deleted filter", async () => {
     const files = [makeFileResponse({ deleted_at: "2025-05-01" })]
     vi.mocked(fetch).mockResolvedValue(okResponse(files))
-    const result = await listDeletedFiles(mockAccessToken)
+    const result = await listDeletedFiles()
     expect(result).toEqual(files)
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files?deleted=true`,
@@ -749,7 +745,7 @@ describe("updateFile", () => {
 
   it("updates a file", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(file))
-    const result = await updateFile(mockAccessToken, "f1", {
+    const result = await updateFile("f1", {
       original_name: "updated.txt",
     })
     expect(result).toEqual(file)
@@ -760,7 +756,7 @@ describe("updateFile", () => {
       errorResponse(404, { detail: "Missing" }),
     )
     await expect(
-      updateFile(mockAccessToken, "bad", { original_name: "x" }),
+      updateFile("bad", { original_name: "x" }),
     ).rejects.toMatchObject({ message: "Missing", status: 404 })
   })
 })
@@ -768,12 +764,12 @@ describe("updateFile", () => {
 describe("deleteFile", () => {
   it("deletes a file (soft)", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(null))
-    await expect(deleteFile(mockAccessToken, "f1")).resolves.toBeUndefined()
+    await expect(deleteFile("f1")).resolves.toBeUndefined()
   })
 
   it("permanent deletes with query param", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(null))
-    await deleteFile(mockAccessToken, "f1", { permanent: true })
+    await deleteFile("f1", { permanent: true })
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files/f1?permanent=true`,
       expect.objectContaining({ method: "DELETE" }),
@@ -784,7 +780,7 @@ describe("deleteFile", () => {
     vi.mocked(fetch).mockResolvedValue(
       errorResponse(404, { message: "Missing" }),
     )
-    await expect(deleteFile(mockAccessToken, "bad")).rejects.toMatchObject({
+    await expect(deleteFile("bad")).rejects.toMatchObject({
       message: "Missing",
       status: 404,
     })
@@ -796,7 +792,7 @@ describe("restoreFile", () => {
 
   it("restores a file", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(file))
-    const result = await restoreFile(mockAccessToken, "f1")
+    const result = await restoreFile("f1")
     expect(result).toEqual(file)
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files/f1/restore`,
@@ -808,7 +804,7 @@ describe("restoreFile", () => {
     vi.mocked(fetch).mockResolvedValue(
       errorResponse(404, { message: "Not found" }),
     )
-    await expect(restoreFile(mockAccessToken, "bad")).rejects.toMatchObject({
+    await expect(restoreFile("bad")).rejects.toMatchObject({
       message: "Not found",
       status: 404,
     })
@@ -823,7 +819,7 @@ describe("bulkDeleteFiles", () => {
   it("bulk deletes files", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(null))
     await expect(
-      bulkDeleteFiles(mockAccessToken, ["f1", "f2"]),
+      bulkDeleteFiles(["f1", "f2"]),
     ).resolves.toBeUndefined()
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files/delete/bulk`,
@@ -836,7 +832,7 @@ describe("bulkDeleteFiles", () => {
 
   it("appends permanent param", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(null))
-    await bulkDeleteFiles(mockAccessToken, ["f1"], { permanent: true })
+    await bulkDeleteFiles(["f1"], { permanent: true })
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files/delete/bulk?permanent=true`,
       expect.anything(),
@@ -846,7 +842,7 @@ describe("bulkDeleteFiles", () => {
   it("handles error", async () => {
     vi.mocked(fetch).mockResolvedValue(errorResponse(500, { message: "fail" }))
     await expect(
-      bulkDeleteFiles(mockAccessToken, ["f1"]),
+      bulkDeleteFiles(["f1"]),
     ).rejects.toMatchObject({ message: "fail", status: 500 })
   })
 })
@@ -855,7 +851,7 @@ describe("bulkRestoreFiles", () => {
   it("bulk restores files", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(null))
     await expect(
-      bulkRestoreFiles(mockAccessToken, ["f1", "f2"]),
+      bulkRestoreFiles(["f1", "f2"]),
     ).resolves.toBeUndefined()
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files/restore/bulk`,
@@ -871,7 +867,7 @@ describe("bulkRestoreFiles", () => {
       errorResponse(400, { message: "bad request" }),
     )
     await expect(
-      bulkRestoreFiles(mockAccessToken, ["f1"]),
+      bulkRestoreFiles(["f1"]),
     ).rejects.toMatchObject({ message: "bad request", status: 400 })
   })
 })
@@ -880,7 +876,7 @@ describe("bulkDeleteFolders", () => {
   it("bulk deletes folders", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(null))
     await expect(
-      bulkDeleteFolders(mockAccessToken, ["d1", "d2"]),
+      bulkDeleteFolders(["d1", "d2"]),
     ).resolves.toBeUndefined()
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/folders/delete/bulk`,
@@ -893,7 +889,7 @@ describe("bulkDeleteFolders", () => {
 
   it("appends permanent param", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(null))
-    await bulkDeleteFolders(mockAccessToken, ["d1"], { permanent: true })
+    await bulkDeleteFolders(["d1"], { permanent: true })
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/folders/delete/bulk?permanent=true`,
       expect.anything(),
@@ -903,7 +899,7 @@ describe("bulkDeleteFolders", () => {
   it("handles error", async () => {
     vi.mocked(fetch).mockResolvedValue(errorResponse(500, { message: "fail" }))
     await expect(
-      bulkDeleteFolders(mockAccessToken, ["d1"]),
+      bulkDeleteFolders(["d1"]),
     ).rejects.toMatchObject({ message: "fail", status: 500 })
   })
 })
@@ -912,7 +908,7 @@ describe("bulkRestoreFolders", () => {
   it("bulk restores folders", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(null))
     await expect(
-      bulkRestoreFolders(mockAccessToken, ["d1", "d2"]),
+      bulkRestoreFolders(["d1", "d2"]),
     ).resolves.toBeUndefined()
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/folders/restore/bulk`,
@@ -928,7 +924,7 @@ describe("bulkRestoreFolders", () => {
       errorResponse(400, { message: "bad" }),
     )
     await expect(
-      bulkRestoreFolders(mockAccessToken, ["d1"]),
+      bulkRestoreFolders(["d1"]),
     ).rejects.toMatchObject({ message: "bad", status: 400 })
   })
 })
@@ -947,14 +943,12 @@ describe("getFilePreviewUrl", () => {
 describe("fetchFilePreviewAsDataUrl", () => {
   it("returns data URL on success", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(null))
-    const result = await fetchFilePreviewAsDataUrl(mockAccessToken, "f1")
+    const result = await fetchFilePreviewAsDataUrl("f1")
     expect(result).toBe("data:image/png;base64,mockpreview")
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files/f1/preview`,
       expect.objectContaining({
-        headers: expect.objectContaining({
-          Authorization: `Bearer ${mockAccessToken}`,
-        }),
+        credentials: "include",
       }),
     )
   })
@@ -964,18 +958,18 @@ describe("fetchFilePreviewAsDataUrl", () => {
       errorResponse(404, { message: "No preview" }),
     )
     await expect(
-      fetchFilePreviewAsDataUrl(mockAccessToken, "bad"),
+      fetchFilePreviewAsDataUrl("bad"),
     ).rejects.toMatchObject({ message: "No preview", status: 404 })
   })
 
   it("handles 401 with token refresh", async () => {
-    const refreshCb = vi.fn().mockResolvedValue(mockRefreshedToken)
+    const refreshCb = vi.fn().mockResolvedValue(true)
     vi.mocked(fetch)
       .mockResolvedValueOnce(errorResponse(401, {}))
       .mockResolvedValueOnce(okResponse(null))
 
     setTokenRefreshCallback(refreshCb)
-    const result = await fetchFilePreviewAsDataUrl(mockAccessToken, "f1")
+    const result = await fetchFilePreviewAsDataUrl("f1")
     expect(result).toBe("data:image/png;base64,mockpreview")
     expect(refreshCb).toHaveBeenCalled()
   })
@@ -1067,7 +1061,7 @@ describe("downloadFile", () => {
     )
 
     await expect(
-      downloadFile(mockAccessToken, "f1", "report.pdf"),
+      downloadFile("f1", "report.pdf"),
     ).resolves.toBeUndefined()
 
     expect(createObjectURL).toHaveBeenCalled()
@@ -1100,7 +1094,7 @@ describe("downloadFile", () => {
     })
 
     vi.mocked(fetch).mockResolvedValue(okResponse(null))
-    await downloadFile(mockAccessToken, "f1", "my-file.pdf")
+    await downloadFile("f1", "my-file.pdf")
     expect(linkDownload).toBe("my-file.pdf")
   })
 
@@ -1109,7 +1103,7 @@ describe("downloadFile", () => {
       errorResponse(404, { message: "File not found" }),
     )
     await expect(
-      downloadFile(mockAccessToken, "bad", "x.pdf"),
+      downloadFile("bad", "x.pdf"),
     ).rejects.toMatchObject({ message: "File not found", status: 404 })
   })
 
@@ -1118,19 +1112,19 @@ describe("downloadFile", () => {
       okResponse(null, { "X-Checksum-Error": "true" }),
     )
     await expect(
-      downloadFile(mockAccessToken, "f1", "bad.pdf"),
+      downloadFile("f1", "bad.pdf"),
     ).rejects.toThrow("api.error.checksumMismatch")
   })
 
   it("handles 401 with token refresh", async () => {
-    const refreshCb = vi.fn().mockResolvedValue(mockRefreshedToken)
+    const refreshCb = vi.fn().mockResolvedValue(true)
     vi.mocked(fetch)
       .mockResolvedValueOnce(errorResponse(401, {}))
       .mockResolvedValueOnce(okResponse(null))
 
     setTokenRefreshCallback(refreshCb)
     await expect(
-      downloadFile(mockAccessToken, "f1", "file.pdf"),
+      downloadFile("f1", "file.pdf"),
     ).resolves.toBeUndefined()
     expect(refreshCb).toHaveBeenCalled()
   })
@@ -1160,7 +1154,7 @@ describe("downloadMultipleFiles", () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(null))
 
     await expect(
-      downloadMultipleFiles(mockAccessToken, [
+      downloadMultipleFiles([
         { id: "f1", original_name: "a.txt" },
         { id: "f2", original_name: "b.txt" },
       ]),
@@ -1175,7 +1169,7 @@ describe("downloadMultipleFiles", () => {
       .mockResolvedValueOnce(errorResponse(500, { message: "fail" }))
 
     await expect(
-      downloadMultipleFiles(mockAccessToken, [
+      downloadMultipleFiles([
         { id: "f1", original_name: "a.txt" },
         { id: "f2", original_name: "b.txt" },
       ]),
@@ -1188,15 +1182,11 @@ describe("downloadMultipleFiles", () => {
 // ===================================================================
 
 describe("shareFiles", () => {
-  const tokenResp: TokenResponse = {
-    access_token: "share-tok-1",
-    token_type: "bearer",
-    expires_in: 3600,
-  }
+  const tokenResp = { access_token: "share-tok-1" }
 
   it("shares files with minimal params", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(tokenResp))
-    const result = await shareFiles(mockAccessToken, [
+    const result = await shareFiles([
       { file_id: "f1" },
       { file_id: "f2", folder_id: "d1" },
     ])
@@ -1213,7 +1203,6 @@ describe("shareFiles", () => {
   it("includes expires_at and folders when provided", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(tokenResp))
     await shareFiles(
-      mockAccessToken,
       [{ file_id: "f1" }],
       "2026-01-01T00:00:00Z",
       ["d1", "d2"],
@@ -1228,7 +1217,7 @@ describe("shareFiles", () => {
 
   it("omits expires_at when undefined", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(tokenResp))
-    await shareFiles(mockAccessToken, [{ file_id: "f1" }])
+    await shareFiles([{ file_id: "f1" }])
     const body = JSON.parse(
       (vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string,
     )
@@ -1237,7 +1226,7 @@ describe("shareFiles", () => {
 
   it("omits folders key when empty array is provided", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(tokenResp))
-    await shareFiles(mockAccessToken, [{ file_id: "f1" }], undefined, [])
+    await shareFiles([{ file_id: "f1" }], undefined, [])
     const body = JSON.parse(
       (vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string,
     )
@@ -1248,7 +1237,7 @@ describe("shareFiles", () => {
     vi.mocked(fetch).mockResolvedValue(
       errorResponse(400, { message: "No files" }),
     )
-    await expect(shareFiles(mockAccessToken, [])).rejects.toMatchObject({
+    await expect(shareFiles([])).rejects.toMatchObject({
       message: "No files",
       status: 400,
     })
@@ -1268,7 +1257,7 @@ describe("listUserLinks", () => {
 
   it("fetches user links", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(links))
-    const result = await listUserLinks(mockAccessToken, "user-1")
+    const result = await listUserLinks("user-1")
     expect(result).toEqual(links)
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/share/user/user-1`,
@@ -1281,7 +1270,7 @@ describe("listUserLinks", () => {
       errorResponse(404, { message: "No user" }),
     )
     await expect(
-      listUserLinks(mockAccessToken, "bad"),
+      listUserLinks("bad"),
     ).rejects.toMatchObject({ message: "No user", status: 404 })
   })
 })
@@ -1294,7 +1283,7 @@ describe("updateLinkName", () => {
 
   it("updates link name", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(linkUpdate))
-    const result = await updateLinkName(mockAccessToken, "tok-1", "My Link")
+    const result = await updateLinkName("tok-1", "My Link")
     expect(result).toEqual(linkUpdate)
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/share/tok-1`,
@@ -1307,7 +1296,7 @@ describe("updateLinkName", () => {
 
   it("URL-encodes token", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(linkUpdate))
-    await updateLinkName(mockAccessToken, "a b", "Link")
+    await updateLinkName("a b", "Link")
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/share/a%20b`,
       expect.anything(),
@@ -1319,7 +1308,7 @@ describe("updateLinkName", () => {
       errorResponse(404, { message: "Missing" }),
     )
     await expect(
-      updateLinkName(mockAccessToken, "bad", "X"),
+      updateLinkName("bad", "X"),
     ).rejects.toMatchObject({ message: "Missing", status: 404 })
   })
 })
@@ -1328,7 +1317,7 @@ describe("deleteLink", () => {
   it("deletes a link", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(null))
     await expect(
-      deleteLink(mockAccessToken, "tok-1"),
+      deleteLink("tok-1"),
     ).resolves.toBeUndefined()
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/share/tok-1`,
@@ -1340,7 +1329,7 @@ describe("deleteLink", () => {
     vi.mocked(fetch).mockResolvedValue(
       errorResponse(404, { message: "Missing" }),
     )
-    await expect(deleteLink(mockAccessToken, "bad")).rejects.toMatchObject({
+    await expect(deleteLink("bad")).rejects.toMatchObject({
       message: "Missing",
       status: 404,
     })
@@ -1352,7 +1341,7 @@ describe("restoreLink", () => {
 
   it("restores a link without expiresAt", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(restored))
-    const result = await restoreLink(mockAccessToken, "tok-1")
+    const result = await restoreLink("tok-1")
     expect(result).toEqual(restored)
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/share/tok-1/restore`,
@@ -1362,7 +1351,7 @@ describe("restoreLink", () => {
 
   it("restores with expiresAt", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(restored))
-    await restoreLink(mockAccessToken, "tok-1", "2027-01-01")
+    await restoreLink("tok-1", "2027-01-01")
     const body = JSON.parse(
       (vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string,
     )
@@ -1371,14 +1360,14 @@ describe("restoreLink", () => {
 
   it("sends no body when expiresAt is undefined", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(restored))
-    await restoreLink(mockAccessToken, "tok-1")
+    await restoreLink("tok-1")
     const callBody = (vi.mocked(fetch).mock.calls[0][1] as RequestInit).body
     expect(callBody).toBeUndefined()
   })
 
   it("URL-encodes token", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(restored))
-    await restoreLink(mockAccessToken, "a/b")
+    await restoreLink("a/b")
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/share/a%2Fb/restore`,
       expect.anything(),
@@ -1390,7 +1379,7 @@ describe("restoreLink", () => {
       errorResponse(404, { message: "Missing" }),
     )
     await expect(
-      restoreLink(mockAccessToken, "bad"),
+      restoreLink("bad"),
     ).rejects.toMatchObject({ message: "Missing", status: 404 })
   })
 })
@@ -1532,7 +1521,7 @@ describe("cloneSharedFiles", () => {
 
   it("clones without file/folder selection", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(cloned))
-    const result = await cloneSharedFiles(mockAccessToken, "share-tok")
+    const result = await cloneSharedFiles("share-tok")
     expect(result).toEqual(cloned)
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/share/share-tok/files/clone`,
@@ -1543,7 +1532,6 @@ describe("cloneSharedFiles", () => {
   it("clones specific files and folders", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(cloned))
     await cloneSharedFiles(
-      mockAccessToken,
       "share-tok",
       [{ file_id: "f1" }, { file_id: "f2", folder_id: "d1" }],
       ["d1", "d2"],
@@ -1557,19 +1545,19 @@ describe("cloneSharedFiles", () => {
 
   it("does not send body when arrays are empty", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(cloned))
-    await cloneSharedFiles(mockAccessToken, "share-tok", [], [])
+    await cloneSharedFiles("share-tok", [], [])
     const callBody = (vi.mocked(fetch).mock.calls[0][1] as RequestInit).body
     expect(callBody).toBeUndefined()
   })
 
   it("handles 401 with token refresh", async () => {
-    const refreshCb = vi.fn().mockResolvedValue(mockRefreshedToken)
+    const refreshCb = vi.fn().mockResolvedValue(true)
     vi.mocked(fetch)
       .mockResolvedValueOnce(errorResponse(401, {}))
       .mockResolvedValueOnce(okResponse(cloned))
 
     setTokenRefreshCallback(refreshCb)
-    const result = await cloneSharedFiles(mockAccessToken, "share-tok")
+    const result = await cloneSharedFiles("share-tok")
     expect(result).toEqual(cloned)
     expect(refreshCb).toHaveBeenCalled()
   })
@@ -1579,7 +1567,7 @@ describe("cloneSharedFiles", () => {
       errorResponse(403, { message: "Forbidden" }),
     )
     await expect(
-      cloneSharedFiles(mockAccessToken, "bad"),
+      cloneSharedFiles("bad"),
     ).rejects.toMatchObject({ message: "Forbidden", status: 403 })
   })
 })
@@ -1689,7 +1677,7 @@ describe("uploadFile", () => {
   it("uploads a file successfully", async () => {
     const file = new File(["content"], "test.txt", { type: "text/plain" })
 
-    const promise = uploadFile(mockAccessToken, file)
+    const promise = uploadFile(file)
 
     expect(xhrInstances.length).toBe(1)
     xhrInstances[0].fireLoad?.()
@@ -1699,16 +1687,14 @@ describe("uploadFile", () => {
     expect(xhrInstances[0].openCalls).toEqual([
       ["POST", `${API_URL}/v1/files`],
     ])
-    expect(xhrInstances[0].setRequestHeaderCalls).toEqual(
-      expect.arrayContaining([["Authorization", `Bearer ${mockAccessToken}`]]),
-    )
+    expect(xhrInstances[0].setRequestHeaderCalls).toHaveLength(0)
   })
 
   it("reports upload progress", async () => {
     const file = new File(["content"], "test.txt")
     const onProgress = vi.fn()
 
-    const promise = uploadFile(mockAccessToken, file, onProgress)
+    const promise = uploadFile(file, onProgress)
 
     expect(xhrInstances.length).toBe(1)
     const onProgressFn = xhrInstances[0].fireProgress!
@@ -1733,7 +1719,7 @@ describe("uploadFile", () => {
     const file = new File(["content"], "test.txt")
     const onProgress = vi.fn()
 
-    const promise = uploadFile(mockAccessToken, file, onProgress)
+    const promise = uploadFile(file, onProgress)
 
     xhrInstances[0].fireProgress?.({
       lengthComputable: false,
@@ -1749,7 +1735,7 @@ describe("uploadFile", () => {
   it("ignores upload progress when no progress callback is provided", async () => {
     const file = new File(["content"], "test.txt")
 
-    const promise = uploadFile(mockAccessToken, file)
+    const promise = uploadFile(file)
 
     xhrInstances[0].fireProgress?.({
       lengthComputable: true,
@@ -1764,7 +1750,7 @@ describe("uploadFile", () => {
   it("handles upload error event", async () => {
     const file = new File(["content"], "test.txt")
 
-    const promise = uploadFile(mockAccessToken, file)
+    const promise = uploadFile(file)
     expect(xhrInstances.length).toBe(1)
     xhrInstances[0].fireError?.()
 
@@ -1778,7 +1764,7 @@ describe("uploadFile", () => {
     })
     const file = new File(["content"], "test.txt")
 
-    const promise = uploadFile(mockAccessToken, file)
+    const promise = uploadFile(file)
     xhrInstances[0].fireLoad?.()
 
     await expect(promise).rejects.toThrow("File too large")
@@ -1790,7 +1776,7 @@ describe("uploadFile", () => {
     })
     const file = new File(["content"], "test.txt")
 
-    const promise = uploadFile(mockAccessToken, file)
+    const promise = uploadFile(file)
     xhrInstances[0].fireLoad?.()
 
     await expect(promise).rejects.toThrow("Invalid format")
@@ -1802,7 +1788,7 @@ describe("uploadFile", () => {
     })
     const file = new File(["content"], "test.txt")
 
-    const promise = uploadFile(mockAccessToken, file)
+    const promise = uploadFile(file)
     xhrInstances[0].fireLoad?.()
 
     await expect(promise).rejects.toThrow("files.error.uploadFile")
@@ -1814,7 +1800,7 @@ describe("uploadFile", () => {
     })
     const file = new File(["content"], "test.txt")
 
-    const promise = uploadFile(mockAccessToken, file)
+    const promise = uploadFile(file)
     xhrInstances[0].fireLoad?.()
 
     await expect(promise).rejects.toThrow("files.error.uploadFile")
@@ -1826,14 +1812,14 @@ describe("uploadFile", () => {
     })
     const file = new File(["content"], "test.txt")
 
-    const promise = uploadFile(mockAccessToken, file)
+    const promise = uploadFile(file)
     xhrInstances[0].fireLoad?.()
 
     await expect(promise).rejects.toThrow("files.error.uploadFile")
   })
 
   it("handles 401 with token refresh", async () => {
-    const refreshCb = vi.fn().mockResolvedValue(mockRefreshedToken)
+    const refreshCb = vi.fn().mockResolvedValue(true)
     setTokenRefreshCallback(refreshCb)
 
     // We need two XHRs: first returns 401, second (after refresh) returns 200
@@ -1850,7 +1836,7 @@ describe("uploadFile", () => {
     })
 
     const file = new File(["content"], "test.txt")
-    const promise = uploadFile(mockAccessToken, file)
+    const promise = uploadFile(file)
 
     // Fire first XHR's load handler (401)
     expect(xhrInstances.length).toBe(1)
@@ -1868,12 +1854,8 @@ describe("uploadFile", () => {
 
     const result = await promise
     expect(result.id).toBe("uploaded-retry")
-    expect(refreshCb).toHaveBeenCalledWith(mockAccessToken)
-    expect(xhrInstances[1].setRequestHeaderCalls).toEqual(
-      expect.arrayContaining([
-        ["Authorization", `Bearer ${mockRefreshedToken}`],
-      ]),
-    )
+    expect(refreshCb).toHaveBeenCalled()
+    expect(xhrInstances[1].setRequestHeaderCalls).toHaveLength(0)
   }, 10000)
 
   it("handles 401 when refresh returns null", async () => {
@@ -1886,7 +1868,7 @@ describe("uploadFile", () => {
     })
     const file = new File(["content"], "test.txt")
 
-    const promise = uploadFile(mockAccessToken, file)
+    const promise = uploadFile(file)
     xhrInstances[0].fireLoad?.()
 
     await expect(promise).rejects.toThrow("Access token expired.")
@@ -1902,7 +1884,7 @@ describe("uploadFile", () => {
     })
     const file = new File(["content"], "test.txt")
 
-    const promise = uploadFile(mockAccessToken, file)
+    const promise = uploadFile(file)
     xhrInstances[0].fireLoad?.()
 
     await expect(promise).rejects.toThrow("Access token expired.")
@@ -1921,7 +1903,7 @@ describe("uploadFile", () => {
     })
     const file = new File(["content"], "test.txt")
 
-    const promise = uploadFile(mockAccessToken, file)
+    const promise = uploadFile(file)
     xhrInstances[0].fireLoad?.()
 
     await expect(promise).rejects.toThrow("refresh failed")
@@ -1931,7 +1913,7 @@ describe("uploadFile", () => {
   it("includes folder_id in form data when provided", async () => {
     const file = new File(["content"], "test.txt")
 
-    const promise = uploadFile(mockAccessToken, file, undefined, "folder-1")
+    const promise = uploadFile(file, undefined, "folder-1")
     xhrInstances[0].fireLoad?.()
     await promise
 
@@ -1948,7 +1930,7 @@ describe("uploadFile", () => {
 describe("toQueryString (via listFiles)", () => {
   it("returns no query string for empty filters", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse([]))
-    await listFiles(mockAccessToken)
+    await listFiles()
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files`,
       expect.anything(),
@@ -1957,7 +1939,7 @@ describe("toQueryString (via listFiles)", () => {
 
   it("adds single query param", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse([]))
-    await listFiles(mockAccessToken, { deleted: true })
+    await listFiles({ deleted: true })
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files?deleted=true`,
       expect.anything(),
@@ -1966,7 +1948,7 @@ describe("toQueryString (via listFiles)", () => {
 
   it("skips undefined params", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse([]))
-    await listFiles(mockAccessToken, { deleted: undefined })
+    await listFiles({ deleted: undefined })
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files`,
       expect.anything(),
@@ -1975,7 +1957,7 @@ describe("toQueryString (via listFiles)", () => {
 
   it("handles boolean false value", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse([]))
-    await listFiles(mockAccessToken, { deleted: false, by_folder: true })
+    await listFiles({ deleted: false, by_folder: true })
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files?deleted=false&by_folder=true`,
       expect.anything(),
@@ -2057,13 +2039,13 @@ describe("downloadResponse (via downloadFile)", () => {
 
   it("sets download attribute to the filename", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(null))
-    await downloadFile(mockAccessToken, "f1", "my-file.pdf")
+    await downloadFile("f1", "my-file.pdf")
     expect(linkEl.download).toBe("my-file.pdf")
   })
 
   it("creates object URL from blob, clicks link, then revokes URL", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(null))
-    await downloadFile(mockAccessToken, "f1", "doc.pdf")
+    await downloadFile("f1", "doc.pdf")
 
     const createObjectURL = (
       window as unknown as { URL: { createObjectURL: ReturnType<typeof vi.fn> } }

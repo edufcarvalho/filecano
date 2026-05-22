@@ -150,6 +150,43 @@ class TestUserEndpoints(ApiTestCase):
     self.assertEqual(resp.status_code, 200, "user update should return 200")
     self.assertEqual(resp.json()["name"], "Updated Name", "name should be updated")
 
+  def test_get_me(self):
+    """GET /api/v1/users/me should return current user info."""
+    token = self._register_and_login(email="metest@test.com")
+    resp = self.client.get(
+      "/api/v1/users/me",
+      headers=self._auth_headers(token),
+    )
+    self.assertEqual(resp.status_code, 200, "get me should return 200")
+    data = resp.json()
+    self.assertEqual(data["email"], "metest@test.com", "email should match")
+
+  def test_get_me_without_auth(self):
+    """GET /api/v1/users/me should reject without auth."""
+    self.client.cookies.clear()
+    resp = self.client.get("/api/v1/users/me")
+    self.assertEqual(resp.status_code, 401, "missing auth should return 401")
+
+  def test_logout(self):
+    """POST /api/v1/users/logout should clear auth cookie."""
+    token = self._register_and_login(email="logouttest@test.com")
+    resp = self.client.post(
+      "/api/v1/users/logout",
+      headers=self._auth_headers(token),
+    )
+    self.assertEqual(resp.status_code, 204, "logout should return 204")
+
+  def test_refresh_token_with_header_only(self):
+    """POST /api/v1/users/token/refresh should work with header when no cookie."""
+    token = self._register_and_login(email="refreshhead@test.com")
+    self.client.cookies.clear()
+    resp = self.client.post(
+      "/api/v1/users/token/refresh",
+      headers=self._auth_headers(token),
+    )
+    self.assertEqual(resp.status_code, 200, "header-only refresh should return 200")
+    self.assertIn("access_token", resp.json(), "refresh should return access_token")
+
 
 class TestFileEndpoints(ApiTestCase):
   def setUp(self):
@@ -466,6 +503,7 @@ class TestFolderEndpoints(ApiTestCase):
 
   def test_create_folder_without_auth(self):
     """POST /api/v1/folders should reject without auth."""
+    self.client.cookies.clear()
     resp = self.client.post("/api/v1/folders", json={"name": "Folder"})
     self.assertEqual(resp.status_code, 401, "missing auth should return 401")
 

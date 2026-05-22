@@ -26,6 +26,11 @@ class AuthService:
       "access_token": access_token,
       "token_type": "bearer",
       "expires_in": self.settings.access_token_expire_seconds,
+      "user": {
+        "id": str(user.id),
+        "name": user.name,
+        "email": user.email,
+      },
     }
 
   def authenticate_token(self, token: str) -> User:
@@ -51,6 +56,11 @@ class AuthService:
       "access_token": access_token,
       "token_type": "bearer",
       "expires_in": self.settings.access_token_expire_seconds,
+      "user": {
+        "id": str(user.id),
+        "name": user.name,
+        "email": user.email,
+      },
     }
 
   def get_authenticated_user(self, user_id: UUID) -> User:

@@ -11,13 +11,13 @@ import { AuthCard } from "@auth/auth-card"
 import { PasswordRequirementsList } from "@auth/password-requirements-list"
 import { ErrorField } from "@misc/status-field"
 import { LoadingButton } from "@misc/loading-button"
-import { signupUser, type TokenResponse } from "@/lib/api"
+import { signupUser, type AuthResponse } from "@/lib/api"
 import type { FormSubmitHandler } from "@/lib/form-types"
 import { useAuthForm } from "@/hooks/use-auth-form"
 import { PasswordMismatchMessage } from "@auth/password-mismatch-message"
 
 type SignupFormProps = Omit<ComponentProps<"div">, "onSubmit"> & {
-  onLogin?: (token: TokenResponse) => void
+  onLogin?: (token: AuthResponse) => void
 }
 
 export function SignupForm({ className, onLogin, ...props }: SignupFormProps) {

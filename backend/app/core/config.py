@@ -26,6 +26,10 @@ class Settings(BaseSettings):
   redis_url: str = "redis://:1234@localhost:6379/0"
   celery_broker_url: str = "redis://:1234@localhost:6379/0"
   data_retention_policy: int = 45
+  auth_cookie_name: str = "filecano_access_token"
+  auth_cookie_secure: bool = False
+  auth_cookie_same_site: str = "lax"
+  auth_cookie_max_age: int = 86400
 
   @property
   def cors_origin_list(self) -> list[str]:

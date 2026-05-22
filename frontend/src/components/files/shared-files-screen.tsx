@@ -20,7 +20,7 @@ import {
   type FolderResponse,
 } from "@/lib/api"
 import { useTranslation } from "@/i18n"
-import type { StoredToken } from "@/lib/session"
+import type { StoredSession } from "@/lib/session"
 import { getErrorMessage } from "@/lib/errors"
 import {
   collectDescendantIds,
@@ -53,9 +53,8 @@ type SharedFilesScreenUser = {
 }
 
 type SharedFilesScreenProps = {
-  accessToken?: string
   user?: SharedFilesScreenUser
-  token?: StoredToken
+  session?: StoredSession
   onSignOut?: () => void
 }
 
@@ -84,9 +83,8 @@ function loadSharedFiles(shareToken: string) {
 }
 
 export function SharedFilesScreen({
-  accessToken,
   user,
-  token,
+  session,
   onSignOut,
 }: SharedFilesScreenProps) {
   const { t } = useTranslation()
@@ -238,7 +236,7 @@ export function SharedFilesScreen({
 
   const handleClone = useCallback(
     async (file: FileResponse) => {
-      if (!accessToken || !shareToken) return
+      if (!user || !shareToken) return
 
       if (!isAvailableFile(file)) {
         setError(t("files.error.fileDeletedByOwner"))
@@ -250,7 +248,7 @@ export function SharedFilesScreen({
       setPendingFileId(`clone-${file.id}`)
 
       try {
-        const cloned = await cloneSharedFiles(accessToken, shareToken, [
+        const cloned = await cloneSharedFiles(shareToken, [
           { file_id: file.id, folder_id: file.folder_id },
         ])
         setSuccess(`${t("files.cloneSuccess")}: ${getClonedItemNames(cloned)}`)
@@ -260,12 +258,12 @@ export function SharedFilesScreen({
         setPendingFileId(null)
       }
     },
-    [accessToken, shareToken, t]
+    [shareToken, t, user]
   )
 
   const handleCloneAll = useCallback(async () => {
     if (
-      !accessToken ||
+      !user ||
       !shareToken ||
       (selectedFileIds.size === 0 && selectedFolderIds.size === 0)
     ) return
@@ -288,7 +286,6 @@ export function SharedFilesScreen({
 
     try {
       const cloned = await cloneSharedFiles(
-        accessToken,
         shareToken,
         selectedFilesForAction,
         folderIds
@@ -300,13 +297,13 @@ export function SharedFilesScreen({
       setPendingFileId(null)
     }
   }, [
-    accessToken,
     files,
     folders,
     shareToken,
     selectedFileIds,
     selectedFolderIds,
     t,
+    user,
   ])
 
   const selectAllFiles = useCallback(() => {
@@ -360,7 +357,7 @@ export function SharedFilesScreen({
       <SiteHeader
         pageTitle={t("app.sharedFiles")}
         user={user}
-        token={token}
+        session={session}
         onSignOut={onSignOut}
       />
       <PageWrapper>
@@ -380,8 +377,8 @@ export function SharedFilesScreen({
           onSearch={setSearchQuery}
           onDownload={handleDownload}
           onDownloadAll={handleDownloadSelected}
-          onClone={accessToken ? handleClone : undefined}
-          onCloneAll={accessToken ? handleCloneAll : undefined}
+          onClone={user ? handleClone : undefined}
+          onCloneAll={user ? handleCloneAll : undefined}
           onClearSelection={clearFileSelection}
           onSelectAll={selectAllFiles}
           onToggleSelection={toggleFileSelection}

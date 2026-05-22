@@ -26,6 +26,7 @@ from app.schemas.responses.link_responses import (
 )
 from app.schemas.responses.paginated_response import PaginatedResponse
 from app.schemas.responses.user_responses import (
+  AuthResponse,
   MessageResponse,
   TokenResponse,
   UserResponse,
@@ -33,6 +34,7 @@ from app.schemas.responses.user_responses import (
 
 __all__ = [
   "BulkParams",
+  "AuthResponse",
   "FolderWithFilesResponse",
   "FileListParams",
   "FileResponse",

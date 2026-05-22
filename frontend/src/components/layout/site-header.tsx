@@ -42,7 +42,7 @@ const MyLinksDropdown = lazy(() =>
   }))
 )
 
-import type { StoredToken } from "@/lib/session"
+import type { StoredSession } from "@/lib/session"
 
 type SiteHeaderUser = {
   name: string
@@ -52,7 +52,7 @@ type SiteHeaderUser = {
 type SiteHeaderProps = {
   pageTitle?: string
   user?: SiteHeaderUser
-  token?: StoredToken
+  session?: StoredSession
   onSignOut?: () => void
 }
 
@@ -71,7 +71,7 @@ function getInitials(name: string) {
 export function SiteHeader({
   pageTitle,
   user,
-  token,
+  session,
   onSignOut,
 }: SiteHeaderProps) {
   const { t } = useTranslation()
@@ -106,8 +106,7 @@ export function SiteHeader({
         {user ? (
           <Suspense fallback={null}>
             <MyLinksDropdown
-              accessToken={token?.access_token}
-              userId={token?.user?.id}
+              userId={session?.user?.id}
             />
           </Suspense>
         ) : undefined}

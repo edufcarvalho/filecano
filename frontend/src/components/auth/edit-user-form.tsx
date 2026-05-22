@@ -33,7 +33,6 @@ const languages = [
 ] as const
 
 type EditUserFormProps = {
-  accessToken: string
   user: {
     name: string
     email: string
@@ -42,7 +41,6 @@ type EditUserFormProps = {
 }
 
 export function EditUserForm({
-  accessToken,
   user,
   onUserUpdate,
 }: EditUserFormProps) {
@@ -124,7 +122,7 @@ export function EditUserForm({
     setIsPending(true)
 
     try {
-      const updatedUser = await updateUser(accessToken, payload)
+      const updatedUser = await updateUser(payload)
       onUserUpdate(updatedUser)
       setSuccess(t("auth.editUser.successMessage"))
       setCurrentPassword("")
