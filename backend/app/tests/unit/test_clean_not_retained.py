@@ -234,22 +234,44 @@ class TestCeleryTaskRegistration(unittest.TestCase):
     mock_link_service = MagicMock()
     mock_folder_service = MagicMock()
     mock_file_service = MagicMock()
+    mock_session = MagicMock()
+    mock_session_context = MagicMock()
+    mock_session_context.__enter__.return_value = mock_session
 
     with (
       patch(
-        "app.tasks.clean_not_retained.get_user_service",
+        "app.tasks.clean_not_retained.Session",
+        return_value=mock_session_context,
+      ),
+      patch(
+        "app.tasks.clean_not_retained.UserRepository",
+      ),
+      patch(
+        "app.tasks.clean_not_retained.FileRepository",
+      ),
+      patch(
+        "app.tasks.clean_not_retained.FolderRepository",
+      ),
+      patch(
+        "app.tasks.clean_not_retained.LinkRepository",
+      ),
+      patch(
+        "app.tasks.clean_not_retained.FileStorageService",
+      ),
+      patch(
+        "app.tasks.clean_not_retained.UserService",
         return_value=mock_user_service,
       ),
       patch(
-        "app.tasks.clean_not_retained.get_link_service",
+        "app.tasks.clean_not_retained.LinkService",
         return_value=mock_link_service,
       ),
       patch(
-        "app.tasks.clean_not_retained.get_folder_service",
+        "app.tasks.clean_not_retained.FolderService",
         return_value=mock_folder_service,
       ),
       patch(
-        "app.tasks.clean_not_retained.get_file_service",
+        "app.tasks.clean_not_retained.FileService",
         return_value=mock_file_service,
       ),
     ):
@@ -261,6 +283,67 @@ class TestCeleryTaskRegistration(unittest.TestCase):
     mock_link_service.enforce_retention_policy.assert_called_once()
     mock_folder_service.enforce_retention_policy.assert_called_once()
     mock_file_service.enforce_retention_policy.assert_called_once()
+
+  def test_task_rolls_back_and_reraises_when_service_fails(self):
+    mock_user_service = MagicMock()
+    mock_link_service = MagicMock()
+    mock_link_service.enforce_retention_policy.side_effect = RuntimeError(
+      "retention failed"
+    )
+    mock_folder_service = MagicMock()
+    mock_file_service = MagicMock()
+    mock_session = MagicMock()
+    mock_session_context = MagicMock()
+    mock_session_context.__enter__.return_value = mock_session
+
+    with (
+      patch(
+        "app.tasks.clean_not_retained.Session",
+        return_value=mock_session_context,
+      ),
+      patch(
+        "app.tasks.clean_not_retained.UserRepository",
+      ),
+      patch(
+        "app.tasks.clean_not_retained.FileRepository",
+      ),
+      patch(
+        "app.tasks.clean_not_retained.FolderRepository",
+      ),
+      patch(
+        "app.tasks.clean_not_retained.LinkRepository",
+      ),
+      patch(
+        "app.tasks.clean_not_retained.FileStorageService",
+      ),
+      patch(
+        "app.tasks.clean_not_retained.UserService",
+        return_value=mock_user_service,
+      ),
+      patch(
+        "app.tasks.clean_not_retained.LinkService",
+        return_value=mock_link_service,
+      ),
+      patch(
+        "app.tasks.clean_not_retained.FolderService",
+        return_value=mock_folder_service,
+      ),
+      patch(
+        "app.tasks.clean_not_retained.FileService",
+        return_value=mock_file_service,
+      ),
+    ):
+      from app.tasks.clean_not_retained import enforce_retention_policies
+
+      with self.assertRaisesRegex(RuntimeError, "retention failed"):
+        enforce_retention_policies()
+
+    mock_user_service.enforce_retention_policy.assert_called_once()
+    mock_link_service.enforce_retention_policy.assert_called_once()
+    mock_folder_service.enforce_retention_policy.assert_not_called()
+    mock_file_service.enforce_retention_policy.assert_not_called()
+    mock_session.rollback.assert_called_once()
+    mock_session.commit.assert_not_called()
 
 
 if __name__ == "__main__":

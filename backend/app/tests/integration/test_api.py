@@ -380,6 +380,41 @@ class TestFileEndpoints(ApiTestCase):
     self.assertIn("content-type", resp.headers)
     self.assertEqual(resp.headers["content-type"], "image/jpeg")
 
+  def test_bulk_delete_files(self):
+    """POST /api/v1/files/bulk/delete should soft-delete multiple files."""
+    id1 = self._upload_text_file("bulk1.txt")
+    id2 = self._upload_text_file("bulk2.txt")
+    resp = self.client.post(
+      "/api/v1/files/delete/bulk",
+      json={"ids": [id1, id2]},
+      headers=self._auth_headers(self.token),
+    )
+    self.assertEqual(resp.status_code, 204, "bulk delete files should return 204")
+
+  def test_bulk_delete_files_permanent(self):
+    """POST /api/v1/files/delete/bulk?permanent=true should hard-delete."""
+    id1 = self._upload_text_file("bulkperm1.txt")
+    id2 = self._upload_text_file("bulkperm2.txt")
+    resp = self.client.post(
+      "/api/v1/files/delete/bulk?permanent=true",
+      json={"ids": [id1, id2]},
+      headers=self._auth_headers(self.token),
+    )
+    self.assertEqual(resp.status_code, 204, "bulk permanent delete should return 204")
+
+  def test_bulk_restore_files(self):
+    """POST /api/v1/files/bulk/restore should restore multiple files."""
+    id1 = self._upload_text_file("bulkrestore1.txt")
+    id2 = self._upload_text_file("bulkrestore2.txt")
+    self.client.delete(f"/api/v1/files/{id1}", headers=self._auth_headers(self.token))
+    self.client.delete(f"/api/v1/files/{id2}", headers=self._auth_headers(self.token))
+    resp = self.client.post(
+      "/api/v1/files/restore/bulk",
+      json={"ids": [id1, id2]},
+      headers=self._auth_headers(self.token),
+    )
+    self.assertEqual(resp.status_code, 204, "bulk restore files should return 204")
+
 
 class TestFolderEndpoints(ApiTestCase):
   def setUp(self):
@@ -519,6 +554,45 @@ class TestFolderEndpoints(ApiTestCase):
       headers=self._auth_headers(self.token),
     )
     self.assertEqual(resp.status_code, 200, "restore folder should return 200")
+
+  def test_bulk_delete_folders(self):
+    """POST /api/v1/folders/delete/bulk should soft-delete multiple folders."""
+    fid1 = self._create_test_folder("BulkDel1")
+    fid2 = self._create_test_folder("BulkDel2")
+    resp = self.client.post(
+      "/api/v1/folders/delete/bulk",
+      json={"ids": [fid1, fid2]},
+      headers=self._auth_headers(self.token),
+    )
+    self.assertEqual(resp.status_code, 204, "bulk delete folders should return 204")
+
+  def test_bulk_delete_folders_permanent(self):
+    """POST /api/v1/folders/delete/bulk?permanent=true should hard-delete."""
+    fid1 = self._create_test_folder("BulkPerm1")
+    fid2 = self._create_test_folder("BulkPerm2")
+    resp = self.client.post(
+      "/api/v1/folders/delete/bulk?permanent=true",
+      json={"ids": [fid1, fid2]},
+      headers=self._auth_headers(self.token),
+    )
+    self.assertEqual(resp.status_code, 204, "bulk permanent delete should return 204")
+
+  def test_bulk_restore_folders(self):
+    """POST /api/v1/folders/restore/bulk should restore multiple folders."""
+    fid1 = self._create_test_folder("BulkRst1")
+    fid2 = self._create_test_folder("BulkRst2")
+    self.client.delete(
+      f"/api/v1/folders/{fid1}", headers=self._auth_headers(self.token)
+    )
+    self.client.delete(
+      f"/api/v1/folders/{fid2}", headers=self._auth_headers(self.token)
+    )
+    resp = self.client.post(
+      "/api/v1/folders/restore/bulk",
+      json={"ids": [fid1, fid2]},
+      headers=self._auth_headers(self.token),
+    )
+    self.assertEqual(resp.status_code, 204, "bulk restore folders should return 204")
 
 
 class TestLinkEndpoints(ApiTestCase):

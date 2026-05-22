@@ -386,6 +386,41 @@ class TestFolderService(DatabaseTestCase):
     self.assertIn(f2.id, deleted_ids, "retainable folder2 should be hard-deleted")
     mock_commit.assert_called()
 
+  def test_delete_folders_bulk(self):
+    """delete_folders should soft-delete multiple folders."""
+    f1 = self._create_folder(self.user.id, name="bulkdel1")
+    f2 = self._create_folder(self.user.id, name="bulkdel2")
+
+    self.service.delete_folders(self.user, [f1.id, f2.id])
+    self.session.refresh(f1)
+    self.session.refresh(f2)
+    self.assertIsNotNone(f1.deleted_at)
+    self.assertIsNotNone(f2.deleted_at)
+
+  def test_delete_folders_bulk_permanent(self):
+    """delete_folders with permanent=True should hard-delete multiple folders."""
+    f1 = self._create_folder(self.user.id, name="bulkperm1")
+    f2 = self._create_folder(self.user.id, name="bulkperm2")
+
+    self.service.delete_folders(self.user, [f1.id, f2.id], permanent=True)
+    self.storage.delete_all_versions.call_count
+
+  def test_restore_folders_bulk(self):
+    """restore_folders should restore multiple deleted folders."""
+    f1 = self._create_folder(self.user.id, name="bulkrst1")
+    f2 = self._create_folder(self.user.id, name="bulkrst2")
+    f1.deleted_at = f1.created_at
+    f2.deleted_at = f2.created_at
+    self.session.add(f1)
+    self.session.add(f2)
+    self.session.commit()
+
+    self.service.restore_folders(self.user, [f1.id, f2.id])
+    self.session.refresh(f1)
+    self.session.refresh(f2)
+    self.assertIsNone(f1.deleted_at)
+    self.assertIsNone(f2.deleted_at)
+
 
 if __name__ == "__main__":
   unittest.main()

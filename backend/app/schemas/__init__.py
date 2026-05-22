@@ -1,3 +1,4 @@
+from app.schemas.params.bulk_params import BulkParams
 from app.schemas.params.file_params import FileListParams, FileUpdateParams
 from app.schemas.params.folder_params import FolderParams, FolderUpdateParams
 from app.schemas.params.link_params import (
@@ -31,6 +32,7 @@ from app.schemas.responses.user_responses import (
 )
 
 __all__ = [
+  "BulkParams",
   "FolderWithFilesResponse",
   "FileListParams",
   "FileResponse",

@@ -8,6 +8,7 @@ from app.api.dependencies import get_current_user, get_file_service
 from app.core import FileTooLargeError, NotFoundError, Settings, get_settings
 from app.models import User
 from app.schemas import (
+  BulkParams,
   FileListParams,
   FileResponse,
   FileUpdateParams,
@@ -130,3 +131,22 @@ def delete_file(
   service: Service = Depends(get_file_service),
 ) -> None:
   service.delete_file(current_user, file_id, permanent)
+
+
+@router.post("/delete/bulk/", status_code=status.HTTP_204_NO_CONTENT)
+def bulk_delete_files(
+  params: Annotated[BulkParams, Body()],
+  permanent: bool = False,
+  current_user: User = Depends(get_current_user),
+  service: Service = Depends(get_file_service),
+) -> None:
+  service.delete_files(current_user, params.ids, permanent)
+
+
+@router.post("/restore/bulk", status_code=status.HTTP_204_NO_CONTENT)
+def bulk_restore_files(
+  params: Annotated[BulkParams, Body()],
+  current_user: User = Depends(get_current_user),
+  service: Service = Depends(get_file_service),
+) -> None:
+  service.restore_files(current_user, params.ids)

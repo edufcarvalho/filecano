@@ -201,7 +201,7 @@ class FileService(BaseService):
     return file
 
   def delete_file(
-    self, user: User, file_id: UUID, permanent: bool = False
+    self, user: User, file_id: UUID, permanent: bool = False, commit: bool = True
   ) -> Optional[File]:
     file = self._get_user_file(user, file_id)
 
@@ -236,6 +236,16 @@ class FileService(BaseService):
       self.storage.soft_delete(file.object_key)
 
     return file
+
+  def delete_files(
+    self, user: User, file_ids: list[UUID], permanent: bool = False
+  ) -> None:
+    for file_id in file_ids:
+      self.delete_file(user, file_id, permanent)
+
+  def restore_files(self, user: User, file_ids: list[UUID]) -> None:
+    for file_id in file_ids:
+      self.restore_file(user, file_id)
 
   def stream_response(self, response: BaseHTTPResponse):
     return self.storage.iter_response(response)

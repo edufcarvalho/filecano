@@ -495,6 +495,80 @@ export async function downloadFile(
   await downloadResponse(response, fileName)
 }
 
+export async function bulkDeleteFiles(
+  accessToken: string,
+  fileIds: string[],
+  filters: DeleteFileFilters = {}
+): Promise<void> {
+  const response = await authFetch(
+    `${API_URL}/v1/files/delete/bulk${toQueryString(filters)}`,
+    accessToken,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: fileIds }),
+    }
+  )
+
+  if (!response.ok)
+    await readError(response, translate("files.error.deleteFiles"))
+}
+
+export async function bulkRestoreFiles(
+  accessToken: string,
+  fileIds: string[]
+): Promise<void> {
+  const response = await authFetch(
+    `${API_URL}/v1/files/restore/bulk`,
+    accessToken,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: fileIds }),
+    }
+  )
+
+  if (!response.ok)
+    await readError(response, translate("files.error.restoreFiles"))
+}
+
+export async function bulkDeleteFolders(
+  accessToken: string,
+  folderIds: string[],
+  filters: DeleteFileFilters = {}
+): Promise<void> {
+  const response = await authFetch(
+    `${API_URL}/v1/folders/delete/bulk${toQueryString(filters)}`,
+    accessToken,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: folderIds }),
+    }
+  )
+
+  if (!response.ok)
+    await readError(response, translate("files.error.deleteFolder"))
+}
+
+export async function bulkRestoreFolders(
+  accessToken: string,
+  folderIds: string[]
+): Promise<void> {
+  const response = await authFetch(
+    `${API_URL}/v1/folders/restore/bulk`,
+    accessToken,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: folderIds }),
+    }
+  )
+
+  if (!response.ok)
+    await readError(response, translate("files.error.restoreFolder"))
+}
+
 export async function downloadMultipleFiles(
   accessToken: string,
   files: Array<{ id: string; original_name: string }>

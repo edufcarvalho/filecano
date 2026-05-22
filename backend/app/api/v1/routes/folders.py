@@ -7,6 +7,7 @@ from app.api.dependencies.auth import get_current_user
 from app.api.dependencies.services import get_folder_service
 from app.models import User
 from app.schemas import (
+  BulkParams,
   FolderParams,
   FolderResponse,
   FolderUpdateParams,
@@ -70,3 +71,22 @@ def restore_folder(
   service: FolderService = Depends(get_folder_service),
 ) -> FolderWithFilesResponse:
   return service.restore_folder(current_user, folder_id)
+
+
+@router.post("/delete/bulk", status_code=status.HTTP_204_NO_CONTENT)
+def bulk_delete_folders(
+  params: Annotated[BulkParams, Body()],
+  permanent: bool = False,
+  current_user: User = Depends(get_current_user),
+  service: FolderService = Depends(get_folder_service),
+) -> None:
+  service.delete_folders(current_user, params.ids, permanent)
+
+
+@router.post("/restore/bulk", status_code=status.HTTP_204_NO_CONTENT)
+def bulk_restore_folders(
+  params: Annotated[BulkParams, Body()],
+  current_user: User = Depends(get_current_user),
+  service: FolderService = Depends(get_folder_service),
+) -> None:
+  service.restore_folders(current_user, params.ids)

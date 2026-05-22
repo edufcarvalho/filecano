@@ -7,6 +7,8 @@ import { FileUploadDropzone, UploadActivityPanel } from "@files/file-upload-drop
 import { ErrorField } from "@misc/status-field"
 import { PageWrapper } from "@misc/page-wrapper"
 import {
+  bulkDeleteFiles,
+  bulkDeleteFolders,
   createFolder,
   deleteFile,
   deleteFolder,
@@ -757,10 +759,10 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     setPendingFileId("bulk-delete")
 
     try {
-      await Promise.all([
-        ...fileIds.map((fileId) => deleteFile(accessToken, fileId)),
-        ...folderIds.map((folderId) => deleteFolder(accessToken, folderId)),
-      ])
+      const deletions: Promise<void>[] = []
+      if (fileIds.length > 0) deletions.push(bulkDeleteFiles(accessToken, fileIds))
+      if (folderIds.length > 0) deletions.push(bulkDeleteFolders(accessToken, folderIds))
+      await Promise.all(deletions)
       setFiles((currentFiles) =>
         currentFiles.filter((file) => !fileIds.includes(file.id))
       )

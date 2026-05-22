@@ -4,6 +4,10 @@ import { FileList } from "@files/file-list"
 import { ErrorField } from "@misc/status-field"
 import { PageWrapper } from "@misc/page-wrapper"
 import {
+  bulkDeleteFiles,
+  bulkDeleteFolders,
+  bulkRestoreFiles,
+  bulkRestoreFolders,
   deleteFile,
   deleteFolder,
   fetchFilePreviewAsDataUrl,
@@ -358,14 +362,10 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
     setPendingFileId("bulk-permanent-delete")
 
     try {
-      const fileDeletions = fileIds.map((fileId) =>
-        deleteFile(accessToken, fileId, { permanent: true })
-      )
-      const folderDeletions = folderIds.map((folderId) =>
-        deleteFolder(accessToken, folderId, { permanent: true })
-      )
-
-      await Promise.all([...fileDeletions, ...folderDeletions])
+      const deletions: Promise<void>[] = []
+      if (fileIds.length > 0) deletions.push(bulkDeleteFiles(accessToken, fileIds, { permanent: true }))
+      if (folderIds.length > 0) deletions.push(bulkDeleteFolders(accessToken, folderIds, { permanent: true }))
+      await Promise.all(deletions)
       removeItems(fileIdSet, folderIdSet)
     } catch (error) {
       setError(
@@ -401,14 +401,10 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
     setPendingFileId("bulk-restore")
 
     try {
-      const fileRestores = fileIds.map((fileId) =>
-        restoreFile(accessToken, fileId)
-      )
-      const folderRestores = folderIds.map((folderId) =>
-        restoreFolder(accessToken, folderId)
-      )
-
-      await Promise.all([...fileRestores, ...folderRestores])
+      const restores: Promise<void>[] = []
+      if (fileIds.length > 0) restores.push(bulkRestoreFiles(accessToken, fileIds))
+      if (folderIds.length > 0) restores.push(bulkRestoreFolders(accessToken, folderIds))
+      await Promise.all(restores)
       removeItems(fileIdSet, folderIdSet)
     } catch (error) {
       setError(getErrorMessage(error, t("files.error.restoreFiles")))

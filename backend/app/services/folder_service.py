@@ -182,6 +182,16 @@ class FolderService(BaseService):
       FileListParams(deleted=True, by_folder=True),
     )
 
+  def delete_folders(
+    self, user: User, folder_ids: list[UUID], permanent: bool = False
+  ) -> None:
+    for folder_id in folder_ids:
+      self.delete_folder(user, folder_id, permanent)
+
+  def restore_folders(self, user: User, folder_ids: list[UUID]) -> None:
+    for folder_id in folder_ids:
+      self.restore_folder(user, folder_id)
+
   def enforce_retention_policy(self) -> None:
     for folder in self.repository.list_not_retainable():
       self._delete_folder_permanently(folder)
