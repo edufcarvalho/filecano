@@ -1,6 +1,5 @@
 import type { ComponentProps, DragEvent } from "react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { LoaderCircleIcon } from "lucide-react"
 
 import { FileList } from "@files/file-list"
 import { FileUploadDropzone, UploadActivityPanel } from "@files/file-upload-dropzone"
@@ -1136,14 +1135,12 @@ export function FilesScreen() {
       onDrop={handleDrop}
       onDragEnd={handleDragEnd}
     >
-      {!isLoading ? (
-        <FileUploadDropzone
-          fileInputRef={fileInputRef}
-          isDragOver={isDragOver}
-          onBrowseFiles={handleBrowseFiles}
-          onFileSelect={handleFileSelect}
-        />
-      ) : null}
+      <FileUploadDropzone
+        fileInputRef={fileInputRef}
+        isDragOver={isDragOver}
+        onBrowseFiles={handleBrowseFiles}
+        onFileSelect={handleFileSelect}
+      />
       <input
         ref={folderInputRef}
         type="file"
@@ -1160,60 +1157,51 @@ export function FilesScreen() {
         <p className="text-sm text-muted-foreground">{notice}</p>
       ) : null}
 
-      {isLoading ? (
-        <div className="flex flex-1 items-center justify-center">
-          <div className="flex flex-col items-center gap-3 text-muted-foreground">
-            <LoaderCircleIcon className="icon-spin size-10" />
-            <span className="text-base">{t("files.loadingFiles")}</span>
-          </div>
-        </div>
-      ) : (
-        <FileList
-          files={files}
-          folders={folders}
-          previewUrls={previewUrls}
-          selectedFileIds={selectedFileIds}
-          newlyAddedFileIds={newlyAddedFileIds}
-          newlyAddedFolderIds={newlyAddedFolderIds}
-          selectedFolderIds={selectedFolderIds}
-          editingFileId={editingFileId}
-          editingName={editingName}
-          pendingFileId={pendingFileId}
-          error={error}
-          isLoading={isLoading}
-          isUploading={isUploading}
-          searchQuery={searchQuery}
-          onSearch={setSearchQuery}
-          onBulkDelete={handleBulkDelete}
-          onBulkDownload={handleBulkDownload}
-          onBulkShare={handleBulkShare}
-          onClearSelection={clearFileSelection}
-          onDelete={handleDelete}
-          onDownload={handleDownload}
-          onEditingNameChange={handleEditingNameChange}
-          onRefresh={handleRefresh}
-          onRename={handleRename}
-          onShare={handleShare}
-          onSelectAll={selectAllFiles}
-          onClearNewlyAdded={clearNewlyAddedFile}
-          onStartEditing={startEditing}
-          onStopEditing={stopEditing}
-          onToggleSelection={toggleFileSelection}
-          onToggleFolderSelection={toggleFolderSelection}
-          onToggleFolderSelect={toggleFolderSelect}
-          onDeleteFolder={deleteSingleFolder}
-          onCreateFolder={handleCreateFolder}
-          onBrowseFolder={handleBrowseFolder}
-          onClearFolderNewlyAdded={clearFolderNewlyAdded}
-          onMoveFile={handleMoveFile}
-          onMoveFolder={handleMoveFolder}
-          onReorderFiles={handleReorderFiles}
-          onExternalDrop={handleExternalDropIntoFolder}
-          uploadingFolderIds={uploadingFolderIds}
-          movingFileIds={movingFileIds}
-          movingFolderIds={movingFolderIds}
-        />
-      )}
+      <FileList
+        files={files}
+        folders={folders}
+        previewUrls={previewUrls}
+        selectedFileIds={selectedFileIds}
+        newlyAddedFileIds={newlyAddedFileIds}
+        newlyAddedFolderIds={newlyAddedFolderIds}
+        selectedFolderIds={selectedFolderIds}
+        editingFileId={editingFileId}
+        editingName={editingName}
+        pendingFileId={pendingFileId}
+        error={error}
+        isLoading={isLoading}
+        isUploading={isUploading}
+        searchQuery={searchQuery}
+        onSearch={setSearchQuery}
+        onBulkDelete={handleBulkDelete}
+        onBulkDownload={handleBulkDownload}
+        onBulkShare={handleBulkShare}
+        onClearSelection={clearFileSelection}
+        onDelete={handleDelete}
+        onDownload={handleDownload}
+        onEditingNameChange={handleEditingNameChange}
+        onRefresh={handleRefresh}
+        onRename={handleRename}
+        onShare={handleShare}
+        onSelectAll={selectAllFiles}
+        onClearNewlyAdded={clearNewlyAddedFile}
+        onStartEditing={startEditing}
+        onStopEditing={stopEditing}
+        onToggleSelection={toggleFileSelection}
+        onToggleFolderSelection={toggleFolderSelection}
+        onToggleFolderSelect={toggleFolderSelect}
+        onDeleteFolder={deleteSingleFolder}
+        onCreateFolder={handleCreateFolder}
+        onBrowseFolder={handleBrowseFolder}
+        onClearFolderNewlyAdded={clearFolderNewlyAdded}
+        onMoveFile={handleMoveFile}
+        onMoveFolder={handleMoveFolder}
+        onReorderFiles={handleReorderFiles}
+        onExternalDrop={handleExternalDropIntoFolder}
+        uploadingFolderIds={uploadingFolderIds}
+        movingFileIds={movingFileIds}
+        movingFolderIds={movingFolderIds}
+      />
       <UploadActivityPanel
         isCollapsed={isUploadPanelCollapsed}
         uploadingFiles={uploadingFiles}
