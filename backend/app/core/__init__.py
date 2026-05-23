@@ -1,5 +1,11 @@
 # pragma: no cover
 from app.core.config import Settings, get_settings
+from app.core.cookie import (
+  clear_auth_cookie,
+  clear_token_cookie,
+  set_auth_cookie,
+  set_token_cookie,
+)
 from app.core.exceptions import (
   AppError,
   AuthenticationError,
@@ -12,12 +18,6 @@ from app.core.exceptions import (
   PasswordValidationError,
   StorageError,
   UnsupportedFileTypeError,
-)
-from app.core.cookie import (
-  clear_auth_cookie,
-  clear_token_cookie,
-  set_auth_cookie,
-  set_token_cookie,
 )
 from app.core.security import (
   create_token,

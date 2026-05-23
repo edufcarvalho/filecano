@@ -1,15 +1,27 @@
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, Body, Cookie, Depends, Request, Response, Security, status
+from fastapi import (
+  APIRouter,
+  Body,
+  Depends,
+  Request,
+  Response,
+  Security,
+  status,
+)
 from fastapi.security import HTTPAuthorizationCredentials
 
 from app.api.dependencies import get_auth_service, get_current_user, get_user_service
 from app.api.dependencies.auth import bearer_auth
-from app.core import AuthenticationError, clear_token_cookie, get_settings, set_token_cookie
+from app.core import (
+  AuthenticationError,
+  clear_token_cookie,
+  get_settings,
+  set_token_cookie,
+)
 from app.models import User
 from app.schemas import (
   AuthResponse,
-  TokenResponse,
   UserCreationParams,
   UserLoginParams,
   UserResponse,
@@ -74,7 +86,9 @@ def refresh_token(
     return _build_auth_response(response, service.refresh_token(cookie_token))
 
   if credentials is not None:
-    return _build_auth_response(response, service.refresh_token(credentials.credentials))
+    return _build_auth_response(
+      response, service.refresh_token(credentials.credentials)
+    )
 
   raise AuthenticationError(
     "Authorization is required", headers={"WWW-Authenticate": "Bearer"}

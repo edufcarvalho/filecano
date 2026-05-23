@@ -64,9 +64,7 @@ class TestAuthDependencies(unittest.TestCase):
     with self.assertRaises(
       AuthenticationError, msg="should raise AuthenticationError from service"
     ) as ctx:
-      get_current_user(
-        mock_request, credentials=mock_cred, auth_service=self.mock_auth
-      )
+      get_current_user(mock_request, credentials=mock_cred, auth_service=self.mock_auth)
     self.assertIn("bad token", ctx.exception.detail)
     self.mock_auth.authenticate_token.assert_called_once_with("bad.token.value")
 
