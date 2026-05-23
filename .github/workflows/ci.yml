@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: filecano
+          POSTGRES_PASSWORD: filecano
+          POSTGRES_DB: filecano_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: uv sync --extra test --extra lint
+
+      - name: Lint (ruff)
+        run: uv run ruff check app
+
+      - name: Format check (ruff)
+        run: uv run ruff format --check app
+
+      - name: Run tests
+        run: uv run python -m pytest app/tests -v --cov=app --cov-report=term-missing --cov-fail-under=70
+        env:
+          TEST_DATABASE_URL: postgresql+psycopg://filecano:filecano@localhost:5432/filecano_test
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (eslint)
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm test
+
+  security:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Frontend security audit
+        continue-on-error: true
+        run: npm audit
+        working-directory: frontend
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install backend dependencies
+        run: uv sync
+        working-directory: backend
+
+      - name: Backend security audit
+        continue-on-error: true
+        run: |
+          uv pip install pip-audit
+          uv run pip-audit
+        working-directory: backend
