@@ -383,10 +383,10 @@ class TestFileRepository(DatabaseTestCase):
     """list_by_folder_ids should return non-deleted files belonging to given folders."""
     folder1 = self._create_folder(self.user.id, name="Folder1")
     folder2 = self._create_folder(self.user.id, name="Folder2")
-    f1 = self._create_file(
+    self._create_file(
       self.user.id, display_name="f1.txt", original_name="f1.txt", folder_id=folder1.id
     )
-    f2 = self._create_file(
+    self._create_file(
       self.user.id, display_name="f2.txt", original_name="f2.txt", folder_id=folder2.id
     )
     f3 = self._create_file(

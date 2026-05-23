@@ -49,9 +49,7 @@ class TestArchiveRepository(DatabaseTestCase):
 
   def test_list_not_retainable_returns_expired_archives(self):
     settings = get_test_settings()
-    past = current_datetime() - timedelta(
-      days=settings.archive_retention_policy + 1
-    )
+    past = current_datetime() - timedelta(days=settings.archive_retention_policy + 1)
     a = self._create_archive(self.user.id, file_ids_hash="old", last_downloaded=past)
 
     result = self.repo.list_not_retainable()

@@ -423,7 +423,6 @@ class TestFolderService(DatabaseTestCase):
     self.assertIsNone(f1.deleted_at)
     self.assertIsNone(f2.deleted_at)
 
-
   def test_get_folder_returns_folder(self):
     """get_folder should return the folder by id."""
     folder = self._create_folder(self.user.id, name="GetMe")

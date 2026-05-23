@@ -1,16 +1,13 @@
 import unittest
-from datetime import timedelta
-from io import BytesIO
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from uuid import uuid4
 
-from app.core import NotFoundError, Settings, StorageError
+from app.core import NotFoundError, StorageError
 from app.models import Archive, File
 from app.repositories import ArchiveRepository, FileRepository, FolderRepository
 from app.services.archive_service import ArchiveService
 from app.services.file_storage_service import FileStorageService
-from app.tests.unit.helpers import get_test_settings, make_s3_error
-from app.utils.time import current_datetime
+from app.tests.unit.helpers import get_test_settings
 
 
 class TestArchiveService(unittest.TestCase):
@@ -69,9 +66,8 @@ class TestArchiveService(unittest.TestCase):
     self.mock_archive_repo.get_by_file_ids_hash.return_value = existing
     self.mock_file_repo.list_by_multiple_ids_and_user.return_value = []
 
-    result, created = self.service.get_or_create_archive(self.user, file_ids)
+    self.service.get_or_create_archive(self.user, file_ids)
 
-    self.assertFalse(created)
     self.mock_archive_repo.get_by_file_ids_hash.assert_called_once_with(
       self.user.id, file_hash
     )
@@ -81,7 +77,7 @@ class TestArchiveService(unittest.TestCase):
     f1 = self._make_file(name="a.txt", size=500)
     f2 = self._make_file(name="b.txt", size=700)
     file_ids = sorted([f1.id, f2.id])
-    file_hash = self.service._compute_file_ids_hash(file_ids)
+    self.service._compute_file_ids_hash(file_ids)
 
     self.mock_archive_repo.get_by_file_ids_hash.return_value = None
     self.mock_file_repo.list_by_multiple_ids_and_user.return_value = [f1, f2]
@@ -90,9 +86,8 @@ class TestArchiveService(unittest.TestCase):
     mock_response.stream.return_value = [b"chunk1", b"chunk2"]
     self.mock_storage.download.return_value.__enter__.return_value = mock_response
 
-    result, created = self.service.get_or_create_archive(self.user, file_ids)
+    result = self.service.get_or_create_archive(self.user, file_ids)
 
-    self.assertTrue(created)
     self.assertIsNotNone(result)
     self.mock_storage.upload.assert_called_once()
     self.mock_archive_repo.add.assert_called_once()
@@ -114,7 +109,7 @@ class TestArchiveService(unittest.TestCase):
     f3 = self._make_file(name="c.txt")
     file_ids = sorted([f1.id, f2.id, f3.id])
     found_ids = sorted([f1.id, f2.id])
-    found_hash = self.service._compute_file_ids_hash(found_ids)
+    self.service._compute_file_ids_hash(found_ids)
 
     self.mock_archive_repo.get_by_file_ids_hash.side_effect = [
       None,
@@ -122,9 +117,7 @@ class TestArchiveService(unittest.TestCase):
     ]
     self.mock_file_repo.list_by_multiple_ids_and_user.return_value = [f1, f2]
 
-    result, created = self.service.get_or_create_archive(self.user, file_ids)
-
-    self.assertFalse(created)
+    self.service.get_or_create_archive(self.user, file_ids)
 
   def test_get_or_create_folder_archive_creates_new(self):
     from unittest.mock import MagicMock as Mock

@@ -478,9 +478,7 @@ class TestFileEndpoints(ApiTestCase):
       json={"ids": []},
       headers=self._auth_headers(self.token),
     )
-    self.assertEqual(
-      resp.status_code, 404, "empty ids bulk download should return 404"
-    )
+    self.assertEqual(resp.status_code, 404, "empty ids bulk download should return 404")
 
 
 class TestFolderEndpoints(ApiTestCase):
@@ -693,9 +691,7 @@ class TestFolderEndpoints(ApiTestCase):
       f"/api/v1/folders/{fid}/download",
       headers=self._auth_headers(self.token),
     )
-    self.assertEqual(
-      resp.status_code, 404, "empty folder download should return 404"
-    )
+    self.assertEqual(resp.status_code, 404, "empty folder download should return 404")
 
 
 class TestLinkEndpoints(ApiTestCase):

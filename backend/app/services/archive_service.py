@@ -6,12 +6,11 @@ from contextlib import suppress
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
+from fastapi import Response
+
 from app.core import NotFoundError, Settings, StorageError
-from app.models import Archive, User
-from app.models.file import File
-from app.repositories.archive_repository import ArchiveRepository
-from app.repositories.file_repository import FileRepository
-from app.repositories.folder_repository import FolderRepository
+from app.models import Archive, File, Folder, User
+from app.repositories import ArchiveRepository, FileRepository, FolderRepository
 from app.services.base_service import BaseService
 from app.services.file_storage_service import FileStorageService
 from app.utils.time import current_datetime
@@ -35,9 +34,7 @@ class ArchiveService(BaseService):
     self.storage = storage_service
     self.settings = settings
 
-  def get_or_create_archive(
-    self, user: User, file_ids: list[UUID]
-  ) -> tuple[Archive, bool]:
+  def get_or_create_archive(self, user: User, file_ids: list[UUID]) -> Archive:
     file_ids_sorted = sorted(file_ids)
     file_ids_hash = self._compute_file_ids_hash(file_ids_sorted)
 
@@ -46,7 +43,7 @@ class ArchiveService(BaseService):
       self.repository.add(existing)
       self.repository.commit()
 
-      return existing, False
+      return existing
 
     files = self.file_repository.list_by_multiple_ids_and_user(file_ids_sorted, user.id)
     found_ids = sorted({f.id for f in files})
@@ -62,15 +59,13 @@ class ArchiveService(BaseService):
         self.repository.add(existing)
         self.repository.commit()
 
-        return existing, False
+        return existing
 
     name_map = {f.id: (f, f.original_name) for f in files}
     archive = self._create_archive(user, found_ids, found_hash, name_map)
-    return archive, True
+    return archive
 
-  def get_or_create_folder_archive(
-    self, user: User, folder: "Folder"
-  ) -> Archive:
+  def get_or_create_folder_archive(self, user: User, folder: Folder) -> Archive:
     folder_ids = self.folder_repository.get_all_descendant_ids(folder.id)
     folder_ids.append(folder.id)
 
@@ -109,17 +104,19 @@ class ArchiveService(BaseService):
         current_id = parent_map[current_id]
 
       path_parts.reverse()
-      zip_path = "/".join(path_parts + [f.original_name]) if path_parts else f.original_name
+      zip_path = (
+        "/".join(path_parts + [f.original_name]) if path_parts else f.original_name
+      )
       name_map[f.id] = (f, zip_path)
 
     archive = self._create_archive(user, file_ids_sorted, file_ids_hash, name_map)
 
     return archive
 
-  def get_archive_download(self, archive: Archive) -> BaseHTTPResponse:
+  def get_archive_download(self, archive: Archive) -> Response:
     return self.storage.download(archive.object_key)
 
-  def stream_response(self, response: BaseHTTPResponse) -> Iterator[bytes]:
+  def stream_response(self, response: Response) -> Iterator[bytes]:
     return self.storage.iter_response(response)
 
   def enforce_retention_policy(self) -> None:

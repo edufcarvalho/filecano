@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from typing import Annotated, Optional, Union
 from uuid import UUID
 
@@ -162,7 +161,7 @@ def bulk_download_files(
   current_user: User = Depends(get_current_user),
   archive_service: ArchiveService = Depends(get_archive_service),
 ) -> StreamingResponse:
-  archive, _ = archive_service.get_or_create_archive(current_user, params.ids)
+  archive = archive_service.get_or_create_archive(current_user, params.ids)
   response = archive_service.get_archive_download(archive)
 
   filename = f"filecano-{current_datetime().strftime('%Y%m%d%H%M%S')}.zip"
