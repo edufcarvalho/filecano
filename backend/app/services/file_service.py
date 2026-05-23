@@ -1,8 +1,13 @@
+from __future__ import annotations
+
 import hashlib
 from contextlib import suppress
 from io import BytesIO
-from typing import BinaryIO, Iterator, Optional
+from typing import TYPE_CHECKING
 from uuid import UUID
+
+if TYPE_CHECKING:
+  from typing import BinaryIO, Iterator, Optional
 
 from fastapi import UploadFile
 from PIL import Image, UnidentifiedImageError
