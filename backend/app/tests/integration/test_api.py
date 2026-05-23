@@ -1,5 +1,6 @@
 import unittest
 from io import BytesIO
+from unittest.mock import MagicMock
 
 from app.tests.integration.helpers import ApiTestCase
 
@@ -452,6 +453,35 @@ class TestFileEndpoints(ApiTestCase):
     )
     self.assertEqual(resp.status_code, 204, "bulk restore files should return 204")
 
+  def test_bulk_download_files(self):
+    """POST /api/v1/files/download/bulk should return a zip."""
+    mock_response = MagicMock()
+    mock_response.stream.return_value = [b"hello"]
+    mock_response.__enter__.return_value = mock_response
+    self.mock_storage.download.return_value = mock_response
+
+    id1 = self._upload_text_file("bdl1.txt")
+    id2 = self._upload_text_file("bdl2.txt")
+
+    resp = self.client.post(
+      "/api/v1/files/download/bulk",
+      json={"ids": [id1, id2]},
+      headers=self._auth_headers(self.token),
+    )
+    self.assertEqual(resp.status_code, 200, "bulk download should return 200")
+    self.assertIn("zip", resp.headers.get("content-type", ""))
+
+  def test_bulk_download_files_empty_ids(self):
+    """POST /api/v1/files/download/bulk with empty ids should return 404."""
+    resp = self.client.post(
+      "/api/v1/files/download/bulk",
+      json={"ids": []},
+      headers=self._auth_headers(self.token),
+    )
+    self.assertEqual(
+      resp.status_code, 404, "empty ids bulk download should return 404"
+    )
+
 
 class TestFolderEndpoints(ApiTestCase):
   def setUp(self):
@@ -631,6 +661,41 @@ class TestFolderEndpoints(ApiTestCase):
       headers=self._auth_headers(self.token),
     )
     self.assertEqual(resp.status_code, 204, "bulk restore folders should return 204")
+
+  def test_download_folder(self):
+    """GET /api/v1/folders/{id}/download should return a zip."""
+    mock_response = MagicMock()
+    mock_response.stream.return_value = [b"hello"]
+    mock_response.__enter__.return_value = mock_response
+    self.mock_storage.download.return_value = mock_response
+
+    fid = self._create_test_folder("DownloadMe")
+    self.client.post(
+      "/api/v1/files",
+      data={"folder_id": fid},
+      files={
+        "file": ("inside.txt", BytesIO(b"inside"), "text/plain"),
+      },
+      headers=self._auth_headers(self.token),
+    )
+
+    resp = self.client.get(
+      f"/api/v1/folders/{fid}/download",
+      headers=self._auth_headers(self.token),
+    )
+    self.assertEqual(resp.status_code, 200, "folder download should return 200")
+    self.assertIn("zip", resp.headers.get("content-type", ""))
+
+  def test_download_folder_empty(self):
+    """GET /api/v1/folders/{id}/download with empty folder should return 404."""
+    fid = self._create_test_folder("EmptyFolder")
+    resp = self.client.get(
+      f"/api/v1/folders/{fid}/download",
+      headers=self._auth_headers(self.token),
+    )
+    self.assertEqual(
+      resp.status_code, 404, "empty folder download should return 404"
+    )
 
 
 class TestLinkEndpoints(ApiTestCase):

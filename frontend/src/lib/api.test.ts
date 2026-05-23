@@ -6,6 +6,8 @@ import {
   refreshAccessToken,
   signupUser,
   updateUser,
+  fetchMe,
+  logoutUser,
   listFiles,
   listFolderedFiles,
   createFolder,
@@ -26,6 +28,7 @@ import {
   bulkDeleteFolders,
   bulkRestoreFolders,
   downloadMultipleFiles,
+  downloadFolder,
   shareFiles,
   listUserLinks,
   updateLinkName,
@@ -460,6 +463,52 @@ describe("authFetch (via updateFile)", () => {
 
     expect(refreshCb).toHaveBeenCalledTimes(1)
     expect(unauthCb).toHaveBeenCalled()
+  })
+})
+
+// ===================================================================
+// fetchMe
+// ===================================================================
+
+describe("fetchMe", () => {
+  it("fetches current user successfully", async () => {
+    const user = { id: "u1", name: "Me", email: "me@test.com", created_at: "2026-01-01", deleted_at: null }
+    vi.mocked(fetch).mockResolvedValue(okResponse(user))
+
+    const result = await fetchMe()
+    expect(result).toEqual(user)
+    expect(fetch).toHaveBeenCalledWith(
+      `${API_URL}/v1/users/me`,
+      expect.objectContaining({ credentials: "include" }),
+    )
+  })
+
+  it("throws on error response", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      errorResponse(500, { message: "server error" })
+    )
+
+    await expect(fetchMe()).rejects.toThrow("server error")
+  })
+})
+
+// ===================================================================
+// logoutUser
+// ===================================================================
+
+describe("logoutUser", () => {
+  it("calls logout endpoint with credentials", async () => {
+    vi.mocked(fetch).mockResolvedValue(okResponse(null))
+
+    await expect(logoutUser()).resolves.toBeUndefined()
+
+    expect(fetch).toHaveBeenCalledWith(
+      `${API_URL}/v1/users/logout`,
+      expect.objectContaining({
+        method: "POST",
+        credentials: "include",
+      }),
+    )
   })
 })
 
@@ -1181,6 +1230,70 @@ describe("downloadMultipleFiles", () => {
         { id: "f2", original_name: "b.txt" },
       ]),
     ).rejects.toThrow("fail")
+  })
+})
+
+// ===================================================================
+// downloadFolder
+// ===================================================================
+
+describe("downloadFolder", () => {
+  beforeEach(() => {
+    vi.stubGlobal("URL", {
+      createObjectURL: vi.fn().mockReturnValue("blob:test"),
+      revokeObjectURL: vi.fn(),
+    })
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it("downloads a folder with filename from Content-Disposition header", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      okResponse(null, {
+        "Content-Disposition": "attachment; filename*=UTF-8''my-folder.zip",
+      })
+    )
+
+    await expect(
+      downloadFolder("folder-1"),
+    ).resolves.toBeUndefined()
+
+    expect(fetch).toHaveBeenCalledWith(
+      `${API_URL}/v1/folders/folder-1/download`,
+      expect.any(Object),
+    )
+  })
+
+  it("uses folder.zip fallback when no Content-Disposition header", async () => {
+    vi.mocked(fetch).mockResolvedValue(okResponse(null))
+
+    await expect(
+      downloadFolder("folder-1"),
+    ).resolves.toBeUndefined()
+  })
+
+  it("parses filename from plain filename=\"...\" Content-Disposition", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      okResponse(null, {
+        "Content-Disposition": 'attachment; filename="archive.zip"',
+      })
+    )
+
+    await expect(
+      downloadFolder("folder-1"),
+    ).resolves.toBeUndefined()
+  })
+
+  it("throws on error response", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      errorResponse(404, { message: "Folder not found" })
+    )
+
+    await expect(
+      downloadFolder("folder-x"),
+    ).rejects.toThrow("Folder not found")
   })
 })
 

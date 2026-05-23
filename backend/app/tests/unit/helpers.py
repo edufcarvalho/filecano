@@ -16,6 +16,7 @@ _test_settings = Settings(
   jwt_secret_key="test-key",
   max_file_size_bytes=104857600,
   data_retention_policy=45,
+  archive_retention_policy=15,
   _env_file=None,
 )
 
