@@ -16,7 +16,7 @@ class UserRepository(BaseRepository[User]):
 
     return self.session.exec(query).first()
 
-  def delete_not_retainable(self):
+  def delete_not_retainable(self) -> None:
     query = delete(User).where(
       User.deleted_at + timedelta(days=self.settings.data_retention_policy)
       <= current_datetime()

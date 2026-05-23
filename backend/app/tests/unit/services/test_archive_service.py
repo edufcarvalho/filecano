@@ -147,11 +147,11 @@ class TestArchiveService(unittest.TestCase):
     mock_response.stream.return_value = [b"chunk"]
     self.mock_storage.download.return_value.__enter__.return_value = mock_response
 
-    result, created = self.service.get_or_create_folder_archive(self.user, folder)
+    result = self.service.get_or_create_folder_archive(self.user, folder)
 
-    self.assertTrue(created)
     self.assertIsNotNone(result)
     self.mock_storage.upload.assert_called_once()
+    self.mock_archive_repo.add.assert_called_once()
 
   def test_get_or_create_folder_archive_returns_existing(self):
     from unittest.mock import MagicMock as Mock
@@ -169,9 +169,10 @@ class TestArchiveService(unittest.TestCase):
     existing = MagicMock(spec=Archive)
     self.mock_archive_repo.get_by_file_ids_hash.return_value = existing
 
-    result, created = self.service.get_or_create_folder_archive(self.user, folder)
+    result = self.service.get_or_create_folder_archive(self.user, folder)
 
-    self.assertFalse(created)
+    self.assertEqual(result, existing)
+    self.mock_storage.upload.assert_not_called()
 
   def test_get_or_create_folder_archive_empty_folder(self):
     from unittest.mock import MagicMock as Mock
@@ -267,8 +268,10 @@ class TestArchiveService(unittest.TestCase):
     mock_response.stream.return_value = [b"chunk"]
     self.mock_storage.download.return_value.__enter__.return_value = mock_response
 
-    result, created = self.service.get_or_create_folder_archive(self.user, folder)
-    self.assertTrue(created)
+    result = self.service.get_or_create_folder_archive(self.user, folder)
+    self.assertIsNotNone(result)
+    self.mock_storage.upload.assert_called_once()
+    self.mock_archive_repo.add.assert_called_once()
 
   def test_delete_archive_permanently(self):
     archive = MagicMock(spec=Archive)

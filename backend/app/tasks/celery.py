@@ -20,7 +20,9 @@ LOGS_DIR.mkdir(exist_ok=True)
 
 
 @after_setup_logger.connect
-def setup_loggers(logger, *args, **kwargs):
+def setup_loggers(
+  logger: logging.Logger, *args: object, **kwargs: object
+) -> None:
   handler = logging.FileHandler(LOGS_DIR / "celery.log")
   handler.setFormatter(
     logging.Formatter("[%(asctime)s: %(levelname)s/%(processName)s] %(message)s")

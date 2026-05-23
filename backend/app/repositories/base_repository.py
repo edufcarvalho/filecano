@@ -87,7 +87,7 @@ class BaseRepository(Generic[Model]):
 
     self.session.exec(query)
 
-  def list_not_retainable(self):
+  def list_not_retainable(self) -> list[Model]:
     query = select(self.model).where(
       self.model.deleted_at.is_not(None),
       self.model.deleted_at + timedelta(days=self.settings.data_retention_policy)

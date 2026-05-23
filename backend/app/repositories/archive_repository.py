@@ -22,7 +22,7 @@ class ArchiveRepository(BaseRepository[Archive]):
 
     return self.session.exec(query).first()
 
-  def list_not_retainable(self):
+  def list_not_retainable(self) -> list[Archive]:
     query = select(Archive).where(
       Archive.last_time_downloaded
       + timedelta(days=self.settings.archive_retention_policy)

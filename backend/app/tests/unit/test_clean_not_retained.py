@@ -94,11 +94,13 @@ class TestFolderRetentionPolicy(DatabaseTestCase):
     self.folder_repo = FolderRepository(self.session, settings)
     self.file_repo = FileRepository(self.session, settings)
     self.storage = MagicMock()
+    self.archive_service = MagicMock()
     self.file_service = MagicMock()
     self.service = FolderService(
       self.folder_repo,
       self.file_repo,
       self.file_service,
+      self.archive_service,
       self.storage,
     )
     self.user = self._create_user(email="retain-folder@test.com")

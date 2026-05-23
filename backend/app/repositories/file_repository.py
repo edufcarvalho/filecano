@@ -162,7 +162,7 @@ class FileRepository(BaseRepository[File]):
 
   def get_deleted_file_by_checksum_and_user(
     self, checksum: str, display_name: str, user_id: UUID
-  ) -> File:
+  ) -> Optional[File]:
     query = select(File).where(
       File.user_id == user_id,
       File.checksum == checksum,

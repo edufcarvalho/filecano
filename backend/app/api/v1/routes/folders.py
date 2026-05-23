@@ -25,10 +25,8 @@ def create_folder(
   params: Annotated[FolderParams, Body()],
   current_user: User = Depends(get_current_user),
   service: FolderService = Depends(get_folder_service),
-):
-  folder = service.create_folder(current_user, params)
-
-  return folder
+) -> FolderResponse:
+  return service.create_folder(current_user, params)
 
 
 @router.get("", response_model=list[FolderResponse], status_code=status.HTTP_200_OK)
@@ -36,10 +34,8 @@ def list_folders(
   deleted: bool = False,
   current_user: User = Depends(get_current_user),
   service: FolderService = Depends(get_folder_service),
-):
-  folders = service.list_folders(current_user, deleted=deleted)
-
-  return folders
+) -> list[FolderResponse]:
+  return service.list_folders(current_user, deleted=deleted)
 
 
 @router.put(
@@ -50,10 +46,8 @@ def update_folder(
   params: Annotated[FolderUpdateParams, Body()],
   current_user: User = Depends(get_current_user),
   service: FolderService = Depends(get_folder_service),
-):
-  folder = service.update_folder(current_user, folder_id, params)
-
-  return folder
+) -> FolderResponse:
+  return service.update_folder(current_user, folder_id, params)
 
 
 @router.delete("/{folder_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -62,7 +56,7 @@ def delete_folder(
   permanent: bool = False,
   current_user: User = Depends(get_current_user),
   service: FolderService = Depends(get_folder_service),
-):
+) -> None:
   service.delete_folder(current_user, folder_id, permanent)
 
 

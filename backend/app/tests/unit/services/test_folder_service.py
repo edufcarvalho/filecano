@@ -15,11 +15,13 @@ class TestFolderService(DatabaseTestCase):
     self.repo = FolderRepository(self.session, get_test_settings())
     self.file_repo = FileRepository(self.session, get_test_settings())
     self.file_service = MagicMock()
+    self.archive_service = MagicMock()
     self.storage = MagicMock()
     self.service = FolderService(
       self.repo,
       self.file_repo,
       self.file_service,
+      self.archive_service,
       self.storage,
     )
     self.user = self._create_user(email="foldersvc@test.com")
@@ -420,6 +422,20 @@ class TestFolderService(DatabaseTestCase):
     self.session.refresh(f2)
     self.assertIsNone(f1.deleted_at)
     self.assertIsNone(f2.deleted_at)
+
+
+  def test_get_folder_returns_folder(self):
+    """get_folder should return the folder by id."""
+    folder = self._create_folder(self.user.id, name="GetMe")
+    result = self.service.get_folder(folder.id)
+    self.assertEqual(result.id, folder.id, "should return the folder")
+
+  def test_get_folder_public_nonexistent_raises(self):
+    """get_folder should raise NotFoundError for nonexistent folder."""
+    with self.assertRaises(
+      NotFoundError, msg="nonexistent folder should raise NotFoundError"
+    ):
+      self.service.get_folder(uuid4())
 
 
 if __name__ == "__main__":

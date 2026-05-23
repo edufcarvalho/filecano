@@ -74,7 +74,7 @@ def delete_link(
   token: str,
   current_user: User = Depends(get_current_user),
   service: LinkService = Depends(get_link_service),
-):
+) -> None:
   service.delete_link(current_user, token)
 
 

@@ -207,7 +207,7 @@ class FolderService(BaseService):
 
     self._ensure_user_has_rights(user.id, folder.user_id)
 
-    archive = self.archive_service.get_or_create_folder_archive(user.id, folder)
+    archive = self.archive_service.get_or_create_folder_archive(user, folder)
     response = self.archive_service.get_archive_download(archive)
 
     return folder, archive, response

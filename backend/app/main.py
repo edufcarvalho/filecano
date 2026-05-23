@@ -24,10 +24,10 @@ register_exception_handlers(app)
 
 
 @app.get("/")
-def root():
+def root() -> dict[str, str]:
   return {"name": settings.app_name, "status": "running"}
 
 
 @app.get("/health", tags=["Health"])
-def health():
+def health() -> dict[str, str]:
   return {"status": "ok"}

@@ -1,6 +1,7 @@
 import hashlib
 import tempfile
 import zipfile
+from collections.abc import Iterator
 from contextlib import suppress
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
@@ -44,6 +45,7 @@ class ArchiveService(BaseService):
       existing.last_time_downloaded = current_datetime()
       self.repository.add(existing)
       self.repository.commit()
+
       return existing, False
 
     files = self.file_repository.list_by_multiple_ids_and_user(file_ids_sorted, user.id)
@@ -59,6 +61,7 @@ class ArchiveService(BaseService):
         existing.last_time_downloaded = current_datetime()
         self.repository.add(existing)
         self.repository.commit()
+
         return existing, False
 
     name_map = {f.id: (f, f.original_name) for f in files}
@@ -67,7 +70,7 @@ class ArchiveService(BaseService):
 
   def get_or_create_folder_archive(
     self, user: User, folder: "Folder"
-  ) -> tuple[Archive, bool]:
+  ) -> Archive:
     folder_ids = self.folder_repository.get_all_descendant_ids(folder.id)
     folder_ids.append(folder.id)
 
@@ -92,16 +95,19 @@ class ArchiveService(BaseService):
       existing.last_time_downloaded = current_datetime()
       self.repository.add(existing)
       self.repository.commit()
-      return existing, False
+
+      return existing
 
     name_map: dict[UUID, tuple[File, str]] = {}
 
     for f in files:
       path_parts = []
       current_id = f.parent_id
+
       while current_id is not None and current_id in parent_map:
         path_parts.append(name_cache[current_id])
         current_id = parent_map[current_id]
+
       path_parts.reverse()
       zip_path = "/".join(path_parts + [f.original_name]) if path_parts else f.original_name
       name_map[f.id] = (f, zip_path)
@@ -110,10 +116,10 @@ class ArchiveService(BaseService):
 
     return archive
 
-  def get_archive_download(self, archive: Archive):
+  def get_archive_download(self, archive: Archive) -> BaseHTTPResponse:
     return self.storage.download(archive.object_key)
 
-  def stream_response(self, response):
+  def stream_response(self, response: BaseHTTPResponse) -> Iterator[bytes]:
     return self.storage.iter_response(response)
 
   def enforce_retention_policy(self) -> None:
