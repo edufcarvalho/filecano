@@ -95,6 +95,7 @@ class ArchiveService(BaseService):
       return existing, False
 
     name_map: dict[UUID, tuple[File, str]] = {}
+
     for f in files:
       path_parts = []
       current_id = f.parent_id
@@ -106,7 +107,8 @@ class ArchiveService(BaseService):
       name_map[f.id] = (f, zip_path)
 
     archive = self._create_archive(user, file_ids_sorted, file_ids_hash, name_map)
-    return archive, True
+
+    return archive
 
   def get_archive_download(self, archive: Archive):
     return self.storage.download(archive.object_key)

@@ -98,14 +98,10 @@ def bulk_restore_folders(
 def download_folder(
   folder_id: UUID,
   current_user: User = Depends(get_current_user),
-  folder_service: FolderService = Depends(get_folder_service),
+  service: FolderService = Depends(get_folder_service),
   archive_service: ArchiveService = Depends(get_archive_service),
 ) -> StreamingResponse:
-  folder = folder_service.get_folder(folder_id)
-  folder_service.ensure_user_has_rights(current_user.id, folder.user_id)
-
-  archive, _ = archive_service.get_or_create_folder_archive(current_user, folder)
-  response = archive_service.get_archive_download(archive)
+  folder, archive, response = service.download_folder(folder_id, current_user)
 
   headers = {
     "Content-Disposition": f"attachment; filename*=UTF-8''{folder.name}.zip",

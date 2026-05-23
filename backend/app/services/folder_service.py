@@ -1,10 +1,10 @@
 from typing import Optional
 from uuid import UUID
-
 from uuid6 import uuid7
+from fastapi import Response
 
 from app.core.exceptions import ConflictError, GoneError, NotFoundError
-from app.models import Folder, Link, User
+from app.models import Archive, Folder, Link, User
 from app.repositories.file_repository import FileRepository
 from app.repositories.folder_repository import FolderRepository
 from app.schemas import (
@@ -14,6 +14,7 @@ from app.schemas import (
   FolderWithFilesResponse,
 )
 from app.services.base_service import BaseService
+from app.services.archive_service import ArchiveService
 from app.services.file_service import FileService
 from app.services.file_storage_service import FileStorageService
 from app.utils.time import current_datetime
@@ -25,11 +26,13 @@ class FolderService(BaseService):
     repository: FolderRepository,
     file_repository: FileRepository,
     file_service: FileService,
+    archive_service: ArchiveService,
     storage: Optional[FileStorageService] = None,
   ):
     self.repository = repository
     self.file_repository = file_repository
     self.file_service = file_service
+    self.archive_service = archive_service
     self.storage = storage
 
   def list_folders(self, user: User, deleted: bool = False) -> list[Folder]:
@@ -198,6 +201,17 @@ class FolderService(BaseService):
 
   def get_folder(self, folder_id: UUID) -> Folder:
     return self._get_folder(folder_id)
+
+  def download_folder(self, folder_id: UUID, user: User) -> tuple[Folder, Archive, Response]:
+    folder = self._get_folder(folder_id)
+
+    self._ensure_user_has_rights(user.id, folder.user_id)
+
+    archive = self.archive_service.get_or_create_folder_archive(user.id, folder)
+    response = self.archive_service.get_archive_download(archive)
+
+    return folder, archive, response
+
 
   def _get_folder(self, folder_id: UUID) -> Folder:
     folder = self.repository.get_by_id(folder_id)
