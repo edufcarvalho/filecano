@@ -3,7 +3,9 @@ import { renderHook, act } from "@testing-library/react"
 import { useIsMobile, getInitialIsMobile } from "@/hooks/use-mobile"
 
 describe("useIsMobile", () => {
-  let matchMediaMock: ReturnType<typeof vi.fn>
+  let matchMediaMock: ReturnType<
+    typeof vi.fn<(query: string) => MediaQueryList>
+  >
   let listeners: Array<(e: { matches: boolean }) => void>
 
   beforeEach(() => {
@@ -21,7 +23,7 @@ describe("useIsMobile", () => {
     }
 
     matchMediaMock = vi.fn().mockReturnValue(mql)
-    window.matchMedia = matchMediaMock as unknown as typeof window.matchMedia
+    window.matchMedia = matchMediaMock as typeof window.matchMedia
   })
 
   it("returns false for desktop viewport", () => {

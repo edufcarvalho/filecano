@@ -174,14 +174,14 @@
     --empty-text-size: 1.15rem;
   }
 
-  @container size(min-width: 20rem) {
+  @container (min-width: 20rem) {
     .empty-state-base {
       --empty-icon-size: 4rem;
       --empty-text-size: 1.3rem;
     }
   }
 
-  @container size(min-width: 32rem) {
+  @container (min-width: 32rem) {
     .empty-state-base {
       --empty-icon-size: 5rem;
       --empty-text-size: 1.5rem;

@@ -24,7 +24,7 @@ type FileUploadDropzoneProps = {
 }
 
 const GAP = 16
-const RESIDUAL = 16
+const DESKTOP_RESIDUAL = 4
 
 export function FileUploadDropzone({
   fileInputRef,
@@ -54,7 +54,8 @@ export function FileUploadDropzone({
 
     const step = Math.round(p * 8) / 8
     const isDesktop = window.innerWidth >= 640
-    const cancelH = isDesktop ? totalH - RESIDUAL : totalH
+    const cancelH = totalH - (isDesktop ? DESKTOP_RESIDUAL : 0)
+
     dz.style.marginBottom = `${Math.round(-cancelH * step)}px`
     dz.style.transition = "none"
 
