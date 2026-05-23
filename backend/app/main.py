@@ -15,6 +15,7 @@ app.add_middleware(
   allow_credentials=True,
   allow_methods=["*"],
   allow_headers=["*"],
+  expose_headers=["Content-Disposition", "X-Checksum-SHA256"],
 )
 
 app.include_router(v1_router, prefix="/api")

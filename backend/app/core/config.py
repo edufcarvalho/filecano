@@ -26,6 +26,7 @@ class Settings(BaseSettings):
   redis_url: str = "redis://:1234@localhost:6379/0"
   celery_broker_url: str = "redis://:1234@localhost:6379/0"
   data_retention_policy: int = 45
+  archive_retention_policy: int = 15
   auth_cookie_name: str = "filecano_access_token"
   auth_cookie_secure: bool = False
   auth_cookie_same_site: str = "lax"

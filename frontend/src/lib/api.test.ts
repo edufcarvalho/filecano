@@ -1160,20 +1160,27 @@ describe("downloadMultipleFiles", () => {
       ]),
     ).resolves.toBeUndefined()
 
-    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(fetch).toHaveBeenCalledWith(
+      `${API_URL}/v1/files/download/bulk`,
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ ids: ["f1", "f2"] }),
+      }),
+    )
   })
 
-  it("throws when any download fails", async () => {
-    vi.mocked(fetch)
-      .mockResolvedValueOnce(okResponse(null))
-      .mockResolvedValueOnce(errorResponse(500, { message: "fail" }))
+  it("throws when bulk download fails", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      errorResponse(500, { message: "fail" })
+    )
 
     await expect(
       downloadMultipleFiles([
         { id: "f1", original_name: "a.txt" },
         { id: "f2", original_name: "b.txt" },
       ]),
-    ).rejects.toThrow("files.error.someDownloadFailed")
+    ).rejects.toThrow("fail")
   })
 })
 

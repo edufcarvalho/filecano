@@ -2,9 +2,10 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, status
+from fastapi.responses import StreamingResponse
 
 from app.api.dependencies.auth import get_current_user
-from app.api.dependencies.services import get_folder_service
+from app.api.dependencies.services import get_archive_service, get_folder_service
 from app.models import User
 from app.schemas import (
   BulkParams,
@@ -13,6 +14,7 @@ from app.schemas import (
   FolderUpdateParams,
   FolderWithFilesResponse,
 )
+from app.services.archive_service import ArchiveService
 from app.services.folder_service import FolderService
 
 router = APIRouter(prefix="/folders", tags=["folders"])
@@ -90,3 +92,30 @@ def bulk_restore_folders(
   service: FolderService = Depends(get_folder_service),
 ) -> None:
   service.restore_folders(current_user, params.ids)
+
+
+@router.get("/{folder_id}/download")
+def download_folder(
+  folder_id: UUID,
+  current_user: User = Depends(get_current_user),
+  folder_service: FolderService = Depends(get_folder_service),
+  archive_service: ArchiveService = Depends(get_archive_service),
+) -> StreamingResponse:
+  folder = folder_service.get_folder(folder_id)
+  folder_service.ensure_user_has_rights(current_user.id, folder.user_id)
+
+  archive, _ = archive_service.get_or_create_folder_archive(current_user, folder)
+  response = archive_service.get_archive_download(archive)
+
+  headers = {
+    "Content-Disposition": f"attachment; filename*=UTF-8''{folder.name}.zip",
+  }
+
+  if archive.compressed_size_bytes is not None:
+    headers["Content-Length"] = str(archive.compressed_size_bytes)
+
+  return StreamingResponse(
+    archive_service.stream_response(response),
+    media_type="application/zip",
+    headers=headers,
+  )

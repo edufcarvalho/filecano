@@ -546,18 +546,46 @@ export async function bulkRestoreFolders(
     await readError(response, translate("files.error.restoreFolder"))
 }
 
+function parseFilenameFromHeaders(headers: Headers, fallback: string): string {
+  const contentDisposition = headers.get("Content-Disposition") ?? headers.get("content-disposition") ?? ""
+  const encoded = contentDisposition.match(/filename\*=UTF-8''(.+)/)
+  if (encoded) return decodeURIComponent(encoded[1])
+  const plain = contentDisposition.match(/filename="(.+?)"/)
+  if (plain) return plain[1]
+  return fallback
+}
+
 export async function downloadMultipleFiles(
   files: Array<{ id: string; original_name: string }>
 ): Promise<void> {
-  const downloadPromises = files.map((file) =>
-    downloadFile(file.id, file.original_name)
+  const response = await authFetch(
+    `${API_URL}/v1/files/download/bulk`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: files.map((f) => f.id) }),
+    }
   )
 
-  try {
-    await Promise.all(downloadPromises)
-  } catch {
-    throw new Error(translate("files.error.someDownloadFailed"))
-  }
+  if (!response.ok)
+    await readError(response, translate("files.error.downloadFiles"))
+
+  const fileName = parseFilenameFromHeaders(response.headers, "files.zip")
+  await downloadResponse(response, fileName)
+}
+
+export async function downloadFolder(
+  folderId: string
+): Promise<void> {
+  const response = await authFetch(
+    `${API_URL}/v1/folders/${folderId}/download`
+  )
+
+  if (!response.ok)
+    await readError(response, translate("files.error.downloadFolder"))
+
+  const fileName = parseFilenameFromHeaders(response.headers, "folder.zip")
+  await downloadResponse(response, fileName)
 }
 
 export async function shareFiles(

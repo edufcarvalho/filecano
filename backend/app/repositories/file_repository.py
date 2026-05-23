@@ -205,6 +205,14 @@ class FileRepository(BaseRepository[File]):
 
     return file
 
+  def list_by_folder_ids(self, folder_ids: list[UUID]) -> list[File]:
+    query = select(File).where(
+      File.parent_id.in_(folder_ids),
+      File.deleted_at.is_(None),
+    )
+
+    return self.session.exec(query).all()
+
   def restore_by_folder(self, folder_id: UUID) -> None:
     self.restore_by_parent(folder_id)
 

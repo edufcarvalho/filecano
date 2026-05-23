@@ -3,12 +3,14 @@ from sqlmodel import Session
 from app.core import get_settings
 from app.db.session import engine
 from app.repositories import (
+  ArchiveRepository,
   FileRepository,
   FolderRepository,
   LinkRepository,
   UserRepository,
 )
 from app.services import (
+  ArchiveService,
   FileService,
   FileStorageService,
   FolderService,
@@ -27,6 +29,7 @@ def enforce_retention_policies() -> None:
     file_repository = FileRepository(session, settings)
     folder_repository = FolderRepository(session, settings)
     link_repository = LinkRepository(session, settings)
+    archive_repository = ArchiveRepository(session, settings)
     storage_service = FileStorageService(settings)
 
     file_service = FileService(
@@ -45,12 +48,16 @@ def enforce_retention_policies() -> None:
       settings,
     )
     user_service = UserService(user_repository)
+    archive_service = ArchiveService(
+      archive_repository, file_repository, folder_repository, storage_service, settings
+    )
 
     try:
       user_service.enforce_retention_policy()
       link_service.enforce_retention_policy()
       folder_service.enforce_retention_policy()
       file_service.enforce_retention_policy()
+      archive_service.enforce_retention_policy()
 
       session.commit()
     except Exception:

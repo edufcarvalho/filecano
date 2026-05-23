@@ -196,6 +196,9 @@ class FolderService(BaseService):
     for folder in self.repository.list_not_retainable():
       self._delete_folder_permanently(folder)
 
+  def get_folder(self, folder_id: UUID) -> Folder:
+    return self._get_folder(folder_id)
+
   def _get_folder(self, folder_id: UUID) -> Folder:
     folder = self.repository.get_by_id(folder_id)
 

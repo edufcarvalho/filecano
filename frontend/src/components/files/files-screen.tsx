@@ -12,6 +12,7 @@ import {
   deleteFile,
   deleteFolder,
   downloadFile,
+  downloadFolder,
   downloadMultipleFiles,
   fetchFilePreviewAsDataUrl,
   getSharedFiles,
@@ -27,6 +28,8 @@ import { useLinks } from "@/lib/links-context"
 import { isPreviewSupportedFile } from "@/lib/file-display"
 import { LinkExpirationDialog } from "@/components/links/link-expiration-dialog"
 import { resolveExpiresAt, type LinkExpiration } from "@/lib/link-expiration"
+import { DownloadActivityPanel } from "@files/file-upload-dropzone"
+import { updateDownloadingItem, type DownloadingItem } from "@/lib/download-activity"
 import { useTranslation } from "@/i18n"
 import { getErrorMessage } from "@/lib/errors"
 import {
@@ -89,7 +92,9 @@ export function FilesScreen() {
   const [pendingFileId, setPendingFileId] = useState<string | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
   const [isUploadPanelCollapsed, setIsUploadPanelCollapsed] = useState(false)
+  const [isDownloadPanelCollapsed, setIsDownloadPanelCollapsed] = useState(false)
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([])
+  const [downloadItems, setDownloadItems] = useState<DownloadingItem[]>([])
   const {
     selectedFileIds,
     selectedFolderIds,
@@ -119,6 +124,8 @@ export function FilesScreen() {
   const uploadErrorTimerRef = useRef<number>(0)
   const editingFileIdRef = useRef<string | null>(null)
   const editingNameRef = useRef("")
+  const downloadingFileIdsRef = useRef<Set<string>>(new Set())
+  const activeDownloadPromisesRef = useRef<Promise<void>[]>([])
   const isUploading = useMemo(
     () => uploadingFiles.some((file) => !file.done),
     [uploadingFiles]
@@ -334,6 +341,11 @@ export function FilesScreen() {
   const handleDelete = useCallback(
     async (file: FileResponse) => {
       setError(null)
+
+      if (downloadingFileIdsRef.current.has(file.id)) {
+        await Promise.all(activeDownloadPromisesRef.current)
+      }
+
       setPendingFileId(file.id)
 
       try {
@@ -749,6 +761,13 @@ export function FilesScreen() {
       )
     const fileIds = selectedFilesForAction.map((file) => file.file_id)
 
+    const someFileIsDownloading = fileIds.some((fid) =>
+      downloadingFileIdsRef.current.has(fid)
+    )
+    if (someFileIsDownloading) {
+      await Promise.all(activeDownloadPromisesRef.current)
+    }
+
     setError(null)
     setPendingFileId("bulk-delete")
 
@@ -796,26 +815,78 @@ export function FilesScreen() {
     if (selectedFileIds.size === 0) return
 
     setError(null)
-    setPendingFileId("bulk-download")
+
+    const rootFolders = folders.filter((f) => !f.parent_id)
+    const selectedRootFolders = rootFolders.filter((f) =>
+      selectedFolderIds.has(f.id)
+    )
+    const selectedLooseFiles = files.filter(
+      (f) => selectedFileIds.has(f.id) && !f.folder_id
+    )
+
+    const isSingleFolderDownload =
+      selectedRootFolders.length === 1 && selectedLooseFiles.length === 0
+
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, "0")
+    const ts =
+      `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}` +
+      `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+
+    const zipName = isSingleFolderDownload
+      ? `${selectedRootFolders[0].name}.zip`
+      : `filecano-${ts}.zip`
 
     const folderFiles = collectFolderFiles(folders)
     const filesToDownload = [...files, ...folderFiles].filter((file) =>
       selectedFileIds.has(file.id)
     )
-
-    try {
-      await downloadMultipleFiles(
-        filesToDownload.map((file) => ({
-          id: file.id,
-          original_name: file.original_name,
-        }))
-      )
-    } catch (error) {
-      setError(getErrorMessage(error, t("files.error.downloadFiles")))
-    } finally {
-      setPendingFileId(null)
+    const downloadingIds = new Set(filesToDownload.map((f) => f.id))
+    for (const fid of downloadingIds) {
+      downloadingFileIdsRef.current.add(fid)
     }
-  }, [files, folders, selectedFileIds, t])
+
+    const itemId = window.crypto.randomUUID()
+    setDownloadItems((prev) => [
+      ...prev,
+      { id: itemId, name: zipName, done: false, error: false },
+    ])
+    setIsDownloadPanelCollapsed(false)
+    clearFileSelection()
+
+    const downloadPromise = (async () => {
+      try {
+        if (isSingleFolderDownload) {
+          await downloadFolder(selectedRootFolders[0].id)
+        } else {
+          await downloadMultipleFiles(
+            filesToDownload.map((file) => ({
+              id: file.id,
+              original_name: file.original_name,
+            }))
+          )
+        }
+        setDownloadItems((prev) =>
+          updateDownloadingItem(prev, itemId, { done: true })
+        )
+      } catch (error) {
+        setError(getErrorMessage(error, t("files.error.downloadFiles")))
+        setDownloadItems((prev) =>
+          updateDownloadingItem(prev, itemId, { error: true })
+        )
+      } finally {
+        for (const fid of downloadingIds) {
+          downloadingFileIdsRef.current.delete(fid)
+        }
+        activeDownloadPromisesRef.current =
+          activeDownloadPromisesRef.current.filter((p) => p !== downloadPromise)
+      }
+    })()
+
+    activeDownloadPromisesRef.current.push(downloadPromise)
+
+    await downloadPromise
+  }, [files, folders, selectedFileIds, selectedFolderIds, clearFileSelection, t])
 
   const handleBulkShare = useCallback(() => {
     if (selectedFileIds.size === 0 && selectedFolderIds.size === 0) return
@@ -884,13 +955,26 @@ export function FilesScreen() {
       setError(null)
       setPendingFileId(`download-${file.id}`)
 
-      try {
-        await downloadFile(file.id, file.original_name)
-      } catch (error) {
-        setError(getErrorMessage(error, t("files.error.downloadFile")))
-      } finally {
-        setPendingFileId(null)
-      }
+      downloadingFileIdsRef.current.add(file.id)
+
+      const downloadPromise = (async () => {
+        try {
+          await downloadFile(file.id, file.original_name)
+        } catch (error) {
+          setError(getErrorMessage(error, t("files.error.downloadFile")))
+        } finally {
+          setPendingFileId(null)
+          downloadingFileIdsRef.current.delete(file.id)
+          activeDownloadPromisesRef.current =
+            activeDownloadPromisesRef.current.filter(
+              (p) => p !== downloadPromise
+            )
+        }
+      })()
+
+      activeDownloadPromisesRef.current.push(downloadPromise)
+
+      await downloadPromise
     },
     [t]
   )
@@ -1127,6 +1211,21 @@ export function FilesScreen() {
     setIsUploadPanelCollapsed((collapsed) => !collapsed)
   }, [])
 
+  const clearDownloadActivity = useCallback(() => {
+    setDownloadItems([])
+  }, [])
+
+  const dismissDownloadItem = useCallback(
+    (itemId: string) => {
+      setDownloadItems((prev) => prev.filter((item) => item.id !== itemId))
+    },
+    []
+  )
+
+  const handleToggleDownloadCollapse = useCallback(() => {
+    setIsDownloadPanelCollapsed((collapsed) => !collapsed)
+  }, [])
+
   return (
     <PageWrapper
       onClick={dismissUploadError}
@@ -1208,6 +1307,13 @@ export function FilesScreen() {
         onClear={clearUploadActivity}
         onDismiss={dismissUploadingFile}
         onToggleCollapse={handleToggleUploadCollapse}
+      />
+      <DownloadActivityPanel
+        isCollapsed={isDownloadPanelCollapsed}
+        downloadingItems={downloadItems}
+        onClear={clearDownloadActivity}
+        onDismiss={dismissDownloadItem}
+        onToggleCollapse={handleToggleDownloadCollapse}
       />
       <LinkExpirationDialog
         open={showExpirationDialog}

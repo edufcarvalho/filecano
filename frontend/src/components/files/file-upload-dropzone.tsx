@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, type ComponentProps, type RefObject } f
 import {
   ChevronDownIcon,
   ChevronUpIcon,
+  DownloadIcon,
   LoaderCircleIcon,
   UploadIcon,
   XIcon,
@@ -12,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@ui/card"
 import { cn } from "@/lib/utils"
 import { useTranslation } from "@/i18n"
 import type { UploadingFile } from "@/lib/file-upload"
+import type { DownloadingItem } from "@/lib/download-activity"
 import { formatFileSize } from "@/lib/file-display"
 
 type FileUploadDropzoneProps = {
@@ -173,6 +175,190 @@ export function FileUploadDropzone({
   )
 }
 
+type ActivityItem = UploadingFile | DownloadingItem
+
+type ActivityPanelProps = {
+  kind: "upload" | "download"
+  isCollapsed: boolean
+  items: ActivityItem[]
+  onClear: () => void
+  onDismiss: (itemId: string) => void
+  onToggleCollapse: () => void
+}
+
+export function ActivityPanel({
+  kind,
+  isCollapsed,
+  items,
+  onClear,
+  onDismiss,
+  onToggleCollapse,
+}: ActivityPanelProps) {
+  const { t } = useTranslation()
+  if (items.length === 0) return null
+
+  let activeCount = 0
+  let failedCount = 0
+
+  for (const item of items) {
+    if (!item.done) activeCount += 1
+    if (item.error) failedCount += 1
+  }
+
+  const isUpload = kind === "upload"
+  const DoneIcon = isUpload ? UploadIcon : DownloadIcon
+
+  const title = isUpload
+    ? activeCount > 0
+      ? t("files.dropzone.uploading", { count: activeCount })
+      : failedCount > 0
+        ? t("files.dropzone.failedCount", { count: failedCount })
+        : t("files.dropzone.uploadsComplete")
+    : activeCount > 0
+      ? t("files.downloadingPanel.downloading", { count: activeCount })
+      : failedCount > 0
+        ? t("files.downloadingPanel.failedCount", { count: failedCount })
+        : t("files.downloadingPanel.downloadsComplete")
+
+  const expandLabel = isUpload
+    ? isCollapsed
+      ? t("files.dropzone.expand")
+      : t("files.dropzone.collapse")
+    : isCollapsed
+      ? t("files.downloadingPanel.expand")
+      : t("files.downloadingPanel.collapse")
+
+  const closeLabel = isUpload
+    ? t("files.dropzone.close")
+    : t("files.downloadingPanel.close")
+
+  function isUploadingFile(item: ActivityItem): item is UploadingFile {
+    return "uploadedBytes" in item
+  }
+
+  function getStatusText(item: ActivityItem) {
+    if (item.error) {
+      return isUpload
+        ? t("files.dropzone.failed")
+        : t("files.downloadingPanel.failed")
+    }
+    if (item.done) {
+      return isUpload
+        ? t("files.dropzone.done")
+        : t("files.downloadingPanel.done")
+    }
+    if (isUploadingFile(item)) {
+      return `${formatFileSize(item.uploadedBytes)} / ${formatFileSize(item.totalBytes)}`
+    }
+    return t("files.compressing")
+  }
+
+  function getProgressPercent(item: ActivityItem): number | null {
+    if (isUploadingFile(item) && item.totalBytes > 0) {
+      return Math.min(100, Math.round((item.uploadedBytes / item.totalBytes) * 100))
+    }
+    return null
+  }
+
+  function getDismissLabel(item: ActivityItem) {
+    return isUpload
+      ? t("files.dropzone.dismiss", { name: item.name })
+      : t("files.downloadingPanel.dismiss", { name: item.name })
+  }
+
+  return (
+    <Card className="upload-panel-base">
+      <CardHeader className="flex flex-row items-center justify-between gap-3 pt-3 pb-1">
+        <CardTitle className="flex min-w-0 items-center gap-2 text-sm">
+          {activeCount > 0 ? (
+            <LoaderCircleIcon className="icon-spin icon-muted" />
+          ) : (
+            <DoneIcon className="icon-muted" />
+          )}
+          <span className="truncate-base">{title}</span>
+        </CardTitle>
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={onToggleCollapse}
+            aria-label={expandLabel}
+          >
+            {isCollapsed ? <ChevronUpIcon /> : <ChevronDownIcon />}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={onClear}
+            aria-label={closeLabel}
+          >
+            <XIcon />
+          </Button>
+        </div>
+      </CardHeader>
+      {!isCollapsed ? (
+        <CardContent className="max-h-80 overflow-y-auto pt-0 pb-3">
+          <div className="flex flex-col gap-3">
+            {items.map((item) => {
+              const progressPercent = getProgressPercent(item)
+              const showDeterminate =
+                isUploadingFile(item) && progressPercent !== null
+
+              return (
+                <div key={item.id} className="upload-file-item">
+                  <div className="upload-file-header">
+                    <span className="upload-file-name">{item.name}</span>
+                    <span className="upload-file-status">
+                      {getStatusText(item)}
+                    </span>
+                    {item.done || item.error ? (
+                      <button
+                        type="button"
+                        onClick={() => onDismiss(item.id)}
+                        className="upload-dismiss-button"
+                        aria-label={getDismissLabel(item)}
+                      >
+                        <XIcon size={14} />
+                      </button>
+                    ) : null}
+                  </div>
+                  {(!item.done || item.error) &&
+                    (showDeterminate || !isUploadingFile(item)) ? (
+                    <div className="upload-progress-bar-container">
+                      <div
+                        className={cn(
+                          "upload-progress-bar",
+                          item.error
+                            ? "upload-progress-bar-error"
+                            : showDeterminate
+                              ? "upload-progress-bar-success"
+                              : "upload-progress-bar-animated"
+                        )}
+                        style={
+                          showDeterminate
+                            ? { width: `${item.error ? 100 : progressPercent}%` }
+                            : undefined
+                        }
+                      />
+                    </div>
+                  ) : null}
+                  {item.message ? (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {item.message}
+                    </p>
+                  ) : null}
+                </div>
+              )
+            })}
+          </div>
+        </CardContent>
+      ) : null}
+    </Card>
+  )
+}
+
 type UploadActivityPanelProps = {
   isCollapsed: boolean
   uploadingFiles: UploadingFile[]
@@ -188,121 +374,41 @@ export function UploadActivityPanel({
   onDismiss,
   onToggleCollapse,
 }: UploadActivityPanelProps) {
-  const { t } = useTranslation()
-  if (uploadingFiles.length === 0) return null
-
-  let activeCount = 0
-  let failedCount = 0
-
-  uploadingFiles.forEach((file) => {
-    if (!file.done) activeCount += 1
-    if (file.error) failedCount += 1
-  })
-
-  const title =
-    activeCount > 0
-      ? t("files.dropzone.uploading", { count: activeCount })
-      : failedCount > 0
-        ? t("files.dropzone.failedCount", { count: failedCount })
-        : t("files.dropzone.uploadsComplete")
-
-  const getProgressPercent = (file: UploadingFile) =>
-    file.totalBytes > 0
-      ? Math.min(100, Math.round((file.uploadedBytes / file.totalBytes) * 100))
-      : 0
-
   return (
-    <Card className="upload-panel-base">
-      <CardHeader className="flex flex-row items-center justify-between gap-3 pt-3 pb-1">
-        <CardTitle className="flex min-w-0 items-center gap-2 text-sm">
-          {activeCount > 0 ? (
-            <LoaderCircleIcon className="icon-spin icon-muted" />
-          ) : (
-            <UploadIcon className="icon-muted" />
-          )}
-          <span className="truncate-base">{title}</span>
-        </CardTitle>
-        <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={onToggleCollapse}
-            aria-label={
-              isCollapsed
-                ? t("files.dropzone.expand")
-                : t("files.dropzone.collapse")
-            }
-          >
-            {isCollapsed ? <ChevronUpIcon /> : <ChevronDownIcon />}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            onClick={onClear}
-            aria-label={t("files.dropzone.close")}
-          >
-            <XIcon />
-          </Button>
-        </div>
-      </CardHeader>
-      {!isCollapsed ? (
-        <CardContent className="max-h-80 overflow-y-auto pt-0 pb-3">
-          <div className="flex flex-col gap-3">
-            {uploadingFiles.map((file) => (
-              (() => {
-                const progressPercent = getProgressPercent(file)
+    <ActivityPanel
+      kind="upload"
+      isCollapsed={isCollapsed}
+      items={uploadingFiles}
+      onClear={onClear}
+      onDismiss={onDismiss}
+      onToggleCollapse={onToggleCollapse}
+    />
+  )
+}
 
-                return (
-                  <div key={file.id} className="upload-file-item">
-                    <div className="upload-file-header">
-                      <span className="upload-file-name">{file.name}</span>
-                      <span className="upload-file-status">
-                        {file.error
-                          ? t("files.dropzone.failed")
-                          : file.done
-                            ? t("files.dropzone.done")
-                            : `${formatFileSize(file.uploadedBytes)} / ${formatFileSize(file.totalBytes)}`}
-                      </span>
-                      {file.done ? (
-                        <button
-                          type="button"
-                          onClick={() => onDismiss(file.id)}
-                          className="upload-dismiss-button"
-                          aria-label={t("files.dropzone.dismiss", {
-                            name: file.name,
-                          })}
-                        >
-                          <XIcon size={14} />
-                        </button>
-                      ) : null}
-                    </div>
-                    <div className="upload-progress-bar-container">
-                      <div
-                        className={cn(
-                          "upload-progress-bar",
-                          file.error
-                            ? "upload-progress-bar-error"
-                            : "upload-progress-bar-success"
-                        )}
-                        style={{
-                          width: `${file.error ? 100 : progressPercent}%`,
-                        }}
-                      />
-                    </div>
-                    {file.message ? (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {file.message}
-                      </p>
-                    ) : null}
-                  </div>
-                )
-              })()
-            ))}
-          </div>
-        </CardContent>
-      ) : null}
-    </Card>
+type DownloadActivityPanelProps = {
+  isCollapsed: boolean
+  downloadingItems: DownloadingItem[]
+  onClear: () => void
+  onDismiss: (itemId: string) => void
+  onToggleCollapse: () => void
+}
+
+export function DownloadActivityPanel({
+  isCollapsed,
+  downloadingItems,
+  onClear,
+  onDismiss,
+  onToggleCollapse,
+}: DownloadActivityPanelProps) {
+  return (
+    <ActivityPanel
+      kind="download"
+      isCollapsed={isCollapsed}
+      items={downloadingItems}
+      onClear={onClear}
+      onDismiss={onDismiss}
+      onToggleCollapse={onToggleCollapse}
+    />
   )
 }

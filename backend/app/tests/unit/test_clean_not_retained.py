@@ -234,6 +234,7 @@ class TestCeleryTaskRegistration(unittest.TestCase):
     mock_link_service = MagicMock()
     mock_folder_service = MagicMock()
     mock_file_service = MagicMock()
+    mock_archive_service = MagicMock()
     mock_session = MagicMock()
     mock_session_context = MagicMock()
     mock_session_context.__enter__.return_value = mock_session
@@ -257,6 +258,9 @@ class TestCeleryTaskRegistration(unittest.TestCase):
         "app.tasks.clean_not_retained.LinkRepository",
       ),
       patch(
+        "app.tasks.clean_not_retained.ArchiveRepository",
+      ),
+      patch(
         "app.tasks.clean_not_retained.FileStorageService",
       ),
       patch(
@@ -275,6 +279,10 @@ class TestCeleryTaskRegistration(unittest.TestCase):
         "app.tasks.clean_not_retained.FileService",
         return_value=mock_file_service,
       ),
+      patch(
+        "app.tasks.clean_not_retained.ArchiveService",
+        return_value=mock_archive_service,
+      ),
     ):
       mock_session.__enter__ = MagicMock(return_value=mock_session)
       mock_session.__exit__ = MagicMock(return_value=None)
@@ -287,6 +295,7 @@ class TestCeleryTaskRegistration(unittest.TestCase):
     mock_link_service.enforce_retention_policy.assert_called_once()
     mock_folder_service.enforce_retention_policy.assert_called_once()
     mock_file_service.enforce_retention_policy.assert_called_once()
+    mock_archive_service.enforce_retention_policy.assert_called_once()
     mock_session.commit.assert_called_once()
 
   def test_task_rolls_back_on_error(self):
