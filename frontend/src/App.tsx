@@ -52,6 +52,10 @@ const UnauthorizedErrorScreen = lazy(() =>
   }))
 )
 
+function isAuthRoute(pathname: string) {
+  return pathname === "/login" || pathname === "/register"
+}
+
 function SignedInScreen({
   session,
   onSignOut,
@@ -201,10 +205,13 @@ export function App() {
 
   useEffect(() => {
     setUnauthorizedCallback(() => {
+      const isOnAuthRoute = isAuthRoute(window.location.pathname)
       clearStoredSession()
       setSession(null)
-      setIsUnauthorized(true)
-      setRedirectKey((k) => k + 1)
+      setIsUnauthorized(!isOnAuthRoute)
+      if (!isOnAuthRoute) {
+        setRedirectKey((k) => k + 1)
+      }
     })
     return () => setUnauthorizedCallback(null)
   }, [setSession])
@@ -238,6 +245,13 @@ export function App() {
     setSession(newSession)
   }
 
+  const handleSignIn = () => {
+    clearStoredSession()
+    setSession(null)
+    setIsUnauthorized(false)
+    setInitialAuthError(null)
+  }
+
   if (!sessionReady) {
     return <LoadingFallback />
   }
@@ -268,9 +282,7 @@ export function App() {
                   onSessionUpdate={setSession}
                 />
               ) : isUnauthorized ? (
-                <UnauthorizedErrorScreen
-                  onSignIn={() => setIsUnauthorized(false)}
-                />
+                <UnauthorizedErrorScreen onSignIn={handleSignIn} />
               ) : (
                 <SignedOutRoutes
                   initialError={initialAuthError}
