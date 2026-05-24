@@ -85,7 +85,7 @@ This exposes Postgres at `localhost:5432` instead of the internal Docker hostnam
 
 ### Frontend Component Pattern
 
-Feature components live in `src/components/` grouped by domain:
+The frontend is a Vite project using React, TypeScript, and shadcn/Radix UI. Components are organized under `src/components/` grouped by domain:
 
 ```
 src/components/
@@ -167,12 +167,26 @@ Routes are thin — they validate input, call a service, and return a response. 
 ### Frontend — Centralized Data Flow
 
 - All API calls go through **`src/lib/api.ts`** — never construct request URLs in components.
-- Session/authentication state is in **`src/lib/session.ts`**. The access token is stored as an HTTP-only cookie, with localStorage as a fallback.
-- **`src/lib/session.ts`** exports a `cn()` helper for Tailwind class merging.
+- Session and authentication state is in **`src/lib/session.ts`**. The access token is stored as an HTTP-only cookie, with localStorage as a fallback when cookies aren't available.
+- Shared utilities live in `src/lib/` — `cn()` for Tailwind class merging, `form.ts` for form types, `file.ts` for display helpers, and `password.ts` for validation.
 
 ### File Storage
 
 MinIO handles object storage via `FileStorageService`. Files are deduplicated on re-upload by comparing checksums against soft-deleted records. Soft deletion uses MinIO versioning (delete markers) rather than immediately removing objects.
+
+### Background Tasks
+
+Celery tasks live in `backend/app/tasks/`. To add a new task, create a file in that directory and register it on the Celery app:
+
+```python
+from app.tasks.celery import celery
+
+@celery.task(name="example.health_check")
+def health_check() -> str:
+  return "celery-worker-ok"
+```
+
+The worker runs both task processing and the beat scheduler for periodic jobs like retention policy enforcement.
 
 ### Database
 
