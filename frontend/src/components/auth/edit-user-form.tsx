@@ -87,34 +87,36 @@ export function EditUserForm({
     const name = String(formData.get("name") ?? "").trim()
     const email = String(formData.get("email") ?? "").trim()
     const payload: {
-      current_password: string
+      current_password?: string
       name?: string
       email?: string
       password?: string
-    } = {
-      current_password: currentPassword,
-    }
+    } = {}
 
-    if (!currentPassword) {
-      setError(t("auth.editUser.currentPasswordError"))
-      return
-    }
+    if (newPassword) {
+      if (!currentPassword) {
+        setError(t("auth.editUser.currentPasswordError"))
+        return
+      }
 
-    if (newPasswordState.errors.length > 0) {
-      setError(t("auth.editUser.passwordError"))
-      return
-    }
+      if (newPasswordState.errors.length > 0) {
+        setError(t("auth.editUser.passwordError"))
+        return
+      }
 
-    if (newPassword !== confirmNewPassword) {
-      setError(t("auth.signup.passwordsDoNotMatch"))
-      return
+      if (newPassword !== confirmNewPassword) {
+        setError(t("auth.signup.passwordsDoNotMatch"))
+        return
+      }
+
+      payload.current_password = currentPassword
+      payload.password = newPassword
     }
 
     if (name && name !== user.name) payload.name = name
     if (email && email !== user.email) payload.email = email
-    if (newPassword) payload.password = newPassword
 
-    if (Object.keys(payload).length === 1) {
+    if (Object.keys(payload).length === 0) {
       setError(t("auth.editUser.noChangesError"))
       return
     }
@@ -236,7 +238,6 @@ export function EditUserForm({
                 name="current_password"
                 autoComplete="current-password"
                 placeholder={t("auth.editUser.currentPasswordPlaceholder")}
-                required
                 disabled={isPending}
                 invalid={currentPasswordInvalid}
                 value={currentPassword}

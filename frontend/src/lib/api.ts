@@ -249,7 +249,7 @@ export async function logoutUser(): Promise<void> {
 }
 
 export async function updateUser(data: {
-  current_password: string
+  current_password?: string
   name?: string
   email?: string
   password?: string
