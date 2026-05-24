@@ -1,6 +1,7 @@
 name: filecano
 
 x-backend-env: &backend-env
+  APP_ENV: ${APP_ENV:-development}
   APP_NAME: ${APP_NAME:-Filecano API}
   DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://filecano:filecano@database:5432/filecano}
   MINIO_ENDPOINT: ${MINIO_ENDPOINT:-data:9000}

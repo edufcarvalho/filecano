@@ -3,4 +3,8 @@ set -e
 
 uv run alembic upgrade head
 
-exec "$@"
+if [ "${APP_ENV}" != "production" ]; then
+  exec "$@" --reload
+else
+  exec "$@"
+fi
