@@ -6,9 +6,10 @@ FastAPI + SQLModel on the back-end, Vite + React + TypeScript on the front-end, 
 
 ## Services
 
-- `back`: FastAPI API on `http://localhost:8000` running with `uvicorn` as server
+- `nginx`: public edge proxy on `http://localhost` and `https://localhost`, with HTTP/3 over `443/udp`
+- `back`: FastAPI API on internal port `8000` running with `uvicorn` as server
 - `worker`: Celery worker processing background tasks (retention enforcement, scheduled cleanup) using DragonflyDB as cache database
-- `front`: React + TypeScript frontend on `http://localhost:5173` running with `vite` as server
+- `front`: React + TypeScript frontend on internal port `5173` running with `vite` as server
 - `database`: Postgres on `localhost:5432`
 - `data`: MinIO API on `localhost:9000`, console on `http://localhost:9001`
 - `cache`: DragonflyDB (Redis-compatible) used as the Celery broker/backend and shared cache
@@ -75,6 +76,8 @@ make up
 ```
 
 The compose defaults envs to `APP_ENV=development` and `NODE_ENV=development`, so backend reload and Vite HMR are enabled with source bind mounts.
+
+Open the app through nginx at `http://localhost`. `https://localhost` is also available with a generated self-signed certificate, and compatible clients can upgrade to HTTP/3 over QUIC.
 
 For non-development containers, pass non-development environment values:
 ```bash

@@ -8,7 +8,7 @@ x-backend-env: &backend-env
   MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
   MINIO_BUCKET: ${MINIO_BUCKET:-filecano}
   MINIO_SECURE: ${MINIO_SECURE:-false}
-  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://127.0.0.1,https://localhost,https://127.0.0.1,http://localhost:5173,http://127.0.0.1:5173}
   JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
   JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
   ACCESS_TOKEN_EXPIRE_SECONDS: ${ACCESS_TOKEN_EXPIRE_SECONDS:-3600}
@@ -32,6 +32,19 @@ x-backend-volumes: &backend-volumes
   - /app/.venv
 
 services:
+  nginx:
+    build:
+      context: ./nginx
+    depends_on:
+      back:
+        condition: service_healthy
+      front:
+        condition: service_started
+    ports:
+      - "80:80"
+      - "443:443/tcp"
+      - "443:443/udp"
+
   back:
     build:
       context: ./backend
@@ -40,8 +53,8 @@ services:
     depends_on: *backend-depends-on
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/health"]
       interval: 10s
@@ -70,14 +83,14 @@ services:
     environment:
       CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-true}
       NODE_ENV: ${NODE_ENV:-development}
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api}
+      VITE_API_URL: ${VITE_API_URL:-/api}
       VITE_HMR_HOST: ${VITE_HMR_HOST:-localhost}
       VITE_HMR_PORT: ${VITE_HMR_PORT:-5173}
     depends_on:
       back:
         condition: service_healthy
-    ports:
-      - "5173:5173"
+    expose:
+      - "5173"
     volumes:
       - ./frontend:/app
       - /app/node_modules

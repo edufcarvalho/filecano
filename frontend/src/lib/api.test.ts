@@ -186,7 +186,7 @@ describe("API_URL", () => {
 
     const { API_URL: defaultApiUrl } = await import("@/lib/api")
 
-    expect(defaultApiUrl).toBe("http://localhost:8000/api")
+    expect(defaultApiUrl).toBe("/api")
   })
 })
 

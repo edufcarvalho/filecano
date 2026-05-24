@@ -1,7 +1,7 @@
 import { translate } from "@/i18n"
 import { readBlobAsDataUrl } from "@/lib/file-preview"
 
-const DEFAULT_API_URL = "http://localhost:8000/api"
+const DEFAULT_API_URL = "/api"
 
 export const API_URL = (
   import.meta.env.VITE_API_URL ?? DEFAULT_API_URL

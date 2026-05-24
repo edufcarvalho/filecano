@@ -172,7 +172,7 @@ export function SiteHeader({
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <a
-                      href="http://localhost:8000/docs"
+                      href="/docs"
                       className="dropdown-menu-item-base"
                     >
                       <BookOpenIcon className="button-icon-xs-base" />
