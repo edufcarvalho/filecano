@@ -1,5 +1,10 @@
 import { translate } from "@/i18n"
 import { readBlobAsDataUrl } from "@/lib/file-preview"
+import {
+  clearAuthCookieMarker,
+  hasAuthSessionHint,
+  markAuthCookiePresent,
+} from "@/lib/session"
 
 const DEFAULT_API_URL = "/api"
 
@@ -71,6 +76,8 @@ export type LinkUpdateResponse = {
 
 let onUnauthorized: (() => void) | null = null
 let onTokenRefresh: (() => Promise<boolean>) | null = null
+let fetchMeRequest: Promise<UserResponse> | null = null
+let refreshAccessTokenRequest: Promise<AuthResponse> | null = null
 
 export function setUnauthorizedCallback(cb: (() => void) | null) {
   onUnauthorized = cb
@@ -110,12 +117,13 @@ async function authFetch(
   })
 
   if (response.status === 401) {
-    if (allowRefresh && onTokenRefresh) {
+    if (allowRefresh && onTokenRefresh && hasAuthSessionHint()) {
       const refreshed = await onTokenRefresh()
       if (refreshed) {
         return authFetch(url, options, false)
       }
     }
+    clearAuthCookieMarker()
     onUnauthorized?.()
     throw new Error(translate("api.error.tokenExpired"))
   }
@@ -151,19 +159,39 @@ export async function loginUser(credentials: {
   if (!response.ok)
     await readError(response, translate("auth.login.fallbackError"))
 
-  return response.json()
+  const auth = await response.json()
+  markAuthCookiePresent()
+  return auth
 }
 
 export async function refreshAccessToken(): Promise<AuthResponse> {
-  const response = await fetch(`${API_URL}/v1/users/token/refresh`, {
-    method: "POST",
-    credentials: "include",
-  })
+  if (!hasAuthSessionHint()) {
+    throw new ApiError(translate("api.error.tokenExpired"), 401)
+  }
 
-  if (!response.ok)
-    await readError(response, translate("api.error.refreshSession"))
+  if (!refreshAccessTokenRequest) {
+    refreshAccessTokenRequest = (async () => {
+      const response = await fetch(`${API_URL}/v1/users/token/refresh`, {
+        method: "POST",
+        credentials: "include",
+      })
 
-  return response.json()
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearAuthCookieMarker()
+        }
+        await readError(response, translate("api.error.refreshSession"))
+      }
+
+      const auth = await response.json()
+      markAuthCookiePresent()
+      return auth
+    })().finally(() => {
+      refreshAccessTokenRequest = null
+    })
+  }
+
+  return refreshAccessTokenRequest
 }
 
 export async function signupUser(data: {
@@ -183,23 +211,41 @@ export async function signupUser(data: {
   if (!response.ok)
     await readError(response, translate("auth.signup.fallbackError"))
 
-  return response.json()
+  const auth = await response.json()
+  markAuthCookiePresent()
+  return auth
 }
 
 export async function fetchMe(): Promise<UserResponse> {
-  const response = await authFetch(`${API_URL}/v1/users/me`)
+  if (!hasAuthSessionHint()) {
+    throw new ApiError(translate("api.error.tokenExpired"), 401)
+  }
 
-  if (!response.ok)
-    await readError(response, translate("api.error.refreshSession"))
+  if (!fetchMeRequest) {
+    fetchMeRequest = (async () => {
+      const response = await authFetch(`${API_URL}/v1/users/me`)
 
-  return response.json()
+      if (!response.ok)
+        await readError(response, translate("api.error.refreshSession"))
+
+      return response.json()
+    })().finally(() => {
+      fetchMeRequest = null
+    })
+  }
+
+  return fetchMeRequest
 }
 
 export async function logoutUser(): Promise<void> {
-  await fetch(`${API_URL}/v1/users/logout`, {
-    method: "POST",
-    credentials: "include",
-  })
+  try {
+    await fetch(`${API_URL}/v1/users/logout`, {
+      method: "POST",
+      credentials: "include",
+    })
+  } finally {
+    clearAuthCookieMarker()
+  }
 }
 
 export async function updateUser(data: {

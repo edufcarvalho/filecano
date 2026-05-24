@@ -63,6 +63,7 @@ vi.mock("@/lib/file-preview", () => ({
 }))
 
 import { readBlobAsDataUrl } from "@/lib/file-preview"
+import { clearStoredSession, markAuthCookiePresent } from "@/lib/session"
 
 // ---------------------------------------------------------------------------
 // Helpers – mock response factories
@@ -134,6 +135,8 @@ function makeFolderResponse(
 beforeEach(() => {
   vi.resetAllMocks()
   globalThis.fetch = vi.fn()
+  clearStoredSession()
+  markAuthCookiePresent()
 
   // After resetAllMocks, re-set the readBlobAsDataUrl mock behaviour
   vi.mocked(readBlobAsDataUrl).mockResolvedValue(
@@ -312,6 +315,16 @@ describe("refreshAccessToken", () => {
       message: "api.error.refreshSession",
       status: 502,
     })
+  })
+
+  it("does not call refresh endpoint without an auth session hint", async () => {
+    clearStoredSession()
+
+    await expect(refreshAccessToken()).rejects.toMatchObject({
+      message: "api.error.tokenExpired",
+      status: 401,
+    })
+    expect(fetch).not.toHaveBeenCalled()
   })
 })
 
@@ -493,6 +506,31 @@ describe("fetchMe", () => {
 
     await expect(fetchMe()).rejects.toThrow("server error")
   })
+
+  it("does not call me endpoint without an auth session hint", async () => {
+    clearStoredSession()
+
+    await expect(fetchMe()).rejects.toMatchObject({
+      message: "api.error.tokenExpired",
+      status: 401,
+    })
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it("dedupes concurrent me requests", async () => {
+    const user = {
+      id: "u1",
+      name: "Me",
+      email: "me@test.com",
+      created_at: "2026-01-01",
+      deleted_at: null,
+    }
+    vi.mocked(fetch).mockResolvedValue(okResponse(user))
+
+    await Promise.all([fetchMe(), fetchMe()])
+
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
 })
 
 // ===================================================================
@@ -512,6 +550,17 @@ describe("logoutUser", () => {
         credentials: "include",
       })
     )
+  })
+
+  it("clears the auth session hint after logout", async () => {
+    vi.mocked(fetch).mockResolvedValue(okResponse(null))
+
+    await logoutUser()
+
+    await expect(refreshAccessToken()).rejects.toMatchObject({
+      status: 401,
+    })
+    expect(fetch).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -1013,6 +1062,14 @@ describe("fetchFilePreviewAsDataUrl", () => {
 
   it("handles 401 with token refresh", async () => {
     const refreshCb = vi.fn().mockResolvedValue(true)
+    localStorage.setItem(
+      "filecano:session",
+      JSON.stringify({
+        user: { id: "u1", name: "Me", email: "me@test.com" },
+        expires_in: 3600,
+        issued_at: Date.now(),
+      })
+    )
     vi.mocked(fetch)
       .mockResolvedValueOnce(errorResponse(401, {}))
       .mockResolvedValueOnce(okResponse(null))

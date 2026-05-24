@@ -13,6 +13,7 @@ import {
   clearStoredSession,
   createStoredSession,
   getStoredSession,
+  hasAuthSessionHint,
   persistStoredSession,
   type StoredSession,
 } from "@/lib/session"
@@ -163,7 +164,7 @@ function SignedOutRoutes({
 
 export function App() {
   const [session, setSessionState] = useState<StoredSession | null>(null)
-  const [sessionReady, setSessionReady] = useState(false)
+  const [sessionReady, setSessionReady] = useState(() => !hasAuthSessionHint())
   const [isUnauthorized, setIsUnauthorized] = useState(false)
   const [initialAuthError, setInitialAuthError] = useState<string | null>(null)
   const [redirectKey, setRedirectKey] = useState(0)
@@ -180,6 +181,10 @@ export function App() {
   }, [session])
 
   useEffect(() => {
+    if (!hasAuthSessionHint()) {
+      return
+    }
+
     fetchMe()
       .then((user) => {
         setInitialAuthError(null)

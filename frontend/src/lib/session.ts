@@ -1,4 +1,6 @@
 const SESSION_STORAGE_KEY = "filecano:session"
+const AUTH_COOKIE_MARKER_NAME = "filecano_auth_cookie"
+const AUTH_COOKIE_MARKER_MAX_AGE_SECONDS = 86400
 
 export type StoredUser = {
   id: string
@@ -43,11 +45,33 @@ export function getStoredSession(): StoredSession | null {
   }
 }
 
+export function markAuthCookiePresent() {
+  document.cookie = `${AUTH_COOKIE_MARKER_NAME}=1; path=/; max-age=${AUTH_COOKIE_MARKER_MAX_AGE_SECONDS}; SameSite=Lax`
+}
+
+export function clearAuthCookieMarker() {
+  document.cookie = `${AUTH_COOKIE_MARKER_NAME}=; path=/; max-age=0; SameSite=Lax`
+}
+
+export function hasAuthCookieMarker() {
+  if (typeof document === "undefined") return false
+  if (document.cookie === undefined) return true
+
+  return document.cookie
+    .split(";")
+    .some((cookie) => cookie.trim().startsWith(`${AUTH_COOKIE_MARKER_NAME}=`))
+}
+
+export function hasAuthSessionHint() {
+  return hasAuthCookieMarker() || getStoredSession() !== null
+}
+
 export function persistStoredSession(session: StoredSession) {
   localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session))
+  markAuthCookiePresent()
 }
 
 export function clearStoredSession() {
   localStorage.removeItem(SESSION_STORAGE_KEY)
+  clearAuthCookieMarker()
 }
-

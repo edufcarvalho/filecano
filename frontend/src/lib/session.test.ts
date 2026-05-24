@@ -2,6 +2,9 @@ import { describe, it, expect, beforeEach } from "vitest"
 import {
   createStoredSession,
   getStoredSession,
+  hasAuthCookieMarker,
+  hasAuthSessionHint,
+  markAuthCookiePresent,
   persistStoredSession,
   clearStoredSession,
   type AuthResponse,
@@ -35,6 +38,7 @@ describe("createStoredSession", () => {
 describe("getStoredSession", () => {
   beforeEach(() => {
     localStorage.clear()
+    clearStoredSession()
   })
 
   it("returns null when nothing is stored", () => {
@@ -55,7 +59,10 @@ describe("getStoredSession", () => {
   })
 
   it("returns null when stored data is missing required fields", () => {
-    localStorage.setItem("filecano:session", JSON.stringify({ user: { name: "NoId" } }))
+    localStorage.setItem(
+      "filecano:session",
+      JSON.stringify({ user: { name: "NoId" } })
+    )
     expect(getStoredSession()).toBeNull()
   })
 })
@@ -63,6 +70,7 @@ describe("getStoredSession", () => {
 describe("persistStoredSession", () => {
   beforeEach(() => {
     localStorage.clear()
+    clearStoredSession()
   })
 
   it("stores session as JSON in localStorage", () => {
@@ -72,12 +80,36 @@ describe("persistStoredSession", () => {
     const stored = localStorage.getItem("filecano:session")
     expect(JSON.parse(stored!)).toEqual(session)
   })
+
+  it("marks the auth cookie as present", () => {
+    const auth = makeAuthResponse()
+    const session = createStoredSession(auth)
+    persistStoredSession(session)
+    expect(hasAuthCookieMarker()).toBe(true)
+  })
 })
 
 describe("clearStoredSession", () => {
   it("removes the session from localStorage", () => {
     localStorage.setItem("filecano:session", "some-data")
+    markAuthCookiePresent()
     clearStoredSession()
     expect(localStorage.getItem("filecano:session")).toBeNull()
+    expect(hasAuthCookieMarker()).toBe(false)
+  })
+})
+
+describe("hasAuthSessionHint", () => {
+  beforeEach(() => {
+    clearStoredSession()
+  })
+
+  it("returns false when no marker or stored session exists", () => {
+    expect(hasAuthSessionHint()).toBe(false)
+  })
+
+  it("returns true when the marker exists", () => {
+    markAuthCookiePresent()
+    expect(hasAuthSessionHint()).toBe(true)
   })
 })
