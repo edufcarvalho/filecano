@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { useTranslation } from "@/i18n"
 import { Link } from "react-router-dom"
@@ -17,19 +17,37 @@ import { useAuthForm } from "@/hooks/use-auth-form"
 import { PasswordMismatchMessage } from "@auth/password-mismatch-message"
 
 type SignupFormProps = Omit<ComponentProps<"div">, "onSubmit"> & {
+  initialError?: string | null
   onLogin?: (token: AuthResponse) => void
 }
 
-export function SignupForm({ className, onLogin, ...props }: SignupFormProps) {
+export function SignupForm({
+  className,
+  initialError,
+  onLogin,
+  ...props
+}: SignupFormProps) {
   const { t } = useTranslation()
-  const { error, setError, isPending, setIsPending, clearErrors, getPasswordState } = useAuthForm()
+  const {
+    error,
+    setError,
+    isPending,
+    setIsPending,
+    clearErrors,
+    getPasswordState,
+  } = useAuthForm()
   const [showPassword, setShowPassword] = useState(false)
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
 
   const passwordState = getPasswordState(password)
-  const passwordsMatch = password === confirmPassword || confirmPassword.length === 0
+  const passwordsMatch =
+    password === confirmPassword || confirmPassword.length === 0
   const confirmPasswordInvalid = confirmPassword.length > 0 && !passwordsMatch
+
+  useEffect(() => {
+    setError(initialError ?? null)
+  }, [initialError, setError])
 
   const handleSubmit: FormSubmitHandler = async (event) => {
     event.preventDefault()
@@ -55,7 +73,9 @@ export function SignupForm({ className, onLogin, ...props }: SignupFormProps) {
       const token = await signupUser({ name, email, password })
       onLogin?.(token)
     } catch (error) {
-      setError(error instanceof Error ? error.message : t("auth.signup.fallbackError"))
+      setError(
+        error instanceof Error ? error.message : t("auth.signup.fallbackError")
+      )
     } finally {
       setIsPending(false)
     }
@@ -146,10 +166,7 @@ export function SignupForm({ className, onLogin, ...props }: SignupFormProps) {
       </Field>
       <FieldDescription className="text-center">
         {t("auth.signup.hasAccountPrompt")}{" "}
-        <Link
-          to="/login"
-          className="link-text-base"
-        >
+        <Link to="/login" className="link-text-base">
           {t("auth.signup.signInLink")}
         </Link>
       </FieldDescription>

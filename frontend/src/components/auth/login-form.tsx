@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { useTranslation } from "@/i18n"
 import { Link } from "react-router-dom"
@@ -15,16 +15,33 @@ import type { FormSubmitHandler } from "@/lib/form-types"
 import { useAuthForm } from "@/hooks/use-auth-form"
 
 type LoginFormProps = Omit<ComponentProps<"div">, "onSubmit"> & {
+  initialError?: string | null
   onLogin?: (token: AuthResponse) => void
 }
 
-export function LoginForm({ className, onLogin, ...props }: LoginFormProps) {
+export function LoginForm({
+  className,
+  initialError,
+  onLogin,
+  ...props
+}: LoginFormProps) {
   const { t } = useTranslation()
-  const { error, setError, isPending, setIsPending, clearErrors, getPasswordState } = useAuthForm()
+  const {
+    error,
+    setError,
+    isPending,
+    setIsPending,
+    clearErrors,
+    getPasswordState,
+  } = useAuthForm()
   const [showPassword, setShowPassword] = useState(false)
   const [password, setPassword] = useState("")
 
   const passwordState = getPasswordState(password)
+
+  useEffect(() => {
+    setError(initialError ?? null)
+  }, [initialError, setError])
 
   const handleSubmit: FormSubmitHandler = async (event) => {
     event.preventDefault()
@@ -44,7 +61,11 @@ export function LoginForm({ className, onLogin, ...props }: LoginFormProps) {
       const token = await loginUser({ email, password })
       onLogin?.(token)
     } catch (error) {
-      setError(error instanceof Error ? error.message : t("auth.login.invalidCredentials"))
+      setError(
+        error instanceof Error
+          ? error.message
+          : t("auth.login.invalidCredentials")
+      )
     } finally {
       setIsPending(false)
     }
@@ -99,10 +120,7 @@ export function LoginForm({ className, onLogin, ...props }: LoginFormProps) {
       </FieldDescription>
       <FieldDescription className="text-center">
         {t("auth.login.hasAccountPrompt")}{" "}
-        <Link
-          to="/register"
-          className="link-text-base"
-        >
+        <Link to="/register" className="link-text-base">
           {t("auth.login.signUpLink")}
         </Link>
       </FieldDescription>

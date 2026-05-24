@@ -272,6 +272,7 @@
     "error": {
       "tokenExpired": "Token de acesso expirado",
       "refreshSession": "Não foi possível atualizar a sessão",
+      "rateLimited": "Muitas requisições. Aguarde 60 segundos antes de tentar novamente",
       "loadPreview": "Falha ao carregar a pré-visualização",
       "updateUser": "Não foi possível atualizar o usuário",
       "checksumMismatch": "Falha na verificação de integridade: checksums não correspondem",

@@ -18,6 +18,7 @@ import {
 } from "@/lib/session"
 import {
   fetchMe,
+  ApiError,
   logoutUser,
   refreshAccessToken,
   setTokenRefreshCallback,
@@ -35,7 +36,9 @@ const LoginForm = lazy(() =>
   import("@auth/login-form").then((m) => ({ default: m.LoginForm }))
 )
 const SharedFilesScreen = lazy(() =>
-  import("@files/shared-files-screen").then((m) => ({ default: m.SharedFilesScreen }))
+  import("@files/shared-files-screen").then((m) => ({
+    default: m.SharedFilesScreen,
+  }))
 )
 const SignupForm = lazy(() =>
   import("@auth/signup-form").then((m) => ({ default: m.SignupForm }))
@@ -78,10 +81,7 @@ function SignedInScreen({
         <div className="flex min-h-0 w-full flex-1">
           <Suspense fallback={<LoadingFallback className="h-full" />}>
             <Routes>
-              <Route
-                path="/trash"
-                element={<TrashScreen />}
-              />
+              <Route path="/trash" element={<TrashScreen />} />
               <Route
                 path="/account"
                 element={
@@ -100,10 +100,7 @@ function SignedInScreen({
                   />
                 }
               />
-              <Route
-                path="*"
-                element={<FilesScreen />}
-              />
+              <Route path="*" element={<FilesScreen />} />
             </Routes>
           </Suspense>
         </div>
@@ -121,8 +118,10 @@ function AuthPage({ children }: { children: ReactNode }) {
 }
 
 function SignedOutRoutes({
+  initialError,
   onLogin,
 }: {
+  initialError?: string | null
   onLogin: (session: StoredSession) => void
 }) {
   return (
@@ -134,6 +133,7 @@ function SignedOutRoutes({
             <AuthPage>
               <LoginForm
                 className="w-full max-w-4xl"
+                initialError={initialError}
                 onLogin={(auth) => onLogin(createStoredSession(auth))}
               />
             </AuthPage>
@@ -145,6 +145,7 @@ function SignedOutRoutes({
             <AuthPage>
               <SignupForm
                 className="w-full max-w-4xl"
+                initialError={initialError}
                 onLogin={(auth) => onLogin(createStoredSession(auth))}
               />
             </AuthPage>
@@ -160,6 +161,7 @@ export function App() {
   const [session, setSessionState] = useState<StoredSession | null>(null)
   const [sessionReady, setSessionReady] = useState(false)
   const [isUnauthorized, setIsUnauthorized] = useState(false)
+  const [initialAuthError, setInitialAuthError] = useState<string | null>(null)
   const [redirectKey, setRedirectKey] = useState(0)
   const displayUser = session?.user ?? null
 
@@ -176,6 +178,7 @@ export function App() {
   useEffect(() => {
     fetchMe()
       .then((user) => {
+        setInitialAuthError(null)
         const stored = getStoredSession()
         const newSession: StoredSession = {
           user: { id: user.id, name: user.name, email: user.email },
@@ -185,7 +188,12 @@ export function App() {
         setSession(newSession)
         setSessionReady(true)
       })
-      .catch(() => {
+      .catch((error) => {
+        setInitialAuthError(
+          error instanceof ApiError && error.status === 429
+            ? error.message
+            : null
+        )
         clearStoredSession()
         setSessionReady(true)
       })
@@ -226,6 +234,7 @@ export function App() {
 
   const handleLogin = (newSession: StoredSession) => {
     setIsUnauthorized(false)
+    setInitialAuthError(null)
     setSession(newSession)
   }
 
@@ -235,40 +244,43 @@ export function App() {
 
   return (
     <BrowserRouter key={redirectKey}>
-        <Suspense fallback={<LoadingFallback />}>
-          <Routes>
-            <Route
-              path="/share/:shareToken"
-              element={
-                <LinksProvider>
-                  <SharedFilesScreen
-                    user={displayUser ?? undefined}
-                    session={session ?? undefined}
-                    onSignOut={handleSignOut}
-                  />
-                </LinksProvider>
-              }
-            />
-            <Route
-              path="/*"
-              element={
-                session && displayUser ? (
-                  <SignedInScreen
-                    session={session}
-                    onSignOut={handleSignOut}
-                    onSessionUpdate={setSession}
-                  />
-                ) : isUnauthorized ? (
-                  <UnauthorizedErrorScreen
-                    onSignIn={() => setIsUnauthorized(false)}
-                  />
-                ) : (
-                  <SignedOutRoutes onLogin={handleLogin} />
-                )
-              }
-            />
-          </Routes>
-        </Suspense>
+      <Suspense fallback={<LoadingFallback />}>
+        <Routes>
+          <Route
+            path="/share/:shareToken"
+            element={
+              <LinksProvider>
+                <SharedFilesScreen
+                  user={displayUser ?? undefined}
+                  session={session ?? undefined}
+                  onSignOut={handleSignOut}
+                />
+              </LinksProvider>
+            }
+          />
+          <Route
+            path="/*"
+            element={
+              session && displayUser ? (
+                <SignedInScreen
+                  session={session}
+                  onSignOut={handleSignOut}
+                  onSessionUpdate={setSession}
+                />
+              ) : isUnauthorized ? (
+                <UnauthorizedErrorScreen
+                  onSignIn={() => setIsUnauthorized(false)}
+                />
+              ) : (
+                <SignedOutRoutes
+                  initialError={initialAuthError}
+                  onLogin={handleLogin}
+                />
+              )
+            }
+          />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   )
 }

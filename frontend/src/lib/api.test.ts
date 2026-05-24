@@ -57,7 +57,9 @@ import type {
 // We import the mocked function so we can re-set its behavior after resetAllMocks.
 // ---------------------------------------------------------------------------
 vi.mock("@/lib/file-preview", () => ({
-  readBlobAsDataUrl: vi.fn().mockResolvedValue("data:image/png;base64,mockpreview"),
+  readBlobAsDataUrl: vi
+    .fn()
+    .mockResolvedValue("data:image/png;base64,mockpreview"),
 }))
 
 import { readBlobAsDataUrl } from "@/lib/file-preview"
@@ -68,7 +70,7 @@ import { readBlobAsDataUrl } from "@/lib/file-preview"
 
 function okResponse(
   data: unknown,
-  extraHeaders?: Record<string, string>,
+  extraHeaders?: Record<string, string>
 ): Response {
   const headers = new Headers(extraHeaders)
   return {
@@ -82,10 +84,7 @@ function okResponse(
   } as Response
 }
 
-function errorResponse(
-  status: number,
-  body: Record<string, string>,
-): Response {
+function errorResponse(status: number, body: Record<string, string>): Response {
   return {
     ok: false,
     status,
@@ -101,9 +100,7 @@ function errorResponse(
   } as Response
 }
 
-function makeFileResponse(
-  overrides: Partial<FileResponse> = {},
-): FileResponse {
+function makeFileResponse(overrides: Partial<FileResponse> = {}): FileResponse {
   return {
     id: "file-1",
     user_id: "user-1",
@@ -120,7 +117,7 @@ function makeFileResponse(
 }
 
 function makeFolderResponse(
-  overrides: Partial<FolderResponse> = {},
+  overrides: Partial<FolderResponse> = {}
 ): FolderResponse {
   return {
     id: "folder-1",
@@ -140,7 +137,7 @@ beforeEach(() => {
 
   // After resetAllMocks, re-set the readBlobAsDataUrl mock behaviour
   vi.mocked(readBlobAsDataUrl).mockResolvedValue(
-    "data:image/png;base64,mockpreview",
+    "data:image/png;base64,mockpreview"
   )
 
   setUnauthorizedCallback(null)
@@ -232,28 +229,28 @@ describe("loginUser", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: "a@b.com", password: "secret" }),
-      }),
+      })
     )
   })
 
   it("throws ApiError on non-ok with message", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(400, { message: "Wrong password" }),
+      errorResponse(400, { message: "Wrong password" })
     )
     await expect(
-      loginUser({ email: "a@b.com", password: "x" }),
+      loginUser({ email: "a@b.com", password: "x" })
     ).rejects.toThrow(ApiError)
     await expect(
-      loginUser({ email: "a@b.com", password: "x" }),
+      loginUser({ email: "a@b.com", password: "x" })
     ).rejects.toMatchObject({ message: "Wrong password", status: 400 })
   })
 
   it("throws ApiError with detail fallback on non-ok", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(403, { detail: "Account locked" }),
+      errorResponse(403, { detail: "Account locked" })
     )
     await expect(
-      loginUser({ email: "a@b.com", password: "x" }),
+      loginUser({ email: "a@b.com", password: "x" })
     ).rejects.toMatchObject({ message: "Account locked", status: 403 })
   })
 
@@ -265,7 +262,7 @@ describe("loginUser", () => {
       headers: new Headers(),
     } as Response)
     await expect(
-      loginUser({ email: "a@b.com", password: "x" }),
+      loginUser({ email: "a@b.com", password: "x" })
     ).rejects.toMatchObject({
       message: "auth.login.fallbackError",
       status: 500,
@@ -290,13 +287,13 @@ describe("refreshAccessToken", () => {
       expect.objectContaining({
         method: "POST",
         credentials: "include",
-      }),
+      })
     )
   })
 
   it("throws ApiError on failure", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(401, { message: "Token invalid" }),
+      errorResponse(401, { message: "Token invalid" })
     )
     await expect(refreshAccessToken()).rejects.toMatchObject({
       message: "Token invalid",
@@ -338,16 +335,16 @@ describe("signupUser", () => {
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ name: "A", email: "a@b.com", password: "p" }),
-      }),
+      })
     )
   })
 
   it("throws ApiError on signup failure", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(409, { message: "Email already exists" }),
+      errorResponse(409, { message: "Email already exists" })
     )
     await expect(
-      signupUser({ name: "A", email: "dup@b.com", password: "p" }),
+      signupUser({ name: "A", email: "dup@b.com", password: "p" })
     ).rejects.toMatchObject({ message: "Email already exists", status: 409 })
   })
 })
@@ -372,10 +369,10 @@ describe("updateUser", () => {
 
   it("throws ApiError with fallback on error", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(400, { message: "Bad password" }),
+      errorResponse(400, { message: "Bad password" })
     )
     await expect(
-      updateUser({ current_password: "wrong" }),
+      updateUser({ current_password: "wrong" })
     ).rejects.toMatchObject({ message: "Bad password", status: 400 })
   })
 
@@ -386,7 +383,7 @@ describe("updateUser", () => {
       `${API_URL}/v1/users`,
       expect.objectContaining({
         credentials: "include",
-      }),
+      })
     )
   })
 })
@@ -423,9 +420,9 @@ describe("authFetch (via updateFile)", () => {
 
     vi.mocked(fetch).mockResolvedValue(errorResponse(401, {}))
 
-    await expect(
-      updateFile("f1", { original_name: "x" }),
-    ).rejects.toThrow("api.error.tokenExpired")
+    await expect(updateFile("f1", { original_name: "x" })).rejects.toThrow(
+      "api.error.tokenExpired"
+    )
     expect(unauthCb).toHaveBeenCalled()
   })
 
@@ -438,9 +435,9 @@ describe("authFetch (via updateFile)", () => {
 
     vi.mocked(fetch).mockResolvedValue(errorResponse(401, {}))
 
-    await expect(
-      updateFile("f1", { original_name: "x" }),
-    ).rejects.toThrow("api.error.tokenExpired")
+    await expect(updateFile("f1", { original_name: "x" })).rejects.toThrow(
+      "api.error.tokenExpired"
+    )
     expect(refreshCb).toHaveBeenCalled()
     expect(unauthCb).toHaveBeenCalled()
   })
@@ -457,9 +454,9 @@ describe("authFetch (via updateFile)", () => {
     setUnauthorizedCallback(unauthCb)
     setTokenRefreshCallback(refreshCb)
 
-    await expect(
-      updateFile("f1", { original_name: "x" }),
-    ).rejects.toThrow("api.error.tokenExpired")
+    await expect(updateFile("f1", { original_name: "x" })).rejects.toThrow(
+      "api.error.tokenExpired"
+    )
 
     expect(refreshCb).toHaveBeenCalledTimes(1)
     expect(unauthCb).toHaveBeenCalled()
@@ -472,14 +469,20 @@ describe("authFetch (via updateFile)", () => {
 
 describe("fetchMe", () => {
   it("fetches current user successfully", async () => {
-    const user = { id: "u1", name: "Me", email: "me@test.com", created_at: "2026-01-01", deleted_at: null }
+    const user = {
+      id: "u1",
+      name: "Me",
+      email: "me@test.com",
+      created_at: "2026-01-01",
+      deleted_at: null,
+    }
     vi.mocked(fetch).mockResolvedValue(okResponse(user))
 
     const result = await fetchMe()
     expect(result).toEqual(user)
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/users/me`,
-      expect.objectContaining({ credentials: "include" }),
+      expect.objectContaining({ credentials: "include" })
     )
   })
 
@@ -507,7 +510,7 @@ describe("logoutUser", () => {
       expect.objectContaining({
         method: "POST",
         credentials: "include",
-      }),
+      })
     )
   })
 })
@@ -530,7 +533,7 @@ describe("listFiles", () => {
       `${API_URL}/v1/files`,
       expect.objectContaining({
         credentials: "include",
-      }),
+      })
     )
   })
 
@@ -539,13 +542,13 @@ describe("listFiles", () => {
     await listFiles({ deleted: true })
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files?deleted=true`,
-      expect.anything(),
+      expect.anything()
     )
   })
 
   it("handles error response", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(500, { message: "Server down" }),
+      errorResponse(500, { message: "Server down" })
     )
     await expect(listFiles()).rejects.toMatchObject({
       message: "Server down",
@@ -578,7 +581,7 @@ describe("listFolderedFiles", () => {
     expect(result).toEqual(folderData)
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files?by_folder=true`,
-      expect.anything(),
+      expect.anything()
     )
   })
 
@@ -587,7 +590,7 @@ describe("listFolderedFiles", () => {
     await listFolderedFiles({ deleted: true })
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files?deleted=true&by_folder=true`,
-      expect.anything(),
+      expect.anything()
     )
   })
 
@@ -606,7 +609,7 @@ describe("listFolderedFiles", () => {
 
   it("handles error", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(403, { message: "Forbidden" }),
+      errorResponse(403, { message: "Forbidden" })
     )
     await expect(listFolderedFiles()).rejects.toMatchObject({
       message: "Forbidden",
@@ -646,7 +649,7 @@ describe("createFolder", () => {
 
   it("throws ApiError on failure", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(409, { message: "Duplicate" }),
+      errorResponse(409, { message: "Duplicate" })
     )
     await expect(createFolder("dup")).rejects.toMatchObject({
       message: "Duplicate",
@@ -666,7 +669,7 @@ describe("updateFolder", () => {
     expect(result).toEqual(folder)
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/folders/f1`,
-      expect.objectContaining({ method: "PUT" }),
+      expect.objectContaining({ method: "PUT" })
     )
   })
 
@@ -685,11 +688,12 @@ describe("updateFolder", () => {
 
   it("handles error", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(404, { message: "Not found" }),
+      errorResponse(404, { message: "Not found" })
     )
-    await expect(
-      updateFolder("bad", { name: "x" }),
-    ).rejects.toMatchObject({ message: "Not found", status: 404 })
+    await expect(updateFolder("bad", { name: "x" })).rejects.toMatchObject({
+      message: "Not found",
+      status: 404,
+    })
   })
 })
 
@@ -699,7 +703,7 @@ describe("deleteFolder", () => {
     await expect(deleteFolder("f1")).resolves.toBeUndefined()
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/folders/f1`,
-      expect.objectContaining({ method: "DELETE" }),
+      expect.objectContaining({ method: "DELETE" })
     )
   })
 
@@ -708,13 +712,13 @@ describe("deleteFolder", () => {
     await deleteFolder("f1", { permanent: true })
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/folders/f1?permanent=true`,
-      expect.objectContaining({ method: "DELETE" }),
+      expect.objectContaining({ method: "DELETE" })
     )
   })
 
   it("handles error", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(403, { message: "Forbidden" }),
+      errorResponse(403, { message: "Forbidden" })
     )
     await expect(deleteFolder("f1")).rejects.toMatchObject({
       message: "Forbidden",
@@ -733,15 +737,16 @@ describe("listDeletedFolders", () => {
     expect(result).toEqual(folders)
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/folders?deleted=true`,
-      expect.anything(),
+      expect.anything()
     )
   })
 
   it("handles error", async () => {
     vi.mocked(fetch).mockResolvedValue(errorResponse(500, { message: "fail" }))
-    await expect(
-      listDeletedFolders(),
-    ).rejects.toMatchObject({ message: "fail", status: 500 })
+    await expect(listDeletedFolders()).rejects.toMatchObject({
+      message: "fail",
+      status: 500,
+    })
   })
 })
 
@@ -757,13 +762,13 @@ describe("restoreFolder", () => {
     expect(result).toEqual(restored)
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/folders/f1/restore`,
-      expect.objectContaining({ method: "POST" }),
+      expect.objectContaining({ method: "POST" })
     )
   })
 
   it("handles error", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(404, { message: "Not found" }),
+      errorResponse(404, { message: "Not found" })
     )
     await expect(restoreFolder("bad")).rejects.toMatchObject({
       message: "Not found",
@@ -780,7 +785,7 @@ describe("listDeletedFiles", () => {
     expect(result).toEqual(files)
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files?deleted=true`,
-      expect.anything(),
+      expect.anything()
     )
   })
 })
@@ -802,10 +807,10 @@ describe("updateFile", () => {
 
   it("throws on error", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(404, { detail: "Missing" }),
+      errorResponse(404, { detail: "Missing" })
     )
     await expect(
-      updateFile("bad", { original_name: "x" }),
+      updateFile("bad", { original_name: "x" })
     ).rejects.toMatchObject({ message: "Missing", status: 404 })
   })
 })
@@ -821,13 +826,13 @@ describe("deleteFile", () => {
     await deleteFile("f1", { permanent: true })
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files/f1?permanent=true`,
-      expect.objectContaining({ method: "DELETE" }),
+      expect.objectContaining({ method: "DELETE" })
     )
   })
 
   it("handles error", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(404, { message: "Missing" }),
+      errorResponse(404, { message: "Missing" })
     )
     await expect(deleteFile("bad")).rejects.toMatchObject({
       message: "Missing",
@@ -845,13 +850,13 @@ describe("restoreFile", () => {
     expect(result).toEqual(file)
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files/f1/restore`,
-      expect.objectContaining({ method: "POST" }),
+      expect.objectContaining({ method: "POST" })
     )
   })
 
   it("handles error", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(404, { message: "Not found" }),
+      errorResponse(404, { message: "Not found" })
     )
     await expect(restoreFile("bad")).rejects.toMatchObject({
       message: "Not found",
@@ -867,15 +872,13 @@ describe("restoreFile", () => {
 describe("bulkDeleteFiles", () => {
   it("bulk deletes files", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(null))
-    await expect(
-      bulkDeleteFiles(["f1", "f2"]),
-    ).resolves.toBeUndefined()
+    await expect(bulkDeleteFiles(["f1", "f2"])).resolves.toBeUndefined()
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files/delete/bulk`,
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ ids: ["f1", "f2"] }),
-      }),
+      })
     )
   })
 
@@ -884,55 +887,53 @@ describe("bulkDeleteFiles", () => {
     await bulkDeleteFiles(["f1"], { permanent: true })
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files/delete/bulk?permanent=true`,
-      expect.anything(),
+      expect.anything()
     )
   })
 
   it("handles error", async () => {
     vi.mocked(fetch).mockResolvedValue(errorResponse(500, { message: "fail" }))
-    await expect(
-      bulkDeleteFiles(["f1"]),
-    ).rejects.toMatchObject({ message: "fail", status: 500 })
+    await expect(bulkDeleteFiles(["f1"])).rejects.toMatchObject({
+      message: "fail",
+      status: 500,
+    })
   })
 })
 
 describe("bulkRestoreFiles", () => {
   it("bulk restores files", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(null))
-    await expect(
-      bulkRestoreFiles(["f1", "f2"]),
-    ).resolves.toBeUndefined()
+    await expect(bulkRestoreFiles(["f1", "f2"])).resolves.toBeUndefined()
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files/restore/bulk`,
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ ids: ["f1", "f2"] }),
-      }),
+      })
     )
   })
 
   it("handles error", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(400, { message: "bad request" }),
+      errorResponse(400, { message: "bad request" })
     )
-    await expect(
-      bulkRestoreFiles(["f1"]),
-    ).rejects.toMatchObject({ message: "bad request", status: 400 })
+    await expect(bulkRestoreFiles(["f1"])).rejects.toMatchObject({
+      message: "bad request",
+      status: 400,
+    })
   })
 })
 
 describe("bulkDeleteFolders", () => {
   it("bulk deletes folders", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(null))
-    await expect(
-      bulkDeleteFolders(["d1", "d2"]),
-    ).resolves.toBeUndefined()
+    await expect(bulkDeleteFolders(["d1", "d2"])).resolves.toBeUndefined()
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/folders/delete/bulk`,
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ ids: ["d1", "d2"] }),
-      }),
+      })
     )
   })
 
@@ -941,40 +942,38 @@ describe("bulkDeleteFolders", () => {
     await bulkDeleteFolders(["d1"], { permanent: true })
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/folders/delete/bulk?permanent=true`,
-      expect.anything(),
+      expect.anything()
     )
   })
 
   it("handles error", async () => {
     vi.mocked(fetch).mockResolvedValue(errorResponse(500, { message: "fail" }))
-    await expect(
-      bulkDeleteFolders(["d1"]),
-    ).rejects.toMatchObject({ message: "fail", status: 500 })
+    await expect(bulkDeleteFolders(["d1"])).rejects.toMatchObject({
+      message: "fail",
+      status: 500,
+    })
   })
 })
 
 describe("bulkRestoreFolders", () => {
   it("bulk restores folders", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(null))
-    await expect(
-      bulkRestoreFolders(["d1", "d2"]),
-    ).resolves.toBeUndefined()
+    await expect(bulkRestoreFolders(["d1", "d2"])).resolves.toBeUndefined()
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/folders/restore/bulk`,
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ ids: ["d1", "d2"] }),
-      }),
+      })
     )
   })
 
   it("handles error", async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      errorResponse(400, { message: "bad" }),
-    )
-    await expect(
-      bulkRestoreFolders(["d1"]),
-    ).rejects.toMatchObject({ message: "bad", status: 400 })
+    vi.mocked(fetch).mockResolvedValue(errorResponse(400, { message: "bad" }))
+    await expect(bulkRestoreFolders(["d1"])).rejects.toMatchObject({
+      message: "bad",
+      status: 400,
+    })
   })
 })
 
@@ -998,17 +997,18 @@ describe("fetchFilePreviewAsDataUrl", () => {
       `${API_URL}/v1/files/f1/preview`,
       expect.objectContaining({
         credentials: "include",
-      }),
+      })
     )
   })
 
   it("throws on non-ok", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(404, { message: "No preview" }),
+      errorResponse(404, { message: "No preview" })
     )
-    await expect(
-      fetchFilePreviewAsDataUrl("bad"),
-    ).rejects.toMatchObject({ message: "No preview", status: 404 })
+    await expect(fetchFilePreviewAsDataUrl("bad")).rejects.toMatchObject({
+      message: "No preview",
+      status: 404,
+    })
   })
 
   it("handles 401 with token refresh", async () => {
@@ -1030,7 +1030,7 @@ describe("fetchSharedFilePreviewAsDataUrl", () => {
     const result = await fetchSharedFilePreviewAsDataUrl("share-tok", "f1")
     expect(result).toBe("data:image/png;base64,mockpreview")
     expect(fetch).toHaveBeenCalledWith(
-      `${API_URL}/v1/share/share-tok/preview/f1`,
+      `${API_URL}/v1/share/share-tok/preview/f1`
     )
   })
 
@@ -1038,16 +1038,16 @@ describe("fetchSharedFilePreviewAsDataUrl", () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(null))
     await fetchSharedFilePreviewAsDataUrl("a b/c", "f1")
     expect(fetch).toHaveBeenCalledWith(
-      `${API_URL}/v1/share/a%20b%2Fc/preview/f1`,
+      `${API_URL}/v1/share/a%20b%2Fc/preview/f1`
     )
   })
 
   it("throws on error", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(403, { message: "Expired" }),
+      errorResponse(403, { message: "Expired" })
     )
     await expect(
-      fetchSharedFilePreviewAsDataUrl("bad", "f1"),
+      fetchSharedFilePreviewAsDataUrl("bad", "f1")
     ).rejects.toMatchObject({ message: "Expired", status: 403 })
   })
 
@@ -1059,7 +1059,7 @@ describe("fetchSharedFilePreviewAsDataUrl", () => {
       headers: new Headers(),
     } as Response)
     await expect(
-      fetchSharedFilePreviewAsDataUrl("t", "f1"),
+      fetchSharedFilePreviewAsDataUrl("t", "f1")
     ).rejects.toMatchObject({
       message: "api.error.loadPreview",
       status: 500,
@@ -1106,12 +1106,10 @@ describe("downloadFile", () => {
 
   it("downloads a file successfully", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      okResponse(null, { "Content-Type": "application/pdf" }),
+      okResponse(null, { "Content-Type": "application/pdf" })
     )
 
-    await expect(
-      downloadFile("f1", "report.pdf"),
-    ).resolves.toBeUndefined()
+    await expect(downloadFile("f1", "report.pdf")).resolves.toBeUndefined()
 
     expect(createObjectURL).toHaveBeenCalled()
     expect(clickSpy).toHaveBeenCalled()
@@ -1149,20 +1147,21 @@ describe("downloadFile", () => {
 
   it("throws ApiError on non-ok response", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(404, { message: "File not found" }),
+      errorResponse(404, { message: "File not found" })
     )
-    await expect(
-      downloadFile("bad", "x.pdf"),
-    ).rejects.toMatchObject({ message: "File not found", status: 404 })
+    await expect(downloadFile("bad", "x.pdf")).rejects.toMatchObject({
+      message: "File not found",
+      status: 404,
+    })
   })
 
   it("throws on checksum mismatch header", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      okResponse(null, { "X-Checksum-Error": "true" }),
+      okResponse(null, { "X-Checksum-Error": "true" })
     )
-    await expect(
-      downloadFile("f1", "bad.pdf"),
-    ).rejects.toThrow("api.error.checksumMismatch")
+    await expect(downloadFile("f1", "bad.pdf")).rejects.toThrow(
+      "api.error.checksumMismatch"
+    )
   })
 
   it("handles 401 with token refresh", async () => {
@@ -1172,9 +1171,7 @@ describe("downloadFile", () => {
       .mockResolvedValueOnce(okResponse(null))
 
     setTokenRefreshCallback(refreshCb)
-    await expect(
-      downloadFile("f1", "file.pdf"),
-    ).resolves.toBeUndefined()
+    await expect(downloadFile("f1", "file.pdf")).resolves.toBeUndefined()
     expect(refreshCb).toHaveBeenCalled()
   })
 })
@@ -1206,7 +1203,7 @@ describe("downloadMultipleFiles", () => {
       downloadMultipleFiles([
         { id: "f1", original_name: "a.txt" },
         { id: "f2", original_name: "b.txt" },
-      ]),
+      ])
     ).resolves.toBeUndefined()
 
     expect(fetch).toHaveBeenCalledTimes(1)
@@ -1215,20 +1212,18 @@ describe("downloadMultipleFiles", () => {
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ ids: ["f1", "f2"] }),
-      }),
+      })
     )
   })
 
   it("throws when bulk download fails", async () => {
-    vi.mocked(fetch).mockResolvedValue(
-      errorResponse(500, { message: "fail" })
-    )
+    vi.mocked(fetch).mockResolvedValue(errorResponse(500, { message: "fail" }))
 
     await expect(
       downloadMultipleFiles([
         { id: "f1", original_name: "a.txt" },
         { id: "f2", original_name: "b.txt" },
-      ]),
+      ])
     ).rejects.toThrow("fail")
   })
 })
@@ -1256,34 +1251,28 @@ describe("downloadFolder", () => {
       })
     )
 
-    await expect(
-      downloadFolder("folder-1"),
-    ).resolves.toBeUndefined()
+    await expect(downloadFolder("folder-1")).resolves.toBeUndefined()
 
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/folders/folder-1/download`,
-      expect.any(Object),
+      expect.any(Object)
     )
   })
 
   it("uses folder.zip fallback when no Content-Disposition header", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(null))
 
-    await expect(
-      downloadFolder("folder-1"),
-    ).resolves.toBeUndefined()
+    await expect(downloadFolder("folder-1")).resolves.toBeUndefined()
   })
 
-  it("parses filename from plain filename=\"...\" Content-Disposition", async () => {
+  it('parses filename from plain filename="..." Content-Disposition', async () => {
     vi.mocked(fetch).mockResolvedValue(
       okResponse(null, {
         "Content-Disposition": 'attachment; filename="archive.zip"',
       })
     )
 
-    await expect(
-      downloadFolder("folder-1"),
-    ).resolves.toBeUndefined()
+    await expect(downloadFolder("folder-1")).resolves.toBeUndefined()
   })
 
   it("throws on error response", async () => {
@@ -1291,9 +1280,7 @@ describe("downloadFolder", () => {
       errorResponse(404, { message: "Folder not found" })
     )
 
-    await expect(
-      downloadFolder("folder-x"),
-    ).rejects.toThrow("Folder not found")
+    await expect(downloadFolder("folder-x")).rejects.toThrow("Folder not found")
   })
 })
 
@@ -1316,19 +1303,15 @@ describe("shareFiles", () => {
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ files: ["f1", "f2"] }),
-      }),
+      })
     )
   })
 
   it("includes expires_at and folders when provided", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(tokenResp))
-    await shareFiles(
-      [{ file_id: "f1" }],
-      "2026-01-01T00:00:00Z",
-      ["d1", "d2"],
-    )
+    await shareFiles([{ file_id: "f1" }], "2026-01-01T00:00:00Z", ["d1", "d2"])
     const body = JSON.parse(
-      (vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string,
+      (vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string
     )
     expect(body.files).toEqual(["f1"])
     expect(body.folders).toEqual(["d1", "d2"])
@@ -1339,7 +1322,7 @@ describe("shareFiles", () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(tokenResp))
     await shareFiles([{ file_id: "f1" }])
     const body = JSON.parse(
-      (vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string,
+      (vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string
     )
     expect(body).not.toHaveProperty("expires_at")
   })
@@ -1348,14 +1331,14 @@ describe("shareFiles", () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(tokenResp))
     await shareFiles([{ file_id: "f1" }], undefined, [])
     const body = JSON.parse(
-      (vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string,
+      (vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string
     )
     expect(body).not.toHaveProperty("folders")
   })
 
   it("handles error", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(400, { message: "No files" }),
+      errorResponse(400, { message: "No files" })
     )
     await expect(shareFiles([])).rejects.toMatchObject({
       message: "No files",
@@ -1381,17 +1364,18 @@ describe("listUserLinks", () => {
     expect(result).toEqual(links)
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/share/user/user-1`,
-      expect.anything(),
+      expect.anything()
     )
   })
 
   it("handles error", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(404, { message: "No user" }),
+      errorResponse(404, { message: "No user" })
     )
-    await expect(
-      listUserLinks("bad"),
-    ).rejects.toMatchObject({ message: "No user", status: 404 })
+    await expect(listUserLinks("bad")).rejects.toMatchObject({
+      message: "No user",
+      status: 404,
+    })
   })
 })
 
@@ -1410,7 +1394,7 @@ describe("updateLinkName", () => {
       expect.objectContaining({
         method: "PUT",
         body: JSON.stringify({ custom_name: "My Link" }),
-      }),
+      })
     )
   })
 
@@ -1419,35 +1403,34 @@ describe("updateLinkName", () => {
     await updateLinkName("a b", "Link")
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/share/a%20b`,
-      expect.anything(),
+      expect.anything()
     )
   })
 
   it("handles error", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(404, { message: "Missing" }),
+      errorResponse(404, { message: "Missing" })
     )
-    await expect(
-      updateLinkName("bad", "X"),
-    ).rejects.toMatchObject({ message: "Missing", status: 404 })
+    await expect(updateLinkName("bad", "X")).rejects.toMatchObject({
+      message: "Missing",
+      status: 404,
+    })
   })
 })
 
 describe("deleteLink", () => {
   it("deletes a link", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(null))
-    await expect(
-      deleteLink("tok-1"),
-    ).resolves.toBeUndefined()
+    await expect(deleteLink("tok-1")).resolves.toBeUndefined()
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/share/tok-1`,
-      expect.objectContaining({ method: "DELETE" }),
+      expect.objectContaining({ method: "DELETE" })
     )
   })
 
   it("handles error", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(404, { message: "Missing" }),
+      errorResponse(404, { message: "Missing" })
     )
     await expect(deleteLink("bad")).rejects.toMatchObject({
       message: "Missing",
@@ -1465,7 +1448,7 @@ describe("restoreLink", () => {
     expect(result).toEqual(restored)
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/share/tok-1/restore`,
-      expect.objectContaining({ method: "POST" }),
+      expect.objectContaining({ method: "POST" })
     )
   })
 
@@ -1473,7 +1456,7 @@ describe("restoreLink", () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(restored))
     await restoreLink("tok-1", "2027-01-01")
     const body = JSON.parse(
-      (vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string,
+      (vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string
     )
     expect(body).toEqual({ expires_at: "2027-01-01" })
   })
@@ -1490,17 +1473,18 @@ describe("restoreLink", () => {
     await restoreLink("a/b")
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/share/a%2Fb/restore`,
-      expect.anything(),
+      expect.anything()
     )
   })
 
   it("handles error", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(404, { message: "Missing" }),
+      errorResponse(404, { message: "Missing" })
     )
-    await expect(
-      restoreLink("bad"),
-    ).rejects.toMatchObject({ message: "Missing", status: 404 })
+    await expect(restoreLink("bad")).rejects.toMatchObject({
+      message: "Missing",
+      status: 404,
+    })
   })
 })
 
@@ -1521,13 +1505,13 @@ describe("getShareUrl", () => {
 
   it("uses custom name when provided", () => {
     expect(getShareUrl("token-abc", "my-link")).toBe(
-      "https://example.com/share/my-link",
+      "https://example.com/share/my-link"
     )
   })
 
   it("falls back to token when customName is null", () => {
     expect(getShareUrl("token-abc", null)).toBe(
-      "https://example.com/share/token-abc",
+      "https://example.com/share/token-abc"
     )
   })
 })
@@ -1555,7 +1539,7 @@ describe("getSharedFiles", () => {
 
   it("handles error", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(404, { message: "Link expired" }),
+      errorResponse(404, { message: "Link expired" })
     )
     await expect(getSharedFiles("bad")).rejects.toMatchObject({
       message: "Link expired",
@@ -1609,11 +1593,9 @@ describe("downloadSharedFile", () => {
   it("downloads shared file without auth", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse(null))
     await expect(
-      downloadSharedFile("share-tok", "f1", "report.pdf"),
+      downloadSharedFile("share-tok", "f1", "report.pdf")
     ).resolves.toBeUndefined()
-    expect(fetch).toHaveBeenCalledWith(
-      `${API_URL}/v1/share/share-tok/f1`,
-    )
+    expect(fetch).toHaveBeenCalledWith(`${API_URL}/v1/share/share-tok/f1`)
     expect(createObjectURL).toHaveBeenCalled()
     expect(clickSpy).toHaveBeenCalled()
     expect(revokeObjectURL).toHaveBeenCalled()
@@ -1621,10 +1603,10 @@ describe("downloadSharedFile", () => {
 
   it("throws on error", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(404, { message: "File not found" }),
+      errorResponse(404, { message: "File not found" })
     )
     await expect(
-      downloadSharedFile("bad", "f1", "x.pdf"),
+      downloadSharedFile("bad", "f1", "x.pdf")
     ).rejects.toMatchObject({ message: "File not found", status: 404 })
   })
 })
@@ -1645,7 +1627,7 @@ describe("cloneSharedFiles", () => {
     expect(result).toEqual(cloned)
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/share/share-tok/files/clone`,
-      expect.objectContaining({ method: "POST" }),
+      expect.objectContaining({ method: "POST" })
     )
   })
 
@@ -1654,10 +1636,10 @@ describe("cloneSharedFiles", () => {
     await cloneSharedFiles(
       "share-tok",
       [{ file_id: "f1" }, { file_id: "f2", folder_id: "d1" }],
-      ["d1", "d2"],
+      ["d1", "d2"]
     )
     const body = JSON.parse(
-      (vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string,
+      (vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string
     )
     expect(body.files).toEqual(["f1", "f2"])
     expect(body.folders).toEqual(["d1", "d2"])
@@ -1684,11 +1666,12 @@ describe("cloneSharedFiles", () => {
 
   it("throws on error", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(403, { message: "Forbidden" }),
+      errorResponse(403, { message: "Forbidden" })
     )
-    await expect(
-      cloneSharedFiles("bad"),
-    ).rejects.toMatchObject({ message: "Forbidden", status: 403 })
+    await expect(cloneSharedFiles("bad")).rejects.toMatchObject({
+      message: "Forbidden",
+      status: 403,
+    })
   })
 })
 
@@ -1753,10 +1736,10 @@ describe("uploadFile", () => {
               lengthComputable: boolean
               loaded: number
               total: number
-            }) => void,
+            }) => void
           ) => {
             if (event === "progress") instance.fireProgress = handler
-          },
+          }
         ),
       },
       addEventListener: vi.fn((event: string, handler: () => void) => {
@@ -1782,12 +1765,9 @@ describe("uploadFile", () => {
     xhrInstances = []
 
     // Default: return a 200 XHR
-    vi.stubGlobal(
-      "XMLHttpRequest",
-      function (this: unknown) {
-        return makeXHR(200, JSON.stringify(makeFileResponse()))
-      },
-    )
+    vi.stubGlobal("XMLHttpRequest", function (this: unknown) {
+      return makeXHR(200, JSON.stringify(makeFileResponse()))
+    })
   })
 
   afterEach(() => {
@@ -1804,9 +1784,7 @@ describe("uploadFile", () => {
 
     const result = await promise
     expect(result.id).toBe("file-1")
-    expect(xhrInstances[0].openCalls).toEqual([
-      ["POST", `${API_URL}/v1/files`],
-    ])
+    expect(xhrInstances[0].openCalls).toEqual([["POST", `${API_URL}/v1/files`]])
     expect(xhrInstances[0].setRequestHeaderCalls).toHaveLength(0)
   })
 
@@ -1914,6 +1892,18 @@ describe("uploadFile", () => {
     await expect(promise).rejects.toThrow("files.error.uploadFile")
   })
 
+  it("uses the rate limit message for 429 upload responses", async () => {
+    vi.stubGlobal("XMLHttpRequest", function (this: unknown) {
+      return makeXHR(429, "<html>Too Many Requests</html>")
+    })
+    const file = new File(["content"], "test.txt")
+
+    const promise = uploadFile(file)
+    xhrInstances[0].fireLoad?.()
+
+    await expect(promise).rejects.toThrow("api.error.rateLimited")
+  })
+
   it("handles non-ok JSON without message or detail", async () => {
     vi.stubGlobal("XMLHttpRequest", function (this: unknown) {
       return makeXHR(500, JSON.stringify({ error: "ignored" }))
@@ -1951,7 +1941,7 @@ describe("uploadFile", () => {
       }
       return makeXHR(
         200,
-        JSON.stringify(makeFileResponse({ id: "uploaded-retry" })),
+        JSON.stringify(makeFileResponse({ id: "uploaded-retry" }))
       )
     })
 
@@ -1964,10 +1954,10 @@ describe("uploadFile", () => {
 
     // The refresh callback fires, uploadFileWithToken is called again
     // creating a second XHR. Wait for microtasks to flush.
-    await vi.waitFor(
-      () => xhrInstances.length >= 2,
-      { timeout: 2000, interval: 5 },
-    )
+    await vi.waitFor(() => xhrInstances.length >= 2, {
+      timeout: 2000,
+      interval: 5,
+    })
 
     // Fire second XHR's load handler (200)
     xhrInstances[1].fireLoad?.()
@@ -2015,7 +2005,7 @@ describe("uploadFile", () => {
     const unauthCb = vi.fn()
     setUnauthorizedCallback(unauthCb)
     setTokenRefreshCallback(
-      vi.fn().mockRejectedValue(new Error("refresh failed")),
+      vi.fn().mockRejectedValue(new Error("refresh failed"))
     )
 
     vi.stubGlobal("XMLHttpRequest", function (this: unknown) {
@@ -2037,9 +2027,7 @@ describe("uploadFile", () => {
     xhrInstances[0].fireLoad?.()
     await promise
 
-    expect(xhrInstances[0].openCalls).toEqual([
-      ["POST", `${API_URL}/v1/files`],
-    ])
+    expect(xhrInstances[0].openCalls).toEqual([["POST", `${API_URL}/v1/files`]])
   })
 })
 
@@ -2051,10 +2039,7 @@ describe("toQueryString (via listFiles)", () => {
   it("returns no query string for empty filters", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse([]))
     await listFiles()
-    expect(fetch).toHaveBeenCalledWith(
-      `${API_URL}/v1/files`,
-      expect.anything(),
-    )
+    expect(fetch).toHaveBeenCalledWith(`${API_URL}/v1/files`, expect.anything())
   })
 
   it("adds single query param", async () => {
@@ -2062,17 +2047,14 @@ describe("toQueryString (via listFiles)", () => {
     await listFiles({ deleted: true })
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files?deleted=true`,
-      expect.anything(),
+      expect.anything()
     )
   })
 
   it("skips undefined params", async () => {
     vi.mocked(fetch).mockResolvedValue(okResponse([]))
     await listFiles({ deleted: undefined })
-    expect(fetch).toHaveBeenCalledWith(
-      `${API_URL}/v1/files`,
-      expect.anything(),
-    )
+    expect(fetch).toHaveBeenCalledWith(`${API_URL}/v1/files`, expect.anything())
   })
 
   it("handles boolean false value", async () => {
@@ -2080,7 +2062,7 @@ describe("toQueryString (via listFiles)", () => {
     await listFiles({ deleted: false, by_folder: true })
     expect(fetch).toHaveBeenCalledWith(
       `${API_URL}/v1/files?deleted=false&by_folder=true`,
-      expect.anything(),
+      expect.anything()
     )
   })
 })
@@ -2092,26 +2074,45 @@ describe("toQueryString (via listFiles)", () => {
 describe("readError (via loginUser)", () => {
   it("parses message from JSON error body", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(422, { message: "Invalid email" }),
+      errorResponse(422, { message: "Invalid email" })
     )
     await expect(
-      loginUser({ email: "bad", password: "x" }),
+      loginUser({ email: "bad", password: "x" })
     ).rejects.toMatchObject({ message: "Invalid email", status: 422 })
   })
 
   it("falls back to detail when message is absent", async () => {
     vi.mocked(fetch).mockResolvedValue(
-      errorResponse(429, { detail: "Rate limited" }),
+      errorResponse(429, { detail: "Rate limited" })
     )
     await expect(
-      loginUser({ email: "a@b.com", password: "x" }),
-    ).rejects.toMatchObject({ message: "Rate limited", status: 429 })
+      loginUser({ email: "a@b.com", password: "x" })
+    ).rejects.toMatchObject({
+      message: "api.error.rateLimited",
+      status: 429,
+    })
+  })
+
+  it("uses the rate limit message when a 429 body is not JSON", async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      ok: false,
+      status: 429,
+      json: () => Promise.reject(new Error("not json")),
+      headers: new Headers(),
+    } as Response)
+
+    await expect(
+      loginUser({ email: "a@b.com", password: "x" })
+    ).rejects.toMatchObject({
+      message: "api.error.rateLimited",
+      status: 429,
+    })
   })
 
   it("falls back to provided fallback when neither message nor detail", async () => {
     vi.mocked(fetch).mockResolvedValue(errorResponse(500, {}))
     await expect(
-      loginUser({ email: "a@b.com", password: "x" }),
+      loginUser({ email: "a@b.com", password: "x" })
     ).rejects.toMatchObject({
       message: "auth.login.fallbackError",
       status: 500,
@@ -2126,7 +2127,7 @@ describe("readError (via loginUser)", () => {
       headers: new Headers(),
     } as Response)
     await expect(
-      loginUser({ email: "a@b.com", password: "x" }),
+      loginUser({ email: "a@b.com", password: "x" })
     ).rejects.toMatchObject({
       message: "auth.login.fallbackError",
       status: 500,
@@ -2139,7 +2140,11 @@ describe("readError (via loginUser)", () => {
 // ===================================================================
 
 describe("downloadResponse (via downloadFile)", () => {
-  let linkEl: { href: string; download: string; click: ReturnType<typeof vi.fn> }
+  let linkEl: {
+    href: string
+    download: string
+    click: ReturnType<typeof vi.fn>
+  }
 
   beforeEach(() => {
     linkEl = { href: "", download: "", click: vi.fn() }
@@ -2168,10 +2173,14 @@ describe("downloadResponse (via downloadFile)", () => {
     await downloadFile("f1", "doc.pdf")
 
     const createObjectURL = (
-      window as unknown as { URL: { createObjectURL: ReturnType<typeof vi.fn> } }
+      window as unknown as {
+        URL: { createObjectURL: ReturnType<typeof vi.fn> }
+      }
     ).URL.createObjectURL
     const revokeObjectURL = (
-      window as unknown as { URL: { revokeObjectURL: ReturnType<typeof vi.fn> } }
+      window as unknown as {
+        URL: { revokeObjectURL: ReturnType<typeof vi.fn> }
+      }
     ).URL.revokeObjectURL
 
     expect(createObjectURL).toHaveBeenCalled()

@@ -58,7 +58,7 @@
       "nameLabel": "Name",
       "emailLabel": "Email",
       "newPasswordLabel": "New password",
-      "newPasswordPlaceholder": "Enter new password", 
+      "newPasswordPlaceholder": "Enter new password",
       "confirmNewPasswordLabel": "Confirm new password",
       "confirmNewPasswordPlaceholder": "Retype your new password here",
       "currentPasswordLabel": "Current password",
@@ -273,6 +273,7 @@
     "error": {
       "tokenExpired": "Access token expired",
       "refreshSession": "Unable to refresh session",
+      "rateLimited": "Too many requests. Please wait 60 seconds before trying again",
       "loadPreview": "Failed to load preview",
       "updateUser": "Unable to update user",
       "checksumMismatch": "File integrity check failed: checksums do not match",
