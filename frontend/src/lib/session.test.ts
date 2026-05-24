@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest"
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import {
   createStoredSession,
   getStoredSession,
@@ -7,6 +7,7 @@ import {
   markAuthCookiePresent,
   persistStoredSession,
   clearStoredSession,
+  clearAuthCookieMarker,
   type AuthResponse,
 } from "@/lib/session"
 
@@ -95,6 +96,30 @@ describe("clearStoredSession", () => {
     markAuthCookiePresent()
     clearStoredSession()
     expect(localStorage.getItem("filecano:session")).toBeNull()
+    expect(hasAuthCookieMarker()).toBe(false)
+  })
+})
+
+describe("hasAuthCookieMarker", () => {
+  beforeEach(() => {
+    clearAuthCookieMarker()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it("returns false when the marker is not present", () => {
+    expect(hasAuthCookieMarker()).toBe(false)
+  })
+
+  it("returns true when the marker is present", () => {
+    markAuthCookiePresent()
+    expect(hasAuthCookieMarker()).toBe(true)
+  })
+
+  it("returns false when document is undefined (SSR)", () => {
+    vi.stubGlobal("document", undefined)
     expect(hasAuthCookieMarker()).toBe(false)
   })
 })

@@ -326,6 +326,14 @@ describe("refreshAccessToken", () => {
     })
     expect(fetch).not.toHaveBeenCalled()
   })
+
+  it("dedupes concurrent refresh requests", async () => {
+    vi.mocked(fetch).mockResolvedValue(okResponse(tokenData))
+
+    await Promise.all([refreshAccessToken(), refreshAccessToken()])
+
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe("signupUser", () => {
