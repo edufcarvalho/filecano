@@ -1258,14 +1258,16 @@ export function FileList({
       >
         <div className={cn(stretch && "flex h-full min-h-0 flex-col")}>
           {isLoading ? (
-            <div className="card-content-base">
-              <LoaderCircleIcon className="icon-spin" />
-              {loadingLabel ??
-                (variant === "shared"
-                  ? t("files.loadingSharedFiles")
-                  : variant === "trash"
-                    ? t("files.loadingDeletedFiles")
-                    : t("files.loadingFiles"))}
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 text-muted-foreground">
+              <LoaderCircleIcon className="icon-spin size-10" />
+              <span className="text-base">
+                {loadingLabel ??
+                  (variant === "shared"
+                    ? t("files.loadingSharedFiles")
+                    : variant === "trash"
+                      ? t("files.loadingDeletedFiles")
+                      : t("files.loadingFiles"))}
+              </span>
             </div>
           ) : filteredFiles.length === 0 &&
             openFolders.length === 0 &&

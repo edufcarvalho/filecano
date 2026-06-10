@@ -1,79 +1,77 @@
-import type { TokenResponse } from "@/lib/api"
-
-const TOKEN_STORAGE_KEY = "filecano:access-token"
+const SESSION_STORAGE_KEY = "filecano:session"
+const AUTH_COOKIE_MARKER_NAME = "filecano_auth_cookie"
+const AUTH_COOKIE_MARKER_MAX_AGE_SECONDS = 86400
 
 export type StoredUser = {
-  id?: string
+  id: string
   name: string
   email: string
 }
 
-export type StoredToken = TokenResponse & {
-  issued_at?: number
-  user?: StoredUser
+export type StoredSession = {
+  user: StoredUser
+  expires_in: number
+  issued_at: number
 }
 
-type JwtPayload = Partial<StoredUser> & {
-  sub?: string
+export type AuthResponse = StoredUser & {
+  expires_in: number
 }
 
-function getStoredUserFromToken(accessToken: string): StoredUser | null {
-  const payload = decodeTokenPayload(accessToken)
-  const name = payload.name?.trim()
-  const email = payload.email?.trim()
-
-  if (!name || !email) return null
-
+export function createStoredSession(auth: AuthResponse): StoredSession {
   return {
-    id: payload.sub,
-    name,
-    email,
-  }
-}
-
-function decodeTokenPayload(token: string): JwtPayload {
-  const [, payload] = token.split(".")
-  if (!payload) return {}
-
-  try {
-    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/")
-    const decoded = atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "="))
-
-    return JSON.parse(decoded) as JwtPayload
-  } catch {
-    return {}
-  }
-}
-
-export function createStoredToken(token: TokenResponse): StoredToken {
-  const user = getStoredUserFromToken(token.access_token)
-
-  return {
-    ...token,
+    user: {
+      id: auth.id,
+      name: auth.name,
+      email: auth.email,
+    },
+    expires_in: auth.expires_in,
     issued_at: Date.now(),
-    ...(user ? { user } : {}),
   }
 }
 
-export function getStoredToken(): StoredToken | null {
-  const stored = localStorage.getItem(TOKEN_STORAGE_KEY)
+export function getStoredSession(): StoredSession | null {
+  const stored = localStorage.getItem(SESSION_STORAGE_KEY)
   if (!stored) return null
 
   try {
-    return JSON.parse(stored) as StoredToken
+    const parsed = JSON.parse(stored) as StoredSession
+    if (parsed.user?.id && parsed.user?.name && parsed.user?.email) {
+      return parsed
+    }
+    return null
   } catch {
     return null
   }
 }
 
-export function persistStoredToken(token: StoredToken) {
-  localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(token))
+export function markAuthCookiePresent() {
+  document.cookie = `${AUTH_COOKIE_MARKER_NAME}=1; path=/; max-age=${AUTH_COOKIE_MARKER_MAX_AGE_SECONDS}; SameSite=Lax`
 }
 
-export function clearStoredToken() {
-  localStorage.removeItem(TOKEN_STORAGE_KEY)
+export function clearAuthCookieMarker() {
+  document.cookie = `${AUTH_COOKIE_MARKER_NAME}=; path=/; max-age=0; SameSite=Lax`
 }
 
-export function getDisplayUser(token: StoredToken): StoredUser | null {
-  return token.user ?? getStoredUserFromToken(token.access_token)
+export function hasAuthCookieMarker() {
+  if (typeof document === "undefined") return false
+  if (document.cookie === undefined) return true
+
+  return document.cookie
+    .split(";")
+    .some((cookie) => cookie.trim().startsWith(`${AUTH_COOKIE_MARKER_NAME}=`))
+}
+
+export function hasAuthSessionHint() {
+  return hasAuthCookieMarker() || getStoredSession() !== null
+}
+
+export function persistStoredSession(session: StoredSession) {
+  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session))
+  markAuthCookiePresent()
+}
+
+export function clearStoredSession() {
+  localStorage.removeItem(SESSION_STORAGE_KEY)
+  clearAuthCookieMarker()
 }

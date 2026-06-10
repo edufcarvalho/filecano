@@ -1,7 +1,12 @@
 import { translate } from "@/i18n"
 import { readBlobAsDataUrl } from "@/lib/file-preview"
+import {
+  clearAuthCookieMarker,
+  hasAuthSessionHint,
+  markAuthCookiePresent,
+} from "@/lib/session"
 
-const DEFAULT_API_URL = "http://localhost:8000/api"
+const DEFAULT_API_URL = "/api"
 
 export const API_URL = (
   import.meta.env.VITE_API_URL ?? DEFAULT_API_URL
@@ -22,9 +27,10 @@ export class ApiError extends Error {
   }
 }
 
-export type TokenResponse = {
-  access_token: string
-  token_type: string
+export type AuthResponse = {
+  id: string
+  name: string
+  email: string
   expires_in: number
 }
 
@@ -69,20 +75,23 @@ export type LinkUpdateResponse = {
 }
 
 let onUnauthorized: (() => void) | null = null
-let onTokenRefresh: ((expiredToken: string) => Promise<string | null>) | null =
-  null
+let onTokenRefresh: (() => Promise<boolean>) | null = null
+let fetchMeRequest: Promise<UserResponse> | null = null
+let refreshAccessTokenRequest: Promise<AuthResponse> | null = null
 
 export function setUnauthorizedCallback(cb: (() => void) | null) {
   onUnauthorized = cb
 }
 
-export function setTokenRefreshCallback(
-  cb: ((expiredToken: string) => Promise<string | null>) | null
-) {
+export function setTokenRefreshCallback(cb: (() => Promise<boolean>) | null) {
   onTokenRefresh = cb
 }
 
 async function readError(response: Response, fallback: string) {
+  if (response.status === 429) {
+    throw new ApiError(translate("api.error.rateLimited"), response.status)
+  }
+
   let errorBody: ApiErrorBody = {}
 
   try {
@@ -99,25 +108,22 @@ async function readError(response: Response, fallback: string) {
 
 async function authFetch(
   url: string,
-  accessToken: string,
   options: RequestInit = {},
   allowRefresh = true
 ) {
   const response = await fetch(url, {
     ...options,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      ...options.headers,
-    },
+    credentials: "include",
   })
 
   if (response.status === 401) {
-    if (allowRefresh && onTokenRefresh) {
-      const refreshedToken = await onTokenRefresh(accessToken)
-      if (refreshedToken) {
-        return authFetch(url, refreshedToken, options, false)
+    if (allowRefresh && onTokenRefresh && hasAuthSessionHint()) {
+      const refreshed = await onTokenRefresh()
+      if (refreshed) {
+        return authFetch(url, options, false)
       }
     }
+    clearAuthCookieMarker()
     onUnauthorized?.()
     throw new Error(translate("api.error.tokenExpired"))
   }
@@ -140,69 +146,117 @@ async function downloadResponse(response: Response, fileName: string) {
 export async function loginUser(credentials: {
   email: string
   password: string
-}): Promise<TokenResponse> {
+}): Promise<AuthResponse> {
   const response = await fetch(`${API_URL}/v1/users/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
+    credentials: "include",
     body: JSON.stringify(credentials),
   })
 
   if (!response.ok)
     await readError(response, translate("auth.login.fallbackError"))
 
-  return response.json()
+  const auth = await response.json()
+  markAuthCookiePresent()
+  return auth
 }
 
-export async function refreshAccessToken(
-  accessToken: string
-): Promise<TokenResponse> {
-  const response = await fetch(`${API_URL}/v1/users/token/refresh`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  })
+export async function refreshAccessToken(): Promise<AuthResponse> {
+  if (!hasAuthSessionHint()) {
+    throw new ApiError(translate("api.error.tokenExpired"), 401)
+  }
 
-  if (!response.ok)
-    await readError(response, translate("api.error.refreshSession"))
+  if (!refreshAccessTokenRequest) {
+    refreshAccessTokenRequest = (async () => {
+      const response = await fetch(`${API_URL}/v1/users/token/refresh`, {
+        method: "POST",
+        credentials: "include",
+      })
 
-  return response.json()
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearAuthCookieMarker()
+        }
+        await readError(response, translate("api.error.refreshSession"))
+      }
+
+      const auth = await response.json()
+      markAuthCookiePresent()
+      return auth
+    })().finally(() => {
+      refreshAccessTokenRequest = null
+    })
+  }
+
+  return refreshAccessTokenRequest
 }
 
 export async function signupUser(data: {
   name: string
   email: string
   password: string
-}): Promise<TokenResponse> {
+}): Promise<AuthResponse> {
   const response = await fetch(`${API_URL}/v1/users`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
+    credentials: "include",
     body: JSON.stringify(data),
   })
 
   if (!response.ok)
     await readError(response, translate("auth.signup.fallbackError"))
 
-  return response.json()
+  const auth = await response.json()
+  markAuthCookiePresent()
+  return auth
 }
 
-export async function updateUser(
-  accessToken: string,
-  data: {
-    current_password: string
-    name?: string
-    email?: string
-    password?: string
+export async function fetchMe(): Promise<UserResponse> {
+  if (!hasAuthSessionHint()) {
+    throw new ApiError(translate("api.error.tokenExpired"), 401)
   }
-): Promise<UserResponse> {
-  const response = await fetch(`${API_URL}/v1/users`, {
+
+  if (!fetchMeRequest) {
+    fetchMeRequest = (async () => {
+      const response = await authFetch(`${API_URL}/v1/users/me`)
+
+      if (!response.ok)
+        await readError(response, translate("api.error.refreshSession"))
+
+      return response.json()
+    })().finally(() => {
+      fetchMeRequest = null
+    })
+  }
+
+  return fetchMeRequest
+}
+
+export async function logoutUser(): Promise<void> {
+  try {
+    await fetch(`${API_URL}/v1/users/logout`, {
+      method: "POST",
+      credentials: "include",
+    })
+  } finally {
+    clearAuthCookieMarker()
+  }
+}
+
+export async function updateUser(data: {
+  current_password?: string
+  name?: string
+  email?: string
+  password?: string
+}): Promise<UserResponse> {
+  const response = await authFetch(`${API_URL}/v1/users`, {
     method: "PUT",
     headers: {
-      Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(data),
@@ -250,12 +304,10 @@ function toQueryString(params: Record<string, string | boolean | undefined>) {
 }
 
 export async function listFiles(
-  accessToken: string,
   filters: ListFilesFilters = {}
 ): Promise<FileResponse[]> {
   const response = await authFetch(
-    `${API_URL}/v1/files${toQueryString(filters)}`,
-    accessToken
+    `${API_URL}/v1/files${toQueryString(filters)}`
   )
 
   if (!response.ok)
@@ -265,12 +317,10 @@ export async function listFiles(
 }
 
 export async function listFolderedFiles(
-  accessToken: string,
   filters: ListFilesFilters = {}
 ): Promise<FolderListResponse> {
   const response = await authFetch(
-    `${API_URL}/v1/files${toQueryString({ ...filters, by_folder: true })}`,
-    accessToken
+    `${API_URL}/v1/files${toQueryString({ ...filters, by_folder: true })}`
   )
 
   if (!response.ok)
@@ -289,11 +339,10 @@ export async function listFolderedFiles(
 }
 
 export async function createFolder(
-  accessToken: string,
   name: string,
   parentId?: string
 ): Promise<FolderResponse> {
-  const response = await authFetch(`${API_URL}/v1/folders`, accessToken, {
+  const response = await authFetch(`${API_URL}/v1/folders`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -308,21 +357,16 @@ export async function createFolder(
 }
 
 export async function updateFolder(
-  accessToken: string,
   folderId: string,
   params: { name?: string; parent_id?: string | null }
 ): Promise<FolderResponse> {
-  const response = await authFetch(
-    `${API_URL}/v1/folders/${folderId}`,
-    accessToken,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(params),
-    }
-  )
+  const response = await authFetch(`${API_URL}/v1/folders/${folderId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(params),
+  })
 
   if (!response.ok)
     await readError(response, translate("files.error.updateFolder"))
@@ -335,13 +379,11 @@ type DeleteFolderFilters = {
 }
 
 export async function deleteFolder(
-  accessToken: string,
   folderId: string,
   filters: DeleteFolderFilters = {}
 ): Promise<void> {
   const response = await authFetch(
     `${API_URL}/v1/folders/${folderId}${toQueryString(filters)}`,
-    accessToken,
     { method: "DELETE" }
   )
 
@@ -349,13 +391,8 @@ export async function deleteFolder(
     await readError(response, translate("files.error.deleteFolder"))
 }
 
-export async function listDeletedFolders(
-  accessToken: string
-): Promise<FolderResponse[]> {
-  const response = await authFetch(
-    `${API_URL}/v1/folders?deleted=true`,
-    accessToken
-  )
+export async function listDeletedFolders(): Promise<FolderResponse[]> {
+  const response = await authFetch(`${API_URL}/v1/folders?deleted=true`)
 
   if (!response.ok)
     await readError(response, translate("files.error.loadDeletedFolders"))
@@ -364,12 +401,10 @@ export async function listDeletedFolders(
 }
 
 export async function restoreFolder(
-  accessToken: string,
   folderId: string
 ): Promise<FolderListResponse> {
   const response = await authFetch(
     `${API_URL}/v1/folders/${folderId}/restore`,
-    accessToken,
     { method: "POST" }
   )
 
@@ -379,8 +414,8 @@ export async function restoreFolder(
   return response.json()
 }
 
-export function listDeletedFiles(accessToken: string): Promise<FileResponse[]> {
-  return listFiles(accessToken, { deleted: true })
+export function listDeletedFiles(): Promise<FileResponse[]> {
+  return listFiles({ deleted: true })
 }
 
 export function getFilePreviewUrl(fileId: string) {
@@ -388,10 +423,9 @@ export function getFilePreviewUrl(fileId: string) {
 }
 
 export async function fetchFilePreviewAsDataUrl(
-  accessToken: string,
   fileId: string
 ): Promise<string> {
-  const response = await authFetch(getFilePreviewUrl(fileId), accessToken)
+  const response = await authFetch(getFilePreviewUrl(fileId))
 
   if (!response.ok)
     await readError(response, translate("api.error.loadPreview"))
@@ -416,24 +450,19 @@ export async function fetchSharedFilePreviewAsDataUrl(
 }
 
 export async function updateFile(
-  accessToken: string,
   fileId: string,
   data: {
     original_name?: string
     folder_id?: string | null
   }
 ): Promise<FileResponse> {
-  const response = await authFetch(
-    `${API_URL}/v1/files/${fileId}`,
-    accessToken,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    }
-  )
+  const response = await authFetch(`${API_URL}/v1/files/${fileId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  })
 
   if (!response.ok)
     await readError(response, translate("files.error.updateFile"))
@@ -442,13 +471,11 @@ export async function updateFile(
 }
 
 export async function deleteFile(
-  accessToken: string,
   fileId: string,
   filters: DeleteFileFilters = {}
 ): Promise<void> {
   const response = await authFetch(
     `${API_URL}/v1/files/${fileId}${toQueryString(filters)}`,
-    accessToken,
     {
       method: "DELETE",
     }
@@ -458,17 +485,10 @@ export async function deleteFile(
     await readError(response, translate("files.error.deleteFile"))
 }
 
-export async function restoreFile(
-  accessToken: string,
-  fileId: string
-): Promise<FileResponse> {
-  const response = await authFetch(
-    `${API_URL}/v1/files/${fileId}/restore`,
-    accessToken,
-    {
-      method: "POST",
-    }
-  )
+export async function restoreFile(fileId: string): Promise<FileResponse> {
+  const response = await authFetch(`${API_URL}/v1/files/${fileId}/restore`, {
+    method: "POST",
+  })
 
   if (!response.ok)
     await readError(response, translate("files.error.restoreFile"))
@@ -477,16 +497,14 @@ export async function restoreFile(
 }
 
 export async function downloadFile(
-  accessToken: string,
   fileId: string,
   fileName: string
 ): Promise<void> {
-  const response = await authFetch(`${API_URL}/v1/files/${fileId}`, accessToken)
+  const response = await authFetch(`${API_URL}/v1/files/${fileId}`)
 
   if (!response.ok)
     await readError(response, translate("files.error.downloadFile"))
 
-  // Check for checksum mismatch
   const checksumError = response.headers.get("X-Checksum-Error")
   if (checksumError === "true") {
     throw new Error(translate("api.error.checksumMismatch"))
@@ -495,34 +513,112 @@ export async function downloadFile(
   await downloadResponse(response, fileName)
 }
 
-export async function downloadMultipleFiles(
-  accessToken: string,
-  files: Array<{ id: string; original_name: string }>
+export async function bulkDeleteFiles(
+  fileIds: string[],
+  filters: DeleteFileFilters = {}
 ): Promise<void> {
-  const downloadPromises = files.map((file) =>
-    downloadFile(accessToken, file.id, file.original_name)
+  const response = await authFetch(
+    `${API_URL}/v1/files/delete/bulk${toQueryString(filters)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: fileIds }),
+    }
   )
 
-  try {
-    await Promise.all(downloadPromises)
-  } catch {
-    throw new Error(translate("files.error.someDownloadFailed"))
-  }
+  if (!response.ok)
+    await readError(response, translate("files.error.deleteFiles"))
+}
+
+export async function bulkRestoreFiles(fileIds: string[]): Promise<void> {
+  const response = await authFetch(`${API_URL}/v1/files/restore/bulk`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids: fileIds }),
+  })
+
+  if (!response.ok)
+    await readError(response, translate("files.error.restoreFiles"))
+}
+
+export async function bulkDeleteFolders(
+  folderIds: string[],
+  filters: DeleteFileFilters = {}
+): Promise<void> {
+  const response = await authFetch(
+    `${API_URL}/v1/folders/delete/bulk${toQueryString(filters)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: folderIds }),
+    }
+  )
+
+  if (!response.ok)
+    await readError(response, translate("files.error.deleteFolder"))
+}
+
+export async function bulkRestoreFolders(folderIds: string[]): Promise<void> {
+  const response = await authFetch(`${API_URL}/v1/folders/restore/bulk`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids: folderIds }),
+  })
+
+  if (!response.ok)
+    await readError(response, translate("files.error.restoreFolder"))
+}
+
+function parseFilenameFromHeaders(headers: Headers, fallback: string): string {
+  const contentDisposition =
+    headers.get("Content-Disposition") ??
+    headers.get("content-disposition") ??
+    ""
+  const encoded = contentDisposition.match(/filename\*=UTF-8''(.+)/)
+  if (encoded) return decodeURIComponent(encoded[1])
+  const plain = contentDisposition.match(/filename="(.+?)"/)
+  if (plain) return plain[1]
+  return fallback
+}
+
+export async function downloadMultipleFiles(
+  files: Array<{ id: string; original_name: string }>
+): Promise<void> {
+  const response = await authFetch(`${API_URL}/v1/files/download/bulk`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids: files.map((f) => f.id) }),
+  })
+
+  if (!response.ok)
+    await readError(response, translate("files.error.downloadFiles"))
+
+  const fileName = parseFilenameFromHeaders(response.headers, "files.zip")
+  await downloadResponse(response, fileName)
+}
+
+export async function downloadFolder(folderId: string): Promise<void> {
+  const response = await authFetch(`${API_URL}/v1/folders/${folderId}/download`)
+
+  if (!response.ok)
+    await readError(response, translate("files.error.downloadFolder"))
+
+  const fileName = parseFilenameFromHeaders(response.headers, "folder.zip")
+  await downloadResponse(response, fileName)
 }
 
 export async function shareFiles(
-  accessToken: string,
   files: FileReference[],
   expiresAt?: string,
   folderIds?: string[]
-): Promise<TokenResponse> {
+): Promise<{ access_token: string }> {
   const body: Record<string, unknown> = {
     files: files.map((file) => file.file_id),
   }
   if (folderIds && folderIds.length > 0) body.folders = folderIds
   if (expiresAt) body.expires_at = expiresAt
 
-  const response = await authFetch(`${API_URL}/v1/share`, accessToken, {
+  const response = await authFetch(`${API_URL}/v1/share`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -536,14 +632,8 @@ export async function shareFiles(
   return response.json()
 }
 
-export async function listUserLinks(
-  accessToken: string,
-  userId: string
-): Promise<LinkResponse[]> {
-  const response = await authFetch(
-    `${API_URL}/v1/share/user/${userId}`,
-    accessToken
-  )
+export async function listUserLinks(userId: string): Promise<LinkResponse[]> {
+  const response = await authFetch(`${API_URL}/v1/share/user/${userId}`)
 
   if (!response.ok) await readError(response, translate("api.error.loadLinks"))
 
@@ -551,13 +641,11 @@ export async function listUserLinks(
 }
 
 export async function updateLinkName(
-  accessToken: string,
   token: string,
   customName: string
 ): Promise<LinkUpdateResponse> {
   const response = await authFetch(
     `${API_URL}/v1/share/${encodeURIComponent(token)}`,
-    accessToken,
     {
       method: "PUT",
       headers: {
@@ -572,23 +660,15 @@ export async function updateLinkName(
   return response.json()
 }
 
-export async function deleteLink(
-  accessToken: string,
-  token: string
-): Promise<void> {
-  const response = await authFetch(
-    `${API_URL}/v1/share/${token}`,
-    accessToken,
-    {
-      method: "DELETE",
-    }
-  )
+export async function deleteLink(token: string): Promise<void> {
+  const response = await authFetch(`${API_URL}/v1/share/${token}`, {
+    method: "DELETE",
+  })
 
   if (!response.ok) await readError(response, translate("api.error.deleteLink"))
 }
 
 export async function restoreLink(
-  accessToken: string,
   token: string,
   expiresAt?: string
 ): Promise<{ id: string; expires_at: string }> {
@@ -597,7 +677,6 @@ export async function restoreLink(
 
   const response = await authFetch(
     `${API_URL}/v1/share/${encodeURIComponent(token)}/restore`,
-    accessToken,
     {
       method: "POST",
       headers: {
@@ -644,7 +723,6 @@ export async function downloadSharedFile(
 }
 
 export async function cloneSharedFiles(
-  accessToken: string,
   token: string,
   files?: FileReference[],
   folderIds?: string[]
@@ -653,17 +731,13 @@ export async function cloneSharedFiles(
   if (files && files.length > 0) body.files = files.map((file) => file.file_id)
   if (folderIds && folderIds.length > 0) body.folders = folderIds
 
-  const response = await authFetch(
-    `${API_URL}/v1/share/${token}/files/clone`,
-    accessToken,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
-    }
-  )
+  const response = await authFetch(`${API_URL}/v1/share/${token}/files/clone`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
+  })
 
   if (!response.ok)
     throw await readError(response, translate("files.error.cloneFiles"))
@@ -672,7 +746,6 @@ export async function cloneSharedFiles(
 }
 
 export async function uploadFile(
-  accessToken: string,
   file: File,
   onProgress?: (progress: {
     uploadedBytes: number
@@ -680,11 +753,10 @@ export async function uploadFile(
   }) => void,
   folderId?: string
 ): Promise<FileResponse> {
-  return uploadFileWithToken(accessToken, file, onProgress, true, folderId)
+  return uploadFileWithToken(file, onProgress, true, folderId)
 }
 
 function uploadFileWithToken(
-  accessToken: string,
   file: File,
   onProgress:
     | ((progress: { uploadedBytes: number; totalBytes: number }) => void)
@@ -712,21 +784,15 @@ function uploadFileWithToken(
     xhr.addEventListener("load", () => {
       if (xhr.status === 401) {
         if (allowRefresh && onTokenRefresh) {
-          void onTokenRefresh(accessToken)
-            .then((refreshedToken) => {
-              if (!refreshedToken) {
+          void onTokenRefresh()
+            .then((refreshed) => {
+              if (!refreshed) {
                 onUnauthorized?.()
                 reject(new Error("Access token expired."))
                 return
               }
 
-              return uploadFileWithToken(
-                refreshedToken,
-                file,
-                onProgress,
-                false,
-                folderId
-              )
+              return uploadFileWithToken(file, onProgress, false, folderId)
                 .then(resolve)
                 .catch(reject)
             })
@@ -751,6 +817,11 @@ function uploadFileWithToken(
         }
       } else {
         let message = translate("files.error.uploadFile")
+        if (xhr.status === 429) {
+          reject(new Error(translate("api.error.rateLimited")))
+          return
+        }
+
         try {
           const body = JSON.parse(xhr.responseText)
           message = body.message ?? body.detail ?? message
@@ -766,8 +837,7 @@ function uploadFileWithToken(
     })
 
     xhr.open("POST", `${API_URL}/v1/files`)
-    xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`)
-    xhr.setRequestHeader("Content-Length", String(file.size))
+    xhr.withCredentials = true
     xhr.send(formData)
   })
 }

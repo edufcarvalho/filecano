@@ -1,16 +1,18 @@
 import type { ComponentProps, DragEvent } from "react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { LoaderCircleIcon } from "lucide-react"
 
 import { FileList } from "@files/file-list"
 import { FileUploadDropzone, UploadActivityPanel } from "@files/file-upload-dropzone"
 import { ErrorField } from "@misc/status-field"
 import { PageWrapper } from "@misc/page-wrapper"
 import {
+  bulkDeleteFiles,
+  bulkDeleteFolders,
   createFolder,
   deleteFile,
   deleteFolder,
   downloadFile,
+  downloadFolder,
   downloadMultipleFiles,
   fetchFilePreviewAsDataUrl,
   getSharedFiles,
@@ -26,6 +28,8 @@ import { useLinks } from "@/lib/links-context"
 import { isPreviewSupportedFile } from "@/lib/file-display"
 import { LinkExpirationDialog } from "@/components/links/link-expiration-dialog"
 import { resolveExpiresAt, type LinkExpiration } from "@/lib/link-expiration"
+import { DownloadActivityPanel } from "@files/file-upload-dropzone"
+import { updateDownloadingItem, type DownloadingItem } from "@/lib/download-activity"
 import { useTranslation } from "@/i18n"
 import { getErrorMessage } from "@/lib/errors"
 import {
@@ -57,10 +61,6 @@ import {
 } from "@/lib/file-upload"
 import { useFileSelection } from "@/hooks/use-file-selection"
 
-type FilesScreenProps = {
-  accessToken: string
-}
-
 type DragHandler = NonNullable<ComponentProps<"div">["onDragOver"]>
 type DropHandler = NonNullable<ComponentProps<"div">["onDrop"]>
 type FileInputChangeHandler = NonNullable<ComponentProps<"input">["onChange"]>
@@ -80,7 +80,7 @@ async function copyShareUrl(shareToken: string) {
 }
 
 
-export function FilesScreen({ accessToken }: FilesScreenProps) {
+export function FilesScreen() {
   const { addLink } = useLinks()
   const { t } = useTranslation()
   const [files, setFiles] = useState<FileResponse[]>([])
@@ -92,7 +92,9 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   const [pendingFileId, setPendingFileId] = useState<string | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
   const [isUploadPanelCollapsed, setIsUploadPanelCollapsed] = useState(false)
+  const [isDownloadPanelCollapsed, setIsDownloadPanelCollapsed] = useState(false)
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([])
+  const [downloadItems, setDownloadItems] = useState<DownloadingItem[]>([])
   const {
     selectedFileIds,
     selectedFolderIds,
@@ -122,6 +124,8 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
   const uploadErrorTimerRef = useRef<number>(0)
   const editingFileIdRef = useRef<string | null>(null)
   const editingNameRef = useRef("")
+  const downloadingFileIdsRef = useRef<Set<string>>(new Set())
+  const activeDownloadPromisesRef = useRef<Promise<void>[]>([])
   const isUploading = useMemo(
     () => uploadingFiles.some((file) => !file.done),
     [uploadingFiles]
@@ -134,12 +138,12 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     ) => {
       await loadPreviewUrls(
         filesToPreview,
-        (file) => fetchFilePreviewAsDataUrl(accessToken, file.id),
+        (file) => fetchFilePreviewAsDataUrl(file.id),
         setPreviewUrls,
         isCurrent
       )
     },
-    [accessToken]
+    []
   )
 
   const applyLoadedFiles = useCallback(
@@ -176,14 +180,14 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     setIsLoading(true)
 
     try {
-      const response = await listFolderedFiles(accessToken)
+      const response = await listFolderedFiles()
       await applyLoadedFiles(response.other_files, response.folders)
     } catch (error) {
       setError(getErrorMessage(error, t("files.error.loadFiles")))
     } finally {
       setIsLoading(false)
     }
-  }, [accessToken, applyLoadedFiles, t])
+  }, [applyLoadedFiles, t])
 
   const didFetchRef = useRef(false)
   useEffect(() => {
@@ -312,7 +316,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       setPendingFileId(file.id)
 
       try {
-        const updatedFile = await updateFile(accessToken, file.id, {
+        const updatedFile = await updateFile(file.id, {
           original_name: newName,
         })
 
@@ -331,16 +335,21 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         setPendingFileId(null)
       }
     },
-    [accessToken, t, stopEditing]
+    [t, stopEditing]
   )
 
   const handleDelete = useCallback(
     async (file: FileResponse) => {
       setError(null)
+
+      if (downloadingFileIdsRef.current.has(file.id)) {
+        await Promise.all(activeDownloadPromisesRef.current)
+      }
+
       setPendingFileId(file.id)
 
       try {
-        await deleteFile(accessToken, file.id)
+        await deleteFile(file.id)
         setFiles((currentFiles) =>
           currentFiles.filter((currentFile) => currentFile.id !== file.id)
         )
@@ -372,7 +381,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         setPendingFileId(null)
       }
     },
-    [accessToken, setSelectedFileIds, t, stopEditing]
+    [setSelectedFileIds, t, stopEditing]
   )
 
   const handleUpload = useCallback(
@@ -403,7 +412,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
           }
 
           try {
-            const created = await createFolder(accessToken, folderName, parentId)
+            const created = await createFolder(folderName, parentId)
             pathToFolder.set(folderPath, { id: created.id, name: created.name })
 
             const newFolderEntry = { id: created.id, name: created.name, files: [] as FileResponse[] }
@@ -440,7 +449,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
             ...current,
           ])
 
-          return uploadFile(accessToken, file, (progress) => {
+          return uploadFile(file, (progress) => {
             setUploadingFiles((current) =>
               updateUploadingFile(current, uploadId, progress)
             )
@@ -497,7 +506,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
 
         for (const [folderPath, folderInfo] of pathToFolder) {
           if (!foldersWithSuccess.has(folderPath)) {
-            void deleteFolder(accessToken, folderInfo.id)
+            void deleteFolder(folderInfo.id)
             setFolders((current) =>
               removeFolderFromTree(current, folderInfo.id)
             )
@@ -533,7 +542,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       ])
 
       const uploadPromises = uploadEntries.map(({ file, status }) =>
-        uploadFile(accessToken, file, (progress) => {
+        uploadFile(file, (progress) => {
           setUploadingFiles((currentFiles) =>
             updateUploadingFile(currentFiles, status.id, progress)
           )
@@ -589,7 +598,6 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       }
     },
     [
-      accessToken,
       loadPreviews,
       markFileAsNewlyAdded,
       markFolderAsNewlyAdded,
@@ -721,7 +729,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       setError(null)
       setPendingFileId(`delete-folder-${folderId}`)
       try {
-        await deleteFolder(accessToken, folderId)
+        await deleteFolder(folderId)
         setFolders((current) => removeFolderFromTree(current, folderId))
         setSelectedFolderIds((current) => {
           const next = new Set(current)
@@ -734,7 +742,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         setPendingFileId(null)
       }
     },
-    [accessToken, setSelectedFolderIds, t]
+    [setSelectedFolderIds, t]
   )
 
   const handleBulkDelete = useCallback(async () => {
@@ -753,14 +761,21 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       )
     const fileIds = selectedFilesForAction.map((file) => file.file_id)
 
+    const someFileIsDownloading = fileIds.some((fid) =>
+      downloadingFileIdsRef.current.has(fid)
+    )
+    if (someFileIsDownloading) {
+      await Promise.all(activeDownloadPromisesRef.current)
+    }
+
     setError(null)
     setPendingFileId("bulk-delete")
 
     try {
-      await Promise.all([
-        ...fileIds.map((fileId) => deleteFile(accessToken, fileId)),
-        ...folderIds.map((folderId) => deleteFolder(accessToken, folderId)),
-      ])
+      const deletions: Promise<void>[] = []
+      if (fileIds.length > 0) deletions.push(bulkDeleteFiles(fileIds))
+      if (folderIds.length > 0) deletions.push(bulkDeleteFolders(folderIds))
+      await Promise.all(deletions)
       setFiles((currentFiles) =>
         currentFiles.filter((file) => !fileIds.includes(file.id))
       )
@@ -788,7 +803,6 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       setPendingFileId(null)
     }
   }, [
-    accessToken,
     clearFileSelection,
     files,
     folders,
@@ -801,27 +815,78 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     if (selectedFileIds.size === 0) return
 
     setError(null)
-    setPendingFileId("bulk-download")
+
+    const rootFolders = folders.filter((f) => !f.parent_id)
+    const selectedRootFolders = rootFolders.filter((f) =>
+      selectedFolderIds.has(f.id)
+    )
+    const selectedLooseFiles = files.filter(
+      (f) => selectedFileIds.has(f.id) && !f.folder_id
+    )
+
+    const isSingleFolderDownload =
+      selectedRootFolders.length === 1 && selectedLooseFiles.length === 0
+
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, "0")
+    const ts =
+      `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}` +
+      `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+
+    const zipName = isSingleFolderDownload
+      ? `${selectedRootFolders[0].name}.zip`
+      : `filecano-${ts}.zip`
 
     const folderFiles = collectFolderFiles(folders)
     const filesToDownload = [...files, ...folderFiles].filter((file) =>
       selectedFileIds.has(file.id)
     )
-
-    try {
-      await downloadMultipleFiles(
-        accessToken,
-        filesToDownload.map((file) => ({
-          id: file.id,
-          original_name: file.original_name,
-        }))
-      )
-    } catch (error) {
-      setError(getErrorMessage(error, t("files.error.downloadFiles")))
-    } finally {
-      setPendingFileId(null)
+    const downloadingIds = new Set(filesToDownload.map((f) => f.id))
+    for (const fid of downloadingIds) {
+      downloadingFileIdsRef.current.add(fid)
     }
-  }, [accessToken, files, folders, selectedFileIds, t])
+
+    const itemId = window.crypto.randomUUID()
+    setDownloadItems((prev) => [
+      ...prev,
+      { id: itemId, name: zipName, done: false, error: false },
+    ])
+    setIsDownloadPanelCollapsed(false)
+    clearFileSelection()
+
+    const downloadPromise = (async () => {
+      try {
+        if (isSingleFolderDownload) {
+          await downloadFolder(selectedRootFolders[0].id)
+        } else {
+          await downloadMultipleFiles(
+            filesToDownload.map((file) => ({
+              id: file.id,
+              original_name: file.original_name,
+            }))
+          )
+        }
+        setDownloadItems((prev) =>
+          updateDownloadingItem(prev, itemId, { done: true })
+        )
+      } catch (error) {
+        setError(getErrorMessage(error, t("files.error.downloadFiles")))
+        setDownloadItems((prev) =>
+          updateDownloadingItem(prev, itemId, { error: true })
+        )
+      } finally {
+        for (const fid of downloadingIds) {
+          downloadingFileIdsRef.current.delete(fid)
+        }
+        activeDownloadPromisesRef.current =
+          activeDownloadPromisesRef.current.filter((p) => p !== downloadPromise)
+      }
+    })()
+
+    activeDownloadPromisesRef.current.push(downloadPromise)
+
+    await downloadPromise
+  }, [files, folders, selectedFileIds, selectedFolderIds, clearFileSelection, t])
 
   const handleBulkShare = useCallback(() => {
     if (selectedFileIds.size === 0 && selectedFolderIds.size === 0) return
@@ -860,7 +925,6 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
 
       try {
         const shareToken = await shareFiles(
-          accessToken,
           selectedFiles,
           resolveExpiresAt(expiration),
           folderIds.length > 0 ? folderIds : undefined
@@ -883,7 +947,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         setPendingShareCount(0)
       }
     },
-    [accessToken, t, addLink]
+    [t, addLink]
   )
 
   const handleDownload = useCallback(
@@ -891,15 +955,28 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       setError(null)
       setPendingFileId(`download-${file.id}`)
 
-      try {
-        await downloadFile(accessToken, file.id, file.original_name)
-      } catch (error) {
-        setError(getErrorMessage(error, t("files.error.downloadFile")))
-      } finally {
-        setPendingFileId(null)
-      }
+      downloadingFileIdsRef.current.add(file.id)
+
+      const downloadPromise = (async () => {
+        try {
+          await downloadFile(file.id, file.original_name)
+        } catch (error) {
+          setError(getErrorMessage(error, t("files.error.downloadFile")))
+        } finally {
+          setPendingFileId(null)
+          downloadingFileIdsRef.current.delete(file.id)
+          activeDownloadPromisesRef.current =
+            activeDownloadPromisesRef.current.filter(
+              (p) => p !== downloadPromise
+            )
+        }
+      })()
+
+      activeDownloadPromisesRef.current.push(downloadPromise)
+
+      await downloadPromise
     },
-    [accessToken, t]
+    [t]
   )
 
   const handleShare = useCallback((file: FileResponse) => {
@@ -930,12 +1007,12 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       setPendingFileId("create-folder")
 
       try {
-        const folder = await createFolder(accessToken, name)
+        const folder = await createFolder(name)
 
         if (fileIds.length > 0) {
           await Promise.all(
             fileIds.map((fileId) =>
-              updateFile(accessToken, fileId, { folder_id: folder.id })
+              updateFile(fileId, { folder_id: folder.id })
             )
           )
         }
@@ -949,7 +1026,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         setPendingFileId(null)
       }
     },
-    [accessToken, loadFiles, t]
+    [loadFiles, t]
   )
 
   const handleMoveFile = useCallback(
@@ -987,7 +1064,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       }
 
       try {
-        await updateFile(accessToken, fileId, { folder_id: folderId })
+        await updateFile(fileId, { folder_id: folderId })
       } catch (error) {
         setFiles(prevFiles)
         setFolders(prevFolders)
@@ -1000,7 +1077,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         })
       }
     },
-    [accessToken, files, folders, t]
+    [files, folders, t]
   )
 
   const handleMoveFolder = useCallback(
@@ -1027,7 +1104,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       }
 
       try {
-        await updateFolder(accessToken, folderId, { parent_id: parentId })
+        await updateFolder(folderId, { parent_id: parentId })
       } catch (error) {
         setFolders(prevFolders)
         setError(getErrorMessage(error, t("files.error.updateFolder")))
@@ -1039,7 +1116,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         })
       }
     },
-    [accessToken, folders, t]
+    [folders, t]
   )
 
   const handleExternalDropIntoFolder = useCallback(
@@ -1067,7 +1144,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
           },
           ...current,
         ])
-        return uploadFile(accessToken, file, (progress) => {
+        return uploadFile(file, (progress) => {
           setUploadingFiles((current) =>
             updateUploadingFile(current, uploadId, progress)
           )
@@ -1112,7 +1189,7 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         uploadErrorTimerRef.current = window.setTimeout(dismissUploadError, 3000)
       }
     },
-    [accessToken, loadPreviews, markFileAsNewlyAdded, dismissUploadError, t]
+    [loadPreviews, markFileAsNewlyAdded, dismissUploadError, t]
   )
 
   const handleReorderFiles = useCallback(
@@ -1134,6 +1211,21 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
     setIsUploadPanelCollapsed((collapsed) => !collapsed)
   }, [])
 
+  const clearDownloadActivity = useCallback(() => {
+    setDownloadItems([])
+  }, [])
+
+  const dismissDownloadItem = useCallback(
+    (itemId: string) => {
+      setDownloadItems((prev) => prev.filter((item) => item.id !== itemId))
+    },
+    []
+  )
+
+  const handleToggleDownloadCollapse = useCallback(() => {
+    setIsDownloadPanelCollapsed((collapsed) => !collapsed)
+  }, [])
+
   return (
     <PageWrapper
       onClick={dismissUploadError}
@@ -1142,14 +1234,12 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
       onDrop={handleDrop}
       onDragEnd={handleDragEnd}
     >
-      {!isLoading ? (
-        <FileUploadDropzone
-          fileInputRef={fileInputRef}
-          isDragOver={isDragOver}
-          onBrowseFiles={handleBrowseFiles}
-          onFileSelect={handleFileSelect}
-        />
-      ) : null}
+      <FileUploadDropzone
+        fileInputRef={fileInputRef}
+        isDragOver={isDragOver}
+        onBrowseFiles={handleBrowseFiles}
+        onFileSelect={handleFileSelect}
+      />
       <input
         ref={folderInputRef}
         type="file"
@@ -1166,66 +1256,64 @@ export function FilesScreen({ accessToken }: FilesScreenProps) {
         <p className="text-sm text-muted-foreground">{notice}</p>
       ) : null}
 
-      {isLoading ? (
-        <div className="flex flex-1 items-center justify-center">
-          <div className="flex flex-col items-center gap-3 text-muted-foreground">
-            <LoaderCircleIcon className="icon-spin size-10" />
-            <span className="text-base">{t("files.loadingFiles")}</span>
-          </div>
-        </div>
-      ) : (
-        <FileList
-          files={files}
-          folders={folders}
-          previewUrls={previewUrls}
-          selectedFileIds={selectedFileIds}
-          newlyAddedFileIds={newlyAddedFileIds}
-          newlyAddedFolderIds={newlyAddedFolderIds}
-          selectedFolderIds={selectedFolderIds}
-          editingFileId={editingFileId}
-          editingName={editingName}
-          pendingFileId={pendingFileId}
-          error={error}
-          isLoading={isLoading}
-          isUploading={isUploading}
-          searchQuery={searchQuery}
-          onSearch={setSearchQuery}
-          onBulkDelete={handleBulkDelete}
-          onBulkDownload={handleBulkDownload}
-          onBulkShare={handleBulkShare}
-          onClearSelection={clearFileSelection}
-          onDelete={handleDelete}
-          onDownload={handleDownload}
-          onEditingNameChange={handleEditingNameChange}
-          onRefresh={handleRefresh}
-          onRename={handleRename}
-          onShare={handleShare}
-          onSelectAll={selectAllFiles}
-          onClearNewlyAdded={clearNewlyAddedFile}
-          onStartEditing={startEditing}
-          onStopEditing={stopEditing}
-          onToggleSelection={toggleFileSelection}
-          onToggleFolderSelection={toggleFolderSelection}
-          onToggleFolderSelect={toggleFolderSelect}
-          onDeleteFolder={deleteSingleFolder}
-          onCreateFolder={handleCreateFolder}
-          onBrowseFolder={handleBrowseFolder}
-          onClearFolderNewlyAdded={clearFolderNewlyAdded}
-          onMoveFile={handleMoveFile}
-          onMoveFolder={handleMoveFolder}
-          onReorderFiles={handleReorderFiles}
-          onExternalDrop={handleExternalDropIntoFolder}
-          uploadingFolderIds={uploadingFolderIds}
-          movingFileIds={movingFileIds}
-          movingFolderIds={movingFolderIds}
-        />
-      )}
+      <FileList
+        files={files}
+        folders={folders}
+        previewUrls={previewUrls}
+        selectedFileIds={selectedFileIds}
+        newlyAddedFileIds={newlyAddedFileIds}
+        newlyAddedFolderIds={newlyAddedFolderIds}
+        selectedFolderIds={selectedFolderIds}
+        editingFileId={editingFileId}
+        editingName={editingName}
+        pendingFileId={pendingFileId}
+        error={error}
+        isLoading={isLoading}
+        isUploading={isUploading}
+        searchQuery={searchQuery}
+        onSearch={setSearchQuery}
+        onBulkDelete={handleBulkDelete}
+        onBulkDownload={handleBulkDownload}
+        onBulkShare={handleBulkShare}
+        onClearSelection={clearFileSelection}
+        onDelete={handleDelete}
+        onDownload={handleDownload}
+        onEditingNameChange={handleEditingNameChange}
+        onRefresh={handleRefresh}
+        onRename={handleRename}
+        onShare={handleShare}
+        onSelectAll={selectAllFiles}
+        onClearNewlyAdded={clearNewlyAddedFile}
+        onStartEditing={startEditing}
+        onStopEditing={stopEditing}
+        onToggleSelection={toggleFileSelection}
+        onToggleFolderSelection={toggleFolderSelection}
+        onToggleFolderSelect={toggleFolderSelect}
+        onDeleteFolder={deleteSingleFolder}
+        onCreateFolder={handleCreateFolder}
+        onBrowseFolder={handleBrowseFolder}
+        onClearFolderNewlyAdded={clearFolderNewlyAdded}
+        onMoveFile={handleMoveFile}
+        onMoveFolder={handleMoveFolder}
+        onReorderFiles={handleReorderFiles}
+        onExternalDrop={handleExternalDropIntoFolder}
+        uploadingFolderIds={uploadingFolderIds}
+        movingFileIds={movingFileIds}
+        movingFolderIds={movingFolderIds}
+      />
       <UploadActivityPanel
         isCollapsed={isUploadPanelCollapsed}
         uploadingFiles={uploadingFiles}
         onClear={clearUploadActivity}
         onDismiss={dismissUploadingFile}
         onToggleCollapse={handleToggleUploadCollapse}
+      />
+      <DownloadActivityPanel
+        isCollapsed={isDownloadPanelCollapsed}
+        downloadingItems={downloadItems}
+        onClear={clearDownloadActivity}
+        onDismiss={dismissDownloadItem}
+        onToggleCollapse={handleToggleDownloadCollapse}
       />
       <LinkExpirationDialog
         open={showExpirationDialog}

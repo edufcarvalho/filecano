@@ -1,5 +1,10 @@
+from __future__ import annotations
+
 from collections.abc import Iterator
-from typing import BinaryIO, Optional
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+  from typing import BinaryIO, Optional
 
 from minio import Minio
 from minio.commonconfig import CopySource

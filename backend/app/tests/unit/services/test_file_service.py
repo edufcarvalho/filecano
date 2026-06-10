@@ -605,6 +605,41 @@ class TestFileService(DatabaseTestCase):
     self.assertEqual(self.storage.delete_all_versions.call_count, 2)
     mock_commit.assert_called_once()
 
+  def test_delete_files_bulk(self):
+    """delete_files should soft-delete multiple files."""
+    f1 = self._create_file(self.user.id, display_name="bulk1.txt")
+    f2 = self._create_file(self.user.id, display_name="bulk2.txt")
+
+    self.service.delete_files(self.user, [f1.id, f2.id])
+    self.storage.soft_delete.assert_any_call(f1.object_key)
+    self.storage.soft_delete.assert_any_call(f2.object_key)
+    self.assertEqual(self.storage.soft_delete.call_count, 2)
+
+  def test_delete_files_bulk_permanent(self):
+    """delete_files with permanent=True should hard-delete multiple files."""
+    f1 = self._create_file(self.user.id, display_name="bulkperm1.txt")
+    f2 = self._create_file(self.user.id, display_name="bulkperm2.txt")
+
+    self.service.delete_files(self.user, [f1.id, f2.id], permanent=True)
+    self.storage.delete_all_versions.assert_any_call(f1.object_key)
+    self.storage.delete_all_versions.assert_any_call(f2.object_key)
+    self.assertEqual(self.storage.delete_all_versions.call_count, 2)
+
+  def test_restore_files_bulk(self):
+    """restore_files should restore multiple soft-deleted files."""
+    f1 = self._create_file(self.user.id, display_name="bulkrst1.txt")
+    f2 = self._create_file(self.user.id, display_name="bulkrst2.txt")
+    f1.deleted_at = f1.created_at
+    f2.deleted_at = f2.created_at
+    self.session.add(f1)
+    self.session.add(f2)
+    self.session.commit()
+
+    self.service.restore_files(self.user, [f1.id, f2.id])
+    self.storage.restore_soft_deleted.assert_any_call(f1.object_key)
+    self.storage.restore_soft_deleted.assert_any_call(f2.object_key)
+    self.assertEqual(self.storage.restore_soft_deleted.call_count, 2)
+
 
 if __name__ == "__main__":
   unittest.main()

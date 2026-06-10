@@ -1,10 +1,13 @@
+from __future__ import annotations
+
 from typing import Optional
 from uuid import UUID
 
+from fastapi import Response
 from uuid6 import uuid7
 
 from app.core.exceptions import ConflictError, GoneError, NotFoundError
-from app.models import Folder, Link, User
+from app.models import Archive, Folder, Link, User
 from app.repositories.file_repository import FileRepository
 from app.repositories.folder_repository import FolderRepository
 from app.schemas import (
@@ -13,6 +16,7 @@ from app.schemas import (
   FolderUpdateParams,
   FolderWithFilesResponse,
 )
+from app.services.archive_service import ArchiveService
 from app.services.base_service import BaseService
 from app.services.file_service import FileService
 from app.services.file_storage_service import FileStorageService
@@ -25,11 +29,13 @@ class FolderService(BaseService):
     repository: FolderRepository,
     file_repository: FileRepository,
     file_service: FileService,
+    archive_service: ArchiveService,
     storage: Optional[FileStorageService] = None,
   ):
     self.repository = repository
     self.file_repository = file_repository
     self.file_service = file_service
+    self.archive_service = archive_service
     self.storage = storage
 
   def list_folders(self, user: User, deleted: bool = False) -> list[Folder]:
@@ -182,9 +188,34 @@ class FolderService(BaseService):
       FileListParams(deleted=True, by_folder=True),
     )
 
+  def delete_folders(
+    self, user: User, folder_ids: list[UUID], permanent: bool = False
+  ) -> None:
+    for folder_id in folder_ids:
+      self.delete_folder(user, folder_id, permanent)
+
+  def restore_folders(self, user: User, folder_ids: list[UUID]) -> None:
+    for folder_id in folder_ids:
+      self.restore_folder(user, folder_id)
+
   def enforce_retention_policy(self) -> None:
     for folder in self.repository.list_not_retainable():
       self._delete_folder_permanently(folder)
+
+  def get_folder(self, folder_id: UUID) -> Folder:
+    return self._get_folder(folder_id)
+
+  def download_folder(
+    self, folder_id: UUID, user: User
+  ) -> tuple[Folder, Archive, Response]:
+    folder = self._get_folder(folder_id)
+
+    self._ensure_user_has_rights(user.id, folder.user_id)
+
+    archive = self.archive_service.get_or_create_folder_archive(user, folder)
+    response = self.archive_service.get_archive_download(archive)
+
+    return folder, archive, response
 
   def _get_folder(self, folder_id: UUID) -> Folder:
     folder = self.repository.get_by_id(folder_id)

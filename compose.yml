@@ -1,6 +1,7 @@
 name: filecano
 
 x-backend-env: &backend-env
+  APP_ENV: ${APP_ENV:-development}
   APP_NAME: ${APP_NAME:-Filecano API}
   DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://filecano:filecano@database:5432/filecano}
   MINIO_ENDPOINT: ${MINIO_ENDPOINT:-data:9000}
@@ -8,7 +9,7 @@ x-backend-env: &backend-env
   MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
   MINIO_BUCKET: ${MINIO_BUCKET:-filecano}
   MINIO_SECURE: ${MINIO_SECURE:-false}
-  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://127.0.0.1,https://localhost,https://127.0.0.1,http://localhost:5173,http://127.0.0.1:5173}
   JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
   JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
   ACCESS_TOKEN_EXPIRE_SECONDS: ${ACCESS_TOKEN_EXPIRE_SECONDS:-3600}
@@ -16,8 +17,8 @@ x-backend-env: &backend-env
   SHARED_URL_EXPIRE_SECONDS: ${SHARED_URL_EXPIRE_SECONDS:-604800}
   SHARE_TOKEN_LENGTH: ${SHARE_TOKEN_LENGTH:-8}
   MAX_FILE_SIZE_BYTES: ${MAX_FILE_SIZE_BYTES:-2147483648}
-  REDIS_URL: ${REDIS_URL:-redis://:1234:6379/0}
-  CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://:1234:6379/0}
+  REDIS_URL: ${REDIS_URL:-redis://:1234@host.docker.internal:6379/0}
+  CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://:1234@host.docker.internal:6379/0}
   DATA_RETENTION_POLICY: ${DATA_RETENTION_POLICY:-45}
   WATCHFILES_FORCE_POLLING: ${WATCHFILES_FORCE_POLLING:-true}
 
@@ -32,14 +33,29 @@ x-backend-volumes: &backend-volumes
   - /app/.venv
 
 services:
+  nginx:
+    build:
+      context: ./nginx
+    depends_on:
+      back:
+        condition: service_healthy
+      front:
+        condition: service_started
+    ports:
+      - "80:80"
+      - "443:443/tcp"
+      - "443:443/udp"
+
   back:
     build:
       context: ./backend
     working_dir: /app
     environment: *backend-env
     depends_on: *backend-depends-on
-    ports:
-      - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    expose:
+      - "8000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/health"]
       interval: 10s
@@ -53,8 +69,15 @@ services:
       context: ./backend
     working_dir: /app
     command: ["celery", "-A", "app.tasks.celery", "worker", "-B", "--loglevel=info"]
-    environment: *backend-env
-    depends_on: *backend-depends-on
+    environment:
+      <<: *backend-env
+      SKIP_MIGRATIONS: "true"
+    depends_on:
+      <<: *backend-depends-on
+      cache:
+        condition: service_started
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes: *backend-volumes
 
   front:
@@ -63,14 +86,14 @@ services:
     environment:
       CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-true}
       NODE_ENV: ${NODE_ENV:-development}
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api}
+      VITE_API_URL: ${VITE_API_URL:-/api}
       VITE_HMR_HOST: ${VITE_HMR_HOST:-localhost}
       VITE_HMR_PORT: ${VITE_HMR_PORT:-5173}
     depends_on:
       back:
         condition: service_healthy
-    ports:
-      - "5173:5173"
+    expose:
+      - "5173"
     volumes:
       - ./frontend:/app
       - /app/node_modules

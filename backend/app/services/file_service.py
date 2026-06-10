@@ -1,8 +1,13 @@
+from __future__ import annotations
+
 import hashlib
 from contextlib import suppress
 from io import BytesIO
-from typing import BinaryIO, Optional
+from typing import TYPE_CHECKING
 from uuid import UUID
+
+if TYPE_CHECKING:
+  from typing import BinaryIO, Iterator, Optional
 
 from fastapi import UploadFile
 from PIL import Image, UnidentifiedImageError
@@ -201,7 +206,7 @@ class FileService(BaseService):
     return file
 
   def delete_file(
-    self, user: User, file_id: UUID, permanent: bool = False
+    self, user: User, file_id: UUID, permanent: bool = False, commit: bool = True
   ) -> Optional[File]:
     file = self._get_user_file(user, file_id)
 
@@ -237,7 +242,17 @@ class FileService(BaseService):
 
     return file
 
-  def stream_response(self, response: BaseHTTPResponse):
+  def delete_files(
+    self, user: User, file_ids: list[UUID], permanent: bool = False
+  ) -> None:
+    for file_id in file_ids:
+      self.delete_file(user, file_id, permanent)
+
+  def restore_files(self, user: User, file_ids: list[UUID]) -> None:
+    for file_id in file_ids:
+      self.restore_file(user, file_id)
+
+  def stream_response(self, response: BaseHTTPResponse) -> Iterator[bytes]:
     return self.storage.iter_response(response)
 
   def _delete_file_permanently(self, file: File, commit: bool = True) -> None:
@@ -287,7 +302,7 @@ class FileService(BaseService):
   def _can_generate_preview(self, content_type: Optional[str]) -> bool:
     return content_type in SUPPORTED_PREVIEW_TYPES
 
-  def _validate_file_type(self, content_type: str) -> None:
+  def _validate_file_type(self, content_type: Optional[str]) -> None:
     if is_content_type_supported(content_type):
       return
 
@@ -312,7 +327,9 @@ class FileService(BaseService):
 
     return filename
 
-  def _restore_file_if_deleted(self, checksum: str, display_name: str, user: User):
+  def _restore_file_if_deleted(
+    self, checksum: str, display_name: str, user: User
+  ) -> Optional[File]:
     file = self.repository.get_deleted_file_by_checksum_and_user(
       checksum, display_name, user.id
     )

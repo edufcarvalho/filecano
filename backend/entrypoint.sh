@@ -1,6 +1,12 @@
 #!/bin/sh
 set -e
 
-uv run alembic upgrade head
+if [ "${SKIP_MIGRATIONS}" != "true" ]; then
+  uv run alembic upgrade head
+fi
 
-exec "$@"
+if [ "${APP_ENV}" != "production" ] && [ "$1" = "uvicorn" ]; then
+  exec "$@" --reload
+else
+  exec "$@"
+fi

@@ -10,15 +10,17 @@ import {
 
 import { LoadingFallback } from "@misc/loading-fallback"
 import {
-  clearStoredToken,
-  createStoredToken,
-  getDisplayUser,
-  getStoredToken,
-  persistStoredToken,
-  type StoredUser,
-  type StoredToken,
+  clearStoredSession,
+  createStoredSession,
+  getStoredSession,
+  hasAuthSessionHint,
+  persistStoredSession,
+  type StoredSession,
 } from "@/lib/session"
 import {
+  fetchMe,
+  ApiError,
+  logoutUser,
   refreshAccessToken,
   setTokenRefreshCallback,
   setUnauthorizedCallback,
@@ -35,7 +37,9 @@ const LoginForm = lazy(() =>
   import("@auth/login-form").then((m) => ({ default: m.LoginForm }))
 )
 const SharedFilesScreen = lazy(() =>
-  import("@files/shared-files-screen").then((m) => ({ default: m.SharedFilesScreen }))
+  import("@files/shared-files-screen").then((m) => ({
+    default: m.SharedFilesScreen,
+  }))
 )
 const SignupForm = lazy(() =>
   import("@auth/signup-form").then((m) => ({ default: m.SignupForm }))
@@ -49,24 +53,18 @@ const UnauthorizedErrorScreen = lazy(() =>
   }))
 )
 
-function getUsableStoredToken(token: StoredToken | null) {
-  if (!token) return null
-  if (getDisplayUser(token)) return token
-
-  clearStoredToken()
-  return null
+function isAuthRoute(pathname: string) {
+  return pathname === "/login" || pathname === "/register"
 }
 
 function SignedInScreen({
-  token,
-  displayUser,
+  session,
   onSignOut,
-  onTokenUpdate,
+  onSessionUpdate,
 }: {
-  token: StoredToken
-  displayUser: StoredUser
+  session: StoredSession
   onSignOut: () => void
-  onTokenUpdate: (token: StoredToken) => void
+  onSessionUpdate: (session: StoredSession) => void
 }) {
   const location = useLocation()
   const { t } = useTranslation()
@@ -81,40 +79,33 @@ function SignedInScreen({
       <div className="fixed inset-0 flex min-h-0 flex-col overflow-hidden">
         <SiteHeader
           pageTitle={pageTitle}
-          user={displayUser}
-          token={token}
+          user={session.user}
+          session={session}
           onSignOut={onSignOut}
         />
         <div className="flex min-h-0 w-full flex-1">
           <Suspense fallback={<LoadingFallback className="h-full" />}>
             <Routes>
-              <Route
-                path="/trash"
-                element={<TrashScreen accessToken={token.access_token} />}
-              />
+              <Route path="/trash" element={<TrashScreen />} />
               <Route
                 path="/account"
                 element={
                   <EditUserForm
-                    accessToken={token.access_token}
-                    user={displayUser}
-                    onUserUpdate={(user) => {
-                      onTokenUpdate({
-                        ...token,
+                    user={session.user}
+                    onUserUpdate={(updatedUser) => {
+                      onSessionUpdate({
+                        ...session,
                         user: {
-                          ...displayUser,
-                          name: user.name,
-                          email: user.email,
+                          ...session.user,
+                          name: updatedUser.name,
+                          email: updatedUser.email,
                         },
                       })
                     }}
                   />
                 }
               />
-              <Route
-                path="*"
-                element={<FilesScreen accessToken={token.access_token} />}
-              />
+              <Route path="*" element={<FilesScreen />} />
             </Routes>
           </Suspense>
         </div>
@@ -132,9 +123,11 @@ function AuthPage({ children }: { children: ReactNode }) {
 }
 
 function SignedOutRoutes({
+  initialError,
   onLogin,
 }: {
-  onLogin: (token: StoredToken) => void
+  initialError?: string | null
+  onLogin: (session: StoredSession) => void
 }) {
   return (
     <Suspense fallback={<LoadingFallback />}>
@@ -145,7 +138,8 @@ function SignedOutRoutes({
             <AuthPage>
               <LoginForm
                 className="w-full max-w-4xl"
-                onLogin={(token) => onLogin(createStoredToken(token))}
+                initialError={initialError}
+                onLogin={(auth) => onLogin(createStoredSession(auth))}
               />
             </AuthPage>
           }
@@ -156,7 +150,8 @@ function SignedOutRoutes({
             <AuthPage>
               <SignupForm
                 className="w-full max-w-4xl"
-                onLogin={(token) => onLogin(createStoredToken(token))}
+                initialError={initialError}
+                onLogin={(auth) => onLogin(createStoredSession(auth))}
               />
             </AuthPage>
           }
@@ -168,60 +163,102 @@ function SignedOutRoutes({
 }
 
 export function App() {
-  const [token, setTokenState] = useState<StoredToken | null>(() =>
-    getUsableStoredToken(getStoredToken())
-  )
+  const [session, setSessionState] = useState<StoredSession | null>(null)
+  const [sessionReady, setSessionReady] = useState(() => !hasAuthSessionHint())
   const [isUnauthorized, setIsUnauthorized] = useState(false)
+  const [initialAuthError, setInitialAuthError] = useState<string | null>(null)
   const [redirectKey, setRedirectKey] = useState(0)
-  const displayUser = token ? getDisplayUser(token) : null
+  const displayUser = session?.user ?? null
 
-  const setToken = useCallback((nextToken: StoredToken | null) => {
-    setTokenState(getUsableStoredToken(nextToken))
+  const setSession = useCallback((nextSession: StoredSession | null) => {
+    setSessionState(nextSession)
   }, [])
 
   useEffect(() => {
-    if (token) {
-      persistStoredToken(token)
+    if (session) {
+      persistStoredSession(session)
     }
-  }, [token])
+  }, [session])
+
+  useEffect(() => {
+    if (!hasAuthSessionHint()) {
+      return
+    }
+
+    fetchMe()
+      .then((user) => {
+        setInitialAuthError(null)
+        const stored = getStoredSession()
+        const newSession: StoredSession = {
+          user: { id: user.id, name: user.name, email: user.email },
+          expires_in: stored?.expires_in ?? 3600,
+          issued_at: Date.now(),
+        }
+        setSession(newSession)
+        setSessionReady(true)
+      })
+      .catch((error) => {
+        setInitialAuthError(
+          error instanceof ApiError && error.status === 429
+            ? error.message
+            : null
+        )
+        clearStoredSession()
+        setSessionReady(true)
+      })
+  }, [setSession])
 
   useEffect(() => {
     setUnauthorizedCallback(() => {
-      clearStoredToken()
-      setToken(null)
-      setIsUnauthorized(true)
-      setRedirectKey((k) => k + 1)
+      const isOnAuthRoute = isAuthRoute(window.location.pathname)
+      clearStoredSession()
+      setSession(null)
+      setIsUnauthorized(!isOnAuthRoute)
+      if (!isOnAuthRoute) {
+        setRedirectKey((k) => k + 1)
+      }
     })
     return () => setUnauthorizedCallback(null)
-  }, [setToken])
+  }, [setSession])
 
   useEffect(() => {
-    setTokenRefreshCallback(async (expiredToken) => {
+    setTokenRefreshCallback(async () => {
       try {
-        const refreshedToken = createStoredToken(
-          await refreshAccessToken(expiredToken)
-        )
+        const auth = await refreshAccessToken()
+        const newSession = createStoredSession(auth)
         setIsUnauthorized(false)
-        setToken(refreshedToken)
-
-        return refreshedToken.access_token
+        setSession(newSession)
+        return true
       } catch {
-        return null
+        return false
       }
     })
 
     return () => setTokenRefreshCallback(null)
-  }, [setToken])
+  }, [setSession])
 
   const handleSignOut = () => {
-    clearStoredToken()
-    setToken(null)
+    clearStoredSession()
+    setSession(null)
     setIsUnauthorized(false)
+    logoutUser().catch(() => {})
   }
 
-  const handleLogin = (token: StoredToken) => {
+  const handleLogin = (newSession: StoredSession) => {
     setIsUnauthorized(false)
-    setToken(token)
+    setInitialAuthError(null)
+    setSession(newSession)
+  }
+
+  const handleSignIn = () => {
+    clearStoredSession()
+    setSession(null)
+    setIsUnauthorized(false)
+    setInitialAuthError(null)
+  }
+
+  if (!sessionReady) {
+    return <LoadingFallback />
   }
 
   return (
@@ -233,9 +270,8 @@ export function App() {
             element={
               <LinksProvider>
                 <SharedFilesScreen
-                  accessToken={token?.access_token}
                   user={displayUser ?? undefined}
-                  token={token ?? undefined}
+                  session={session ?? undefined}
                   onSignOut={handleSignOut}
                 />
               </LinksProvider>
@@ -244,21 +280,19 @@ export function App() {
           <Route
             path="/*"
             element={
-              token && displayUser ? (
+              session && displayUser ? (
                 <SignedInScreen
-                  token={token}
-                  displayUser={displayUser}
+                  session={session}
                   onSignOut={handleSignOut}
-                  onTokenUpdate={setToken}
+                  onSessionUpdate={setSession}
                 />
-              ) : token ? (
-                <Navigate to="/login" replace />
               ) : isUnauthorized ? (
-                <UnauthorizedErrorScreen
-                  onSignIn={() => setIsUnauthorized(false)}
-                />
+                <UnauthorizedErrorScreen onSignIn={handleSignIn} />
               ) : (
-                <SignedOutRoutes onLogin={handleLogin} />
+                <SignedOutRoutes
+                  initialError={initialAuthError}
+                  onLogin={handleLogin}
+                />
               )
             }
           />

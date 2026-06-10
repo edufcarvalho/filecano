@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import hashlib
+from collections.abc import Iterator
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -130,7 +133,7 @@ class LinkService(BaseService):
 
     return file, self.storage.download(file.preview_object_key)
 
-  def stream_response(self, response: BaseHTTPResponse):
+  def stream_response(self, response: BaseHTTPResponse) -> Iterator[bytes]:
     return self.storage.iter_response(response)
 
   def list_user_links(self, user: User, user_id: UUID) -> list[Link]:

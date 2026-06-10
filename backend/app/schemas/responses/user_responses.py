@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -16,6 +18,17 @@ class TokenResponse(BaseModel):
   access_token: str
   token_type: str
   expires_in: int
+
+  model_config = ConfigDict(from_attributes=True)
+
+
+class AuthResponse(BaseModel):
+  id: UUID
+  name: str
+  email: Email
+  expires_in: int
+  access_token: str
+  token_type: str
 
   model_config = ConfigDict(from_attributes=True)
 

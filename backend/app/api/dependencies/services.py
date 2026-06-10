@@ -4,12 +4,14 @@ from sqlmodel import Session
 from app.core import Settings, get_settings
 from app.db import get_session
 from app.repositories import (
+  ArchiveRepository,
   FileRepository,
   FolderRepository,
   LinkRepository,
   UserRepository,
 )
 from app.services import (
+  ArchiveService,
   AuthService,
   FileService,
   FileStorageService,
@@ -46,13 +48,34 @@ def get_file_service(
   return FileService(repository, folder_repository, storage_service, settings)
 
 
+def get_archive_repository(
+  session: Session = Depends(get_session), settings: Settings = Depends(get_settings)
+) -> ArchiveRepository:
+  return ArchiveRepository(session, settings)
+
+
+def get_archive_service(
+  repository: ArchiveRepository = Depends(get_archive_repository),
+  file_repository: FileRepository = Depends(get_file_repository),
+  folder_repository: FolderRepository = Depends(get_folder_repository),
+  storage_service: FileStorageService = Depends(get_file_storage_service),
+  settings: Settings = Depends(get_settings),
+) -> ArchiveService:
+  return ArchiveService(
+    repository, file_repository, folder_repository, storage_service, settings
+  )
+
+
 def get_folder_service(
   repository: FolderRepository = Depends(get_folder_repository),
   file_repository: FileRepository = Depends(get_file_repository),
   file_service: FileService = Depends(get_file_service),
+  archive_service: ArchiveService = Depends(get_archive_service),
   storage_service: FileStorageService = Depends(get_file_storage_service),
 ) -> FolderService:
-  return FolderService(repository, file_repository, file_service, storage_service)
+  return FolderService(
+    repository, file_repository, file_service, archive_service, storage_service
+  )
 
 
 def get_link_repository(

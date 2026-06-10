@@ -3,7 +3,9 @@ import { renderHook, act } from "@testing-library/react"
 import { useIsMobile, getInitialIsMobile } from "@/hooks/use-mobile"
 
 describe("useIsMobile", () => {
-  let matchMediaMock: ReturnType<typeof vi.fn<(query: string) => MediaQueryList>>
+  let matchMediaMock: ReturnType<
+    typeof vi.fn<(query: string) => MediaQueryList>
+  >
   let listeners: Array<(e: { matches: boolean }) => void>
 
   beforeEach(() => {

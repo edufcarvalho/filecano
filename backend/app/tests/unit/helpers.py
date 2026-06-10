@@ -16,6 +16,7 @@ _test_settings = Settings(
   jwt_secret_key="test-key",
   max_file_size_bytes=104857600,
   data_retention_policy=45,
+  archive_retention_policy=15,
   _env_file=None,
 )
 
@@ -79,16 +80,20 @@ def _get_test_engine():
     db_name = test_url.database
     admin_url = test_url.set(database="template1")
 
-    admin_engine = sa_create_engine(admin_url, isolation_level="AUTOCOMMIT")
+    admin_engine = sa_create_engine(
+      admin_url, isolation_level="AUTOCOMMIT", connect_args={"connect_timeout": 10}
+    )
     try:
-      with admin_engine.connect() as conn:
-        conn.execute(text(f"CREATE DATABASE {db_name}"))
+      with admin_engine.connect() as conn:  
+        conn.execute(text(f"SELECT 'CREATE DATABASE {db_name}' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '{db_name}')"))
     except ProgrammingError:
       pass
     finally:
       admin_engine.dispose()
 
-    _engine = create_engine(TEST_DATABASE_URL, echo=False)
+    _engine = create_engine(
+      TEST_DATABASE_URL, echo=False, connect_args={"connect_timeout": 10}
+    )
 
     with _engine.connect() as conn:
       conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))

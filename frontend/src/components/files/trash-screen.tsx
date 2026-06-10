@@ -4,6 +4,10 @@ import { FileList } from "@files/file-list"
 import { ErrorField } from "@misc/status-field"
 import { PageWrapper } from "@misc/page-wrapper"
 import {
+  bulkDeleteFiles,
+  bulkDeleteFolders,
+  bulkRestoreFiles,
+  bulkRestoreFolders,
   deleteFile,
   deleteFolder,
   fetchFilePreviewAsDataUrl,
@@ -26,22 +30,17 @@ import {
 import { loadPreviewUrls } from "@/lib/file-preview"
 import { useFileSelection } from "@/hooks/use-file-selection"
 
-type TrashScreenProps = {
-  accessToken: string
-}
-
 let deletedFilesRequest: {
-  accessToken: string
   promise: ReturnType<typeof listFolderedFiles>
 } | null = null
 
-function loadDeletedFiles(accessToken: string) {
-  if (deletedFilesRequest?.accessToken === accessToken) {
+function loadDeletedFiles() {
+  if (deletedFilesRequest) {
     return deletedFilesRequest.promise
   }
 
-  const promise = listFolderedFiles(accessToken, { deleted: true })
-  deletedFilesRequest = { accessToken, promise }
+  const promise = listFolderedFiles({ deleted: true })
+  deletedFilesRequest = { promise }
 
   const clearRequest = () => {
     if (deletedFilesRequest?.promise === promise) {
@@ -54,7 +53,7 @@ function loadDeletedFiles(accessToken: string) {
   return promise
 }
 
-export function TrashScreen({ accessToken }: TrashScreenProps) {
+export function TrashScreen() {
   const { t } = useTranslation()
   const [files, setFiles] = useState<FileResponse[]>([])
   const [folders, setFolders] = useState<FolderResponse[]>([])
@@ -89,12 +88,12 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
     ) => {
       await loadPreviewUrls(
         filesToPreview,
-        (file) => fetchFilePreviewAsDataUrl(accessToken, file.id),
+        (file) => fetchFilePreviewAsDataUrl(file.id),
         setPreviewUrls,
         isCurrent
       )
     },
-    [accessToken]
+    []
   )
 
   const applyLoadedData = useCallback(
@@ -141,7 +140,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
     setIsLoading(true)
 
     try {
-      const data = await loadDeletedFiles(accessToken)
+      const data = await loadDeletedFiles()
       await applyLoadedData(data.folders, data.other_files ?? [], isCurrent)
     } catch (error) {
       if (!isCurrent()) return
@@ -149,7 +148,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
     } finally {
       if (isCurrent()) setIsLoading(false)
     }
-  }, [accessToken, applyLoadedData, t])
+  }, [applyLoadedData, t])
 
   const removeItems = useCallback(
     (fileIds: Set<string>, folderIds: Set<string>) => {
@@ -189,7 +188,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
 
     async function loadInitialData() {
       try {
-        const data = await loadDeletedFiles(accessToken)
+        const data = await loadDeletedFiles()
         await applyLoadedData(data.folders, data.other_files ?? [], () => isCurrent)
       } catch (error) {
         if (!isCurrent) return
@@ -204,7 +203,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
     return () => {
       isCurrent = false
     }
-  }, [accessToken, applyLoadedData, t])
+  }, [applyLoadedData, t])
 
   const selectAll = useCallback(() => {
     const allFiles = [
@@ -251,7 +250,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
       setPendingFileId(`permanent-delete-${file.id}`)
 
       try {
-        await deleteFile(accessToken, file.id, { permanent: true })
+        await deleteFile(file.id, { permanent: true })
         setFiles((current) => current.filter((f) => f.id !== file.id))
         setSelectedFileIds((current) => {
           const next = new Set(current)
@@ -264,7 +263,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
         setPendingFileId(null)
       }
     },
-    [accessToken, setSelectedFileIds, t]
+    [setSelectedFileIds, t]
   )
 
   const handleRestore = useCallback(
@@ -273,7 +272,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
       setPendingFileId(`restore-${file.id}`)
 
       try {
-        await restoreFile(accessToken, file.id)
+        await restoreFile(file.id)
         setFiles((current) => current.filter((f) => f.id !== file.id))
         setSelectedFileIds((current) => {
           const next = new Set(current)
@@ -286,7 +285,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
         setPendingFileId(null)
       }
     },
-    [accessToken, setSelectedFileIds, t]
+    [setSelectedFileIds, t]
   )
 
   const handleRestoreFolder = useCallback(
@@ -295,7 +294,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
       setPendingFileId(`restore-${folder.id}`)
 
       try {
-        await restoreFolder(accessToken, folder.id)
+        await restoreFolder(folder.id)
         setFolders((current) => current.filter((f) => f.id !== folder.id))
         setSelectedFolderIds((current) => {
           const next = new Set(current)
@@ -308,7 +307,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
         setPendingFileId(null)
       }
     },
-    [accessToken, setSelectedFolderIds, t]
+    [setSelectedFolderIds, t]
   )
 
   const handlePermanentDeleteFolder = useCallback(
@@ -317,7 +316,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
       setPendingFileId(`permanent-delete-${folder.id}`)
 
       try {
-        await deleteFolder(accessToken, folder.id, { permanent: true })
+        await deleteFolder(folder.id, { permanent: true })
         setFolders((current) => current.filter((f) => f.id !== folder.id))
         setSelectedFolderIds((current) => {
           const next = new Set(current)
@@ -330,7 +329,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
         setPendingFileId(null)
       }
     },
-    [accessToken, setSelectedFolderIds, t]
+    [setSelectedFolderIds, t]
   )
 
   const handleBulkPermanentDelete = useCallback(async () => {
@@ -358,14 +357,10 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
     setPendingFileId("bulk-permanent-delete")
 
     try {
-      const fileDeletions = fileIds.map((fileId) =>
-        deleteFile(accessToken, fileId, { permanent: true })
-      )
-      const folderDeletions = folderIds.map((folderId) =>
-        deleteFolder(accessToken, folderId, { permanent: true })
-      )
-
-      await Promise.all([...fileDeletions, ...folderDeletions])
+      const deletions: Promise<void>[] = []
+      if (fileIds.length > 0) deletions.push(bulkDeleteFiles(fileIds, { permanent: true }))
+      if (folderIds.length > 0) deletions.push(bulkDeleteFolders(folderIds, { permanent: true }))
+      await Promise.all(deletions)
       removeItems(fileIdSet, folderIdSet)
     } catch (error) {
       setError(
@@ -374,7 +369,7 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
     } finally {
       setPendingFileId(null)
     }
-  }, [accessToken, files, folders, t, removeItems])
+  }, [files, folders, t, removeItems])
 
   const handleBulkRestore = useCallback(async () => {
     const selectedFileIds = selectedFileIdsRef.current
@@ -401,21 +396,17 @@ export function TrashScreen({ accessToken }: TrashScreenProps) {
     setPendingFileId("bulk-restore")
 
     try {
-      const fileRestores = fileIds.map((fileId) =>
-        restoreFile(accessToken, fileId)
-      )
-      const folderRestores = folderIds.map((folderId) =>
-        restoreFolder(accessToken, folderId)
-      )
-
-      await Promise.all([...fileRestores, ...folderRestores])
+      const restores: Promise<void>[] = []
+      if (fileIds.length > 0) restores.push(bulkRestoreFiles(fileIds))
+      if (folderIds.length > 0) restores.push(bulkRestoreFolders(folderIds))
+      await Promise.all(restores)
       removeItems(fileIdSet, folderIdSet)
     } catch (error) {
       setError(getErrorMessage(error, t("files.error.restoreFiles")))
     } finally {
       setPendingFileId(null)
     }
-  }, [accessToken, files, folders, t, removeItems])
+  }, [files, folders, t, removeItems])
 
   const handleRefresh = useCallback(() => {
     loadData()

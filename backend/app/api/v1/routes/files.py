@@ -5,16 +5,20 @@ from fastapi import APIRouter, Body, Depends, File, Form, Header, UploadFile, st
 from fastapi.responses import StreamingResponse
 
 from app.api.dependencies import get_current_user, get_file_service
+from app.api.dependencies.services import get_archive_service
 from app.core import FileTooLargeError, NotFoundError, Settings, get_settings
 from app.models import User
 from app.schemas import (
+  BulkParams,
   FileListParams,
   FileResponse,
   FileUpdateParams,
   FolderWithFilesResponse,
 )
 from app.services import FileService as Service
+from app.services.archive_service import ArchiveService
 from app.utils.file import GB_SCALE
+from app.utils.time import current_datetime
 
 router = APIRouter(prefix="/files", tags=["files"])
 
@@ -130,3 +134,47 @@ def delete_file(
   service: Service = Depends(get_file_service),
 ) -> None:
   service.delete_file(current_user, file_id, permanent)
+
+
+@router.post("/delete/bulk/", status_code=status.HTTP_204_NO_CONTENT)
+def bulk_delete_files(
+  params: Annotated[BulkParams, Body()],
+  permanent: bool = False,
+  current_user: User = Depends(get_current_user),
+  service: Service = Depends(get_file_service),
+) -> None:
+  service.delete_files(current_user, params.ids, permanent)
+
+
+@router.post("/restore/bulk", status_code=status.HTTP_204_NO_CONTENT)
+def bulk_restore_files(
+  params: Annotated[BulkParams, Body()],
+  current_user: User = Depends(get_current_user),
+  service: Service = Depends(get_file_service),
+) -> None:
+  service.restore_files(current_user, params.ids)
+
+
+@router.post("/download/bulk")
+def bulk_download_files(
+  params: Annotated[BulkParams, Body()],
+  current_user: User = Depends(get_current_user),
+  archive_service: ArchiveService = Depends(get_archive_service),
+) -> StreamingResponse:
+  archive = archive_service.get_or_create_archive(current_user, params.ids)
+  response = archive_service.get_archive_download(archive)
+
+  filename = f"filecano-{current_datetime().strftime('%Y%m%d%H%M%S')}.zip"
+
+  headers = {
+    "Content-Disposition": f"attachment; filename*=UTF-8''{filename}",
+  }
+
+  if archive.compressed_size_bytes is not None:
+    headers["Content-Length"] = str(archive.compressed_size_bytes)
+
+  return StreamingResponse(
+    archive_service.stream_response(response),
+    media_type="application/zip",
+    headers=headers,
+  )

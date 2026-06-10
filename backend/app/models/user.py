@@ -7,6 +7,7 @@ from sqlmodel import DateTime, Field, Relationship, SQLModel
 from uuid6 import uuid7
 
 if TYPE_CHECKING:
+  from app.models.archive import Archive
   from app.models.file import File
   from app.models.folder import Folder
   from app.models.link import Link
@@ -35,3 +36,4 @@ class User(SQLModel, table=True):
   files: list["File"] = Relationship(back_populates="user")
   links: list["Link"] = Relationship(back_populates="user")
   folders: list["Folder"] = Relationship(back_populates="user")
+  archives: list["Archive"] = Relationship(back_populates="user")

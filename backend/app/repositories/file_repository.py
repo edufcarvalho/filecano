@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Optional
 from uuid import UUID
 
@@ -162,7 +164,7 @@ class FileRepository(BaseRepository[File]):
 
   def get_deleted_file_by_checksum_and_user(
     self, checksum: str, display_name: str, user_id: UUID
-  ) -> File:
+  ) -> Optional[File]:
     query = select(File).where(
       File.user_id == user_id,
       File.checksum == checksum,
@@ -204,6 +206,14 @@ class FileRepository(BaseRepository[File]):
     self.refresh(file)
 
     return file
+
+  def list_by_folder_ids(self, folder_ids: list[UUID]) -> list[File]:
+    query = select(File).where(
+      File.parent_id.in_(folder_ids),
+      File.deleted_at.is_(None),
+    )
+
+    return self.session.exec(query).all()
 
   def restore_by_folder(self, folder_id: UUID) -> None:
     self.restore_by_parent(folder_id)

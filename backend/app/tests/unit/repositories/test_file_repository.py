@@ -379,6 +379,30 @@ class TestFileRepository(DatabaseTestCase):
     result = self.repo.list_folder_orphans_by_user(self.user.id)
     self.assertEqual(result, [], "should return empty list for no orphans")
 
+  def test_list_by_folder_ids_returns_files_for_folders(self):
+    """list_by_folder_ids should return non-deleted files belonging to given folders."""
+    folder1 = self._create_folder(self.user.id, name="Folder1")
+    folder2 = self._create_folder(self.user.id, name="Folder2")
+    self._create_file(
+      self.user.id, display_name="f1.txt", original_name="f1.txt", folder_id=folder1.id
+    )
+    self._create_file(
+      self.user.id, display_name="f2.txt", original_name="f2.txt", folder_id=folder2.id
+    )
+    f3 = self._create_file(
+      self.user.id, display_name="f3.txt", original_name="f3.txt", folder_id=folder1.id
+    )
+    f3.deleted_at = f3.created_at
+    self.session.add(f3)
+    self.session.commit()
+
+    result = self.repo.list_by_folder_ids([folder1.id, folder2.id])
+    self.assertEqual(len(result), 2, "should return only non-deleted files")
+    file_names = {f.display_name for f in result}
+    self.assertIn("f1.txt", file_names)
+    self.assertIn("f2.txt", file_names)
+    self.assertNotIn("f3.txt", file_names)
+
 
 class TestFileModel(unittest.TestCase):
   def test_folder_id_setter_updates_parent_id(self):

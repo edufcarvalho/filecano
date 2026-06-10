@@ -44,23 +44,27 @@ class TestAuthDependencies(unittest.TestCase):
 
   def test_get_current_user_without_credentials(self):
     """get_current_user should raise when no credentials are provided."""
+    mock_request = MagicMock()
+    mock_request.cookies = {}
     with self.assertRaises(
       AuthenticationError, msg="no credentials should raise AuthenticationError"
     ) as ctx:
-      get_current_user(credentials=None, auth_service=self.mock_auth)
-    self.assertEqual(ctx.exception.detail, "Authorization header is required")
+      get_current_user(mock_request, credentials=None, auth_service=self.mock_auth)
+    self.assertEqual(ctx.exception.detail, "Authorization is required")
     self.mock_auth.authenticate_token.assert_not_called()
 
   def test_get_current_user_catches_authentication_error_from_service(self):
     """get_current_user should raise new AuthenticationError when service raises."""
     self.mock_auth.authenticate_token.side_effect = AuthenticationError("bad token")
+    mock_request = MagicMock()
+    mock_request.cookies = {}
     mock_cred = MagicMock()
     mock_cred.credentials = "bad.token.value"
 
     with self.assertRaises(
       AuthenticationError, msg="should raise AuthenticationError from service"
     ) as ctx:
-      get_current_user(credentials=mock_cred, auth_service=self.mock_auth)
+      get_current_user(mock_request, credentials=mock_cred, auth_service=self.mock_auth)
     self.assertIn("bad token", ctx.exception.detail)
     self.mock_auth.authenticate_token.assert_called_once_with("bad.token.value")
 

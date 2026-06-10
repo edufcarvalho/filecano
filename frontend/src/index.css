@@ -157,7 +157,7 @@
 
 @layer components {
   .page-wrapper {
-    @apply flex min-h-full w-full flex-col gap-4 overflow-y-auto bg-muted/40 p-4;
+    @apply flex flex-1 w-full flex-col gap-4 overflow-y-auto bg-muted/40 p-4;
   }
 
   .page-center-wrapper {
@@ -174,14 +174,14 @@
     --empty-text-size: 1.15rem;
   }
 
-  @container size(min-width: 20rem) {
+  @container (min-width: 20rem) {
     .empty-state-base {
       --empty-icon-size: 4rem;
       --empty-text-size: 1.3rem;
     }
   }
 
-  @container size(min-width: 32rem) {
+  @container (min-width: 32rem) {
     .empty-state-base {
       --empty-icon-size: 5rem;
       --empty-text-size: 1.5rem;
@@ -428,6 +428,10 @@
 
   .upload-progress-bar-error {
     @apply bg-destructive;
+  }
+
+  .upload-progress-bar-animated {
+    @apply w-full animate-pulse bg-primary/50;
   }
 
   .search-form-base {

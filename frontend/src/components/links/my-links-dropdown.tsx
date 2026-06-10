@@ -43,7 +43,6 @@ import { useTranslation } from "@/i18n"
 import { getErrorMessage } from "@/lib/errors"
 
 type MyLinksDropdownProps = {
-  accessToken?: string
   userId?: string
 }
 
@@ -55,7 +54,7 @@ function isLinkExpired(expiresAt: string): boolean {
   return new Date(expiresAt) <= new Date()
 }
 
-export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
+export function MyLinksDropdown({ userId }: MyLinksDropdownProps) {
   const { links, setLinks } = useLinks()
   const { t } = useTranslation()
   const [loading, setLoading] = useState(false)
@@ -75,19 +74,19 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
   )
 
   const loadLinks = useCallback(async () => {
-    if (!accessToken || !userId) return
+    if (!userId) return
 
     setLoading(true)
     setError(null)
     try {
-      const data = await listUserLinks(accessToken, userId)
+      const data = await listUserLinks(userId)
       setLinks(data)
     } catch (err) {
       setError(getErrorMessage(err, t("links.loadError")))
     } finally {
       setLoading(false)
     }
-  }, [accessToken, userId, setLinks, t])
+  }, [userId, setLinks, t])
 
   const didFetchLinksRef = useRef(false)
   const handleOpenChange = useCallback((open: boolean) => {
@@ -207,7 +206,7 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
   }
 
   const handleSaveEdit = async () => {
-    if (!editingToken || !accessToken) return
+    if (!editingToken) return
 
     const trimmedName = editName.trim()
 
@@ -229,7 +228,7 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
 
     try {
       setError(null)
-      await updateLinkName(accessToken, editingToken, trimmedName)
+      await updateLinkName(editingToken, trimmedName)
       handleCancelEdit()
       setLinks((prev) =>
         prev.map((link) =>
@@ -248,11 +247,10 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
   }
 
   const handleDelete = async (token: string) => {
-    if (!accessToken) return
     if (!confirm(t("links.deleteConfirm"))) return
 
     try {
-      await deleteLink(accessToken, token)
+      await deleteLink(token)
       setLinks((prev: LinkResponse[]) => prev.filter((link) => link.token !== token))
     } catch (err) {
       setError(getErrorMessage(err, t("links.deleteError")))
@@ -260,18 +258,16 @@ export function MyLinksDropdown({ accessToken, userId }: MyLinksDropdownProps) {
   }
 
   const handleRestore = (token: string) => {
-    if (!accessToken) return
     setPendingRestoreToken(token)
     setShowRestoreDialog(true)
   }
 
   const executeRestore = async (expiration: LinkExpiration) => {
     const token = pendingRestoreToken
-    if (!token || !accessToken) return
+    if (!token) return
 
     try {
       const result = await restoreLink(
-        accessToken,
         token,
         resolveExpiresAt(expiration)
       )

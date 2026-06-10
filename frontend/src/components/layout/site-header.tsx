@@ -42,7 +42,7 @@ const MyLinksDropdown = lazy(() =>
   }))
 )
 
-import type { StoredToken } from "@/lib/session"
+import type { StoredSession } from "@/lib/session"
 
 type SiteHeaderUser = {
   name: string
@@ -52,7 +52,8 @@ type SiteHeaderUser = {
 type SiteHeaderProps = {
   pageTitle?: string
   user?: SiteHeaderUser
-  token?: StoredToken
+  session?: StoredSession
+  onSignIn?: () => void
   onSignOut?: () => void
 }
 
@@ -71,7 +72,8 @@ function getInitials(name: string) {
 export function SiteHeader({
   pageTitle,
   user,
-  token,
+  session,
+  onSignIn,
   onSignOut,
 }: SiteHeaderProps) {
   const { t } = useTranslation()
@@ -105,10 +107,7 @@ export function SiteHeader({
         <div className="min-w-2 flex-1" />
         {user ? (
           <Suspense fallback={null}>
-            <MyLinksDropdown
-              accessToken={token?.access_token}
-              userId={token?.user?.id}
-            />
+            <MyLinksDropdown userId={session?.user?.id} />
           </Suspense>
         ) : undefined}
         {!user ? <LanguageSwitcher className="shrink-0" /> : null}
@@ -116,17 +115,14 @@ export function SiteHeader({
         <div className="flex shrink-0 items-stretch">
           {!user ? (
             <Button asChild variant="outline" size="sm">
-              <Link to="/login" target="_blank" rel="noopener noreferrer">
+              <Link to="/login" onClick={onSignIn}>
                 {t("app.signIn")}
               </Link>
             </Button>
           ) : (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="user-menu-base"
-                >
+                <Button variant="ghost" className="user-menu-base">
                   <Avatar className="size-7 shrink-0 rounded-lg">
                     <AvatarFallback className="avatar-fallback-base text-xs">
                       {initials}
@@ -134,9 +130,7 @@ export function SiteHeader({
                   </Avatar>
                   <div className="user-menu-text">
                     <span className="user-menu-name">{user.name}</span>
-                    <span className="user-menu-email">
-                      {user.email}
-                    </span>
+                    <span className="user-menu-email">{user.email}</span>
                   </div>
                   <ChevronsUpDown className="hidden size-4 shrink-0 md:block" />
                 </Button>
@@ -172,10 +166,7 @@ export function SiteHeader({
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <a
-                      href="http://localhost:8000/docs"
-                      className="dropdown-menu-item-base"
-                    >
+                    <a href="/docs" className="dropdown-menu-item-base">
                       <BookOpenIcon className="button-icon-xs-base" />
                       {t("app.docs")}
                     </a>
@@ -183,8 +174,10 @@ export function SiteHeader({
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
-                  <DropdownMenuItem onSelect={() => setLanguageDialogOpen(true)}>
-                    <GlobeIcon className="button-icon-xs-base pr-0 mr-0" />
+                  <DropdownMenuItem
+                    onSelect={() => setLanguageDialogOpen(true)}
+                  >
+                    <GlobeIcon className="button-icon-xs-base mr-0 pr-0" />
                     {t("app.selectLanguage")}
                   </DropdownMenuItem>
                 </DropdownMenuGroup>

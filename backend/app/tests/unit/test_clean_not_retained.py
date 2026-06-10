@@ -94,11 +94,13 @@ class TestFolderRetentionPolicy(DatabaseTestCase):
     self.folder_repo = FolderRepository(self.session, settings)
     self.file_repo = FileRepository(self.session, settings)
     self.storage = MagicMock()
+    self.archive_service = MagicMock()
     self.file_service = MagicMock()
     self.service = FolderService(
       self.folder_repo,
       self.file_repo,
       self.file_service,
+      self.archive_service,
       self.storage,
     )
     self.user = self._create_user(email="retain-folder@test.com")
@@ -229,30 +231,64 @@ class TestCeleryTaskRegistration(unittest.TestCase):
     )
 
   def test_task_orchestrates_all_services(self):
-    """enforce_retention_policies should call enforce_retention_policy on all services."""
+    mock_session = MagicMock()
     mock_user_service = MagicMock()
     mock_link_service = MagicMock()
     mock_folder_service = MagicMock()
     mock_file_service = MagicMock()
+    mock_archive_service = MagicMock()
+    mock_session = MagicMock()
+    mock_session_context = MagicMock()
+    mock_session_context.__enter__.return_value = mock_session
 
     with (
+      patch("app.tasks.clean_not_retained.Session", return_value=mock_session),
       patch(
-        "app.tasks.clean_not_retained.get_user_service",
+        "app.tasks.clean_not_retained.Session",
+        return_value=mock_session_context,
+      ),
+      patch(
+        "app.tasks.clean_not_retained.UserRepository",
+      ),
+      patch(
+        "app.tasks.clean_not_retained.FileRepository",
+      ),
+      patch(
+        "app.tasks.clean_not_retained.FolderRepository",
+      ),
+      patch(
+        "app.tasks.clean_not_retained.LinkRepository",
+      ),
+      patch(
+        "app.tasks.clean_not_retained.ArchiveRepository",
+      ),
+      patch(
+        "app.tasks.clean_not_retained.FileStorageService",
+      ),
+      patch(
+        "app.tasks.clean_not_retained.UserService",
         return_value=mock_user_service,
       ),
       patch(
-        "app.tasks.clean_not_retained.get_link_service",
+        "app.tasks.clean_not_retained.LinkService",
         return_value=mock_link_service,
       ),
       patch(
-        "app.tasks.clean_not_retained.get_folder_service",
+        "app.tasks.clean_not_retained.FolderService",
         return_value=mock_folder_service,
       ),
       patch(
-        "app.tasks.clean_not_retained.get_file_service",
+        "app.tasks.clean_not_retained.FileService",
         return_value=mock_file_service,
       ),
+      patch(
+        "app.tasks.clean_not_retained.ArchiveService",
+        return_value=mock_archive_service,
+      ),
     ):
+      mock_session.__enter__ = MagicMock(return_value=mock_session)
+      mock_session.__exit__ = MagicMock(return_value=None)
+
       from app.tasks.clean_not_retained import enforce_retention_policies
 
       enforce_retention_policies()
@@ -261,6 +297,127 @@ class TestCeleryTaskRegistration(unittest.TestCase):
     mock_link_service.enforce_retention_policy.assert_called_once()
     mock_folder_service.enforce_retention_policy.assert_called_once()
     mock_file_service.enforce_retention_policy.assert_called_once()
+    mock_archive_service.enforce_retention_policy.assert_called_once()
+    mock_session.commit.assert_called_once()
+
+  def test_task_rolls_back_on_error(self):
+    mock_session = MagicMock()
+    mock_user_service = MagicMock()
+    mock_user_service.enforce_retention_policy.side_effect = ValueError("db error")
+
+    with (
+      patch("app.tasks.clean_not_retained.Session", return_value=mock_session),
+      patch(
+        "app.tasks.clean_not_retained.get_settings",
+        return_value=MagicMock(),
+      ),
+      patch(
+        "app.tasks.clean_not_retained.UserRepository",
+        return_value=MagicMock(),
+      ),
+      patch(
+        "app.tasks.clean_not_retained.FileRepository",
+        return_value=MagicMock(),
+      ),
+      patch(
+        "app.tasks.clean_not_retained.FolderRepository",
+        return_value=MagicMock(),
+      ),
+      patch(
+        "app.tasks.clean_not_retained.LinkRepository",
+        return_value=MagicMock(),
+      ),
+      patch(
+        "app.tasks.clean_not_retained.FileStorageService",
+        return_value=MagicMock(),
+      ),
+      patch(
+        "app.tasks.clean_not_retained.FileService",
+        return_value=MagicMock(),
+      ),
+      patch(
+        "app.tasks.clean_not_retained.FolderService",
+        return_value=MagicMock(),
+      ),
+      patch(
+        "app.tasks.clean_not_retained.LinkService",
+        return_value=MagicMock(),
+      ),
+      patch(
+        "app.tasks.clean_not_retained.UserService",
+        return_value=mock_user_service,
+      ),
+    ):
+      mock_session.__enter__ = MagicMock(return_value=mock_session)
+      mock_session.__exit__ = MagicMock(return_value=None)
+
+      from app.tasks.clean_not_retained import enforce_retention_policies
+
+      with self.assertRaises(ValueError):
+        enforce_retention_policies()
+
+    mock_session.rollback.assert_called_once()
+
+  def test_task_rolls_back_and_reraises_when_service_fails(self):
+    mock_user_service = MagicMock()
+    mock_link_service = MagicMock()
+    mock_link_service.enforce_retention_policy.side_effect = RuntimeError(
+      "retention failed"
+    )
+    mock_folder_service = MagicMock()
+    mock_file_service = MagicMock()
+    mock_session = MagicMock()
+    mock_session_context = MagicMock()
+    mock_session_context.__enter__.return_value = mock_session
+
+    with (
+      patch(
+        "app.tasks.clean_not_retained.Session",
+        return_value=mock_session_context,
+      ),
+      patch(
+        "app.tasks.clean_not_retained.UserRepository",
+      ),
+      patch(
+        "app.tasks.clean_not_retained.FileRepository",
+      ),
+      patch(
+        "app.tasks.clean_not_retained.FolderRepository",
+      ),
+      patch(
+        "app.tasks.clean_not_retained.LinkRepository",
+      ),
+      patch(
+        "app.tasks.clean_not_retained.FileStorageService",
+      ),
+      patch(
+        "app.tasks.clean_not_retained.UserService",
+        return_value=mock_user_service,
+      ),
+      patch(
+        "app.tasks.clean_not_retained.LinkService",
+        return_value=mock_link_service,
+      ),
+      patch(
+        "app.tasks.clean_not_retained.FolderService",
+        return_value=mock_folder_service,
+      ),
+      patch(
+        "app.tasks.clean_not_retained.FileService",
+        return_value=mock_file_service,
+      ),
+    ):
+      from app.tasks.clean_not_retained import enforce_retention_policies
+
+      with self.assertRaisesRegex(RuntimeError, "retention failed"):
+        enforce_retention_policies()
+
+    mock_user_service.enforce_retention_policy.assert_called_once()
+    mock_link_service.enforce_retention_policy.assert_called_once()
+    mock_folder_service.enforce_retention_policy.assert_not_called()
+    mock_file_service.enforce_retention_policy.assert_not_called()
+    mock_session.rollback.assert_called_once()
+    mock_session.commit.assert_not_called()
 
 
 if __name__ == "__main__":

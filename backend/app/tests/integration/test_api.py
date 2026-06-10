@@ -1,5 +1,6 @@
 import unittest
 from io import BytesIO
+from unittest.mock import MagicMock
 
 from app.tests.integration.helpers import ApiTestCase
 
@@ -149,6 +150,43 @@ class TestUserEndpoints(ApiTestCase):
     )
     self.assertEqual(resp.status_code, 200, "user update should return 200")
     self.assertEqual(resp.json()["name"], "Updated Name", "name should be updated")
+
+  def test_get_me(self):
+    """GET /api/v1/users/me should return current user info."""
+    token = self._register_and_login(email="metest@test.com")
+    resp = self.client.get(
+      "/api/v1/users/me",
+      headers=self._auth_headers(token),
+    )
+    self.assertEqual(resp.status_code, 200, "get me should return 200")
+    data = resp.json()
+    self.assertEqual(data["email"], "metest@test.com", "email should match")
+
+  def test_get_me_without_auth(self):
+    """GET /api/v1/users/me should reject without auth."""
+    self.client.cookies.clear()
+    resp = self.client.get("/api/v1/users/me")
+    self.assertEqual(resp.status_code, 401, "missing auth should return 401")
+
+  def test_logout(self):
+    """POST /api/v1/users/logout should clear auth cookie."""
+    token = self._register_and_login(email="logouttest@test.com")
+    resp = self.client.post(
+      "/api/v1/users/logout",
+      headers=self._auth_headers(token),
+    )
+    self.assertEqual(resp.status_code, 204, "logout should return 204")
+
+  def test_refresh_token_with_header_only(self):
+    """POST /api/v1/users/token/refresh should work with header when no cookie."""
+    token = self._register_and_login(email="refreshhead@test.com")
+    self.client.cookies.clear()
+    resp = self.client.post(
+      "/api/v1/users/token/refresh",
+      headers=self._auth_headers(token),
+    )
+    self.assertEqual(resp.status_code, 200, "header-only refresh should return 200")
+    self.assertIn("access_token", resp.json(), "refresh should return access_token")
 
 
 class TestFileEndpoints(ApiTestCase):
@@ -380,6 +418,68 @@ class TestFileEndpoints(ApiTestCase):
     self.assertIn("content-type", resp.headers)
     self.assertEqual(resp.headers["content-type"], "image/jpeg")
 
+  def test_bulk_delete_files(self):
+    """POST /api/v1/files/bulk/delete should soft-delete multiple files."""
+    id1 = self._upload_text_file("bulk1.txt")
+    id2 = self._upload_text_file("bulk2.txt")
+    resp = self.client.post(
+      "/api/v1/files/delete/bulk",
+      json={"ids": [id1, id2]},
+      headers=self._auth_headers(self.token),
+    )
+    self.assertEqual(resp.status_code, 204, "bulk delete files should return 204")
+
+  def test_bulk_delete_files_permanent(self):
+    """POST /api/v1/files/delete/bulk?permanent=true should hard-delete."""
+    id1 = self._upload_text_file("bulkperm1.txt")
+    id2 = self._upload_text_file("bulkperm2.txt")
+    resp = self.client.post(
+      "/api/v1/files/delete/bulk?permanent=true",
+      json={"ids": [id1, id2]},
+      headers=self._auth_headers(self.token),
+    )
+    self.assertEqual(resp.status_code, 204, "bulk permanent delete should return 204")
+
+  def test_bulk_restore_files(self):
+    """POST /api/v1/files/bulk/restore should restore multiple files."""
+    id1 = self._upload_text_file("bulkrestore1.txt")
+    id2 = self._upload_text_file("bulkrestore2.txt")
+    self.client.delete(f"/api/v1/files/{id1}", headers=self._auth_headers(self.token))
+    self.client.delete(f"/api/v1/files/{id2}", headers=self._auth_headers(self.token))
+    resp = self.client.post(
+      "/api/v1/files/restore/bulk",
+      json={"ids": [id1, id2]},
+      headers=self._auth_headers(self.token),
+    )
+    self.assertEqual(resp.status_code, 204, "bulk restore files should return 204")
+
+  def test_bulk_download_files(self):
+    """POST /api/v1/files/download/bulk should return a zip."""
+    mock_response = MagicMock()
+    mock_response.stream.return_value = [b"hello"]
+    mock_response.__enter__.return_value = mock_response
+    self.mock_storage.download.return_value = mock_response
+
+    id1 = self._upload_text_file("bdl1.txt")
+    id2 = self._upload_text_file("bdl2.txt")
+
+    resp = self.client.post(
+      "/api/v1/files/download/bulk",
+      json={"ids": [id1, id2]},
+      headers=self._auth_headers(self.token),
+    )
+    self.assertEqual(resp.status_code, 200, "bulk download should return 200")
+    self.assertIn("zip", resp.headers.get("content-type", ""))
+
+  def test_bulk_download_files_empty_ids(self):
+    """POST /api/v1/files/download/bulk with empty ids should return 404."""
+    resp = self.client.post(
+      "/api/v1/files/download/bulk",
+      json={"ids": []},
+      headers=self._auth_headers(self.token),
+    )
+    self.assertEqual(resp.status_code, 404, "empty ids bulk download should return 404")
+
 
 class TestFolderEndpoints(ApiTestCase):
   def setUp(self):
@@ -431,6 +531,7 @@ class TestFolderEndpoints(ApiTestCase):
 
   def test_create_folder_without_auth(self):
     """POST /api/v1/folders should reject without auth."""
+    self.client.cookies.clear()
     resp = self.client.post("/api/v1/folders", json={"name": "Folder"})
     self.assertEqual(resp.status_code, 401, "missing auth should return 401")
 
@@ -519,6 +620,78 @@ class TestFolderEndpoints(ApiTestCase):
       headers=self._auth_headers(self.token),
     )
     self.assertEqual(resp.status_code, 200, "restore folder should return 200")
+
+  def test_bulk_delete_folders(self):
+    """POST /api/v1/folders/delete/bulk should soft-delete multiple folders."""
+    fid1 = self._create_test_folder("BulkDel1")
+    fid2 = self._create_test_folder("BulkDel2")
+    resp = self.client.post(
+      "/api/v1/folders/delete/bulk",
+      json={"ids": [fid1, fid2]},
+      headers=self._auth_headers(self.token),
+    )
+    self.assertEqual(resp.status_code, 204, "bulk delete folders should return 204")
+
+  def test_bulk_delete_folders_permanent(self):
+    """POST /api/v1/folders/delete/bulk?permanent=true should hard-delete."""
+    fid1 = self._create_test_folder("BulkPerm1")
+    fid2 = self._create_test_folder("BulkPerm2")
+    resp = self.client.post(
+      "/api/v1/folders/delete/bulk?permanent=true",
+      json={"ids": [fid1, fid2]},
+      headers=self._auth_headers(self.token),
+    )
+    self.assertEqual(resp.status_code, 204, "bulk permanent delete should return 204")
+
+  def test_bulk_restore_folders(self):
+    """POST /api/v1/folders/restore/bulk should restore multiple folders."""
+    fid1 = self._create_test_folder("BulkRst1")
+    fid2 = self._create_test_folder("BulkRst2")
+    self.client.delete(
+      f"/api/v1/folders/{fid1}", headers=self._auth_headers(self.token)
+    )
+    self.client.delete(
+      f"/api/v1/folders/{fid2}", headers=self._auth_headers(self.token)
+    )
+    resp = self.client.post(
+      "/api/v1/folders/restore/bulk",
+      json={"ids": [fid1, fid2]},
+      headers=self._auth_headers(self.token),
+    )
+    self.assertEqual(resp.status_code, 204, "bulk restore folders should return 204")
+
+  def test_download_folder(self):
+    """GET /api/v1/folders/{id}/download should return a zip."""
+    mock_response = MagicMock()
+    mock_response.stream.return_value = [b"hello"]
+    mock_response.__enter__.return_value = mock_response
+    self.mock_storage.download.return_value = mock_response
+
+    fid = self._create_test_folder("DownloadMe")
+    self.client.post(
+      "/api/v1/files",
+      data={"folder_id": fid},
+      files={
+        "file": ("inside.txt", BytesIO(b"inside"), "text/plain"),
+      },
+      headers=self._auth_headers(self.token),
+    )
+
+    resp = self.client.get(
+      f"/api/v1/folders/{fid}/download",
+      headers=self._auth_headers(self.token),
+    )
+    self.assertEqual(resp.status_code, 200, "folder download should return 200")
+    self.assertIn("zip", resp.headers.get("content-type", ""))
+
+  def test_download_folder_empty(self):
+    """GET /api/v1/folders/{id}/download with empty folder should return 404."""
+    fid = self._create_test_folder("EmptyFolder")
+    resp = self.client.get(
+      f"/api/v1/folders/{fid}/download",
+      headers=self._auth_headers(self.token),
+    )
+    self.assertEqual(resp.status_code, 404, "empty folder download should return 404")
 
 
 class TestLinkEndpoints(ApiTestCase):
