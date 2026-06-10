@@ -84,8 +84,12 @@ def _get_test_engine():
       admin_url, isolation_level="AUTOCOMMIT", connect_args={"connect_timeout": 10}
     )
     try:
-      with admin_engine.connect() as conn:  
-        conn.execute(text(f"SELECT 'CREATE DATABASE {db_name}' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '{db_name}')"))
+      with admin_engine.connect() as conn:
+        conn.execute(
+          text(
+            f"SELECT 'CREATE DATABASE {db_name}' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '{db_name}')"
+          )
+        )
     except ProgrammingError:
       pass
     finally:

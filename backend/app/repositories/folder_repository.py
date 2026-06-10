@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
 from uuid import UUID
 
 from sqlalchemy.orm import aliased
@@ -143,11 +142,8 @@ class FolderRepository(BaseRepository[Folder]):
     return self.session.exec(query).one()
 
   def list_by_multiple_ids_and_user(
-    self, folder_ids: Optional[list[UUID]], user_id: UUID
+    self, folder_ids: list[UUID], user_id: UUID
   ) -> list[Folder]:
-    if not folder_ids:
-      return []
-
     query = select(Folder).where(
       Folder.id.in_(folder_ids),
       Folder.user_id == user_id,

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class LinkUpdateParams(BaseModel):
@@ -14,8 +14,8 @@ class LinkUpdateParams(BaseModel):
 
 
 class LinkCreateParams(BaseModel):
-  files: Optional[list[UUID]] = None
-  folders: Optional[list[UUID]] = None
+  files: list[UUID] = Field(default_factory=list)
+  folders: list[UUID] = Field(default_factory=list)
   expires_at: Optional[datetime] = None
 
   @model_validator(mode="after")
@@ -35,7 +35,7 @@ class LinkRestoreParams(BaseModel):
 
 
 class CloningParams(BaseModel):
-  files: Optional[list[UUID]] = None
-  folders: Optional[list[UUID]] = None
+  files: list[UUID] = []
+  folders: list[UUID] = []
 
   model_config = ConfigDict(from_attributes=True)

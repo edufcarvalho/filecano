@@ -42,14 +42,14 @@ class TestLinkCreateParams(unittest.TestCase):
     file_ids = [uuid4(), uuid4()]
     params = LinkCreateParams(files=file_ids)
     self.assertEqual(params.files, file_ids, "files should match input")
-    self.assertIsNone(params.folders, "folders should default to None")
+    self.assertEqual(params.folders, [], "folders should default to empty list")
 
   def test_valid_with_folders_only(self):
     """LinkCreateParams should accept only folders."""
     folder_ids = [uuid4()]
     params = LinkCreateParams(folders=folder_ids)
     self.assertEqual(params.folders, folder_ids, "folders should match input")
-    self.assertIsNone(params.files, "files should default to None")
+    self.assertEqual(params.files, [], "files should default to empty list")
 
   def test_valid_with_both(self):
     """LinkCreateParams should accept both files and folders."""
@@ -107,10 +107,10 @@ class TestLinkRestoreParams(unittest.TestCase):
 
 class TestCloningParams(unittest.TestCase):
   def test_defaults(self):
-    """CloningParams should default files and folders to None."""
+    """CloningParams should default files and folders to empty list."""
     params = CloningParams()
-    self.assertIsNone(params.files, "files should default to None")
-    self.assertIsNone(params.folders, "folders should default to None")
+    self.assertEqual(params.files, [], "files should default to empty list")
+    self.assertEqual(params.folders, [], "folders should default to empty list")
 
   def test_with_files(self):
     """CloningParams should accept files."""

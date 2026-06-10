@@ -18,9 +18,6 @@ class FileRepository(BaseRepository[File]):
   def list_by_multiple_ids_and_user(
     self, file_ids: list[UUID], user_id: UUID
   ) -> list[File]:
-    if not file_ids:
-      return []
-
     query = (
       select(File)
       .where(
@@ -80,9 +77,12 @@ class FileRepository(BaseRepository[File]):
   def list_by_link(
     self,
     link_id: UUID,
-    file_ids: Optional[list[UUID]] = None,
-    include_deleted: Optional[bool] = False,
+    file_ids: list[UUID] = None,
+    include_deleted: bool = False,
   ) -> list[File]:
+    if file_ids is None:
+      file_ids = []
+
     query = (
       select(File)
       .join(FileLinkRelation, FileLinkRelation.file_id == File.id)
@@ -93,7 +93,7 @@ class FileRepository(BaseRepository[File]):
     if not include_deleted:
       query = query.where(File.deleted_at.is_(None))
 
-    if file_ids is not None:
+    if file_ids:
       query = query.where(File.id.in_(file_ids))
 
     return self.session.exec(query).all()

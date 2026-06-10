@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from .file_responses import FileResponse
 from .folder_responses import FolderResponse
@@ -15,8 +15,8 @@ class LinkResponse(BaseModel):
   token: str
   custom_name: Optional[str] = None
   expires_at: datetime
-  files: Optional[list[FileResponse]] = None
-  folders: Optional[list[FolderResponse]] = None
+  files: list[FileResponse] = Field(default_factory=list)
+  folders: list[FolderResponse] = Field(default_factory=list)
 
   model_config = ConfigDict(from_attributes=True)
 
