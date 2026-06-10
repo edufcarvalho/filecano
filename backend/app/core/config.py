@@ -10,6 +10,7 @@ class Settings(BaseSettings):
 
   app_name: str = "Filecano API"
   database_url: str = "postgresql+psycopg://filecano:filecano@database:5432/filecano"
+  database_connect_timeout: int = 10
   minio_endpoint: str = "data:9000"
   minio_access_key: str = "minioadmin"
   minio_secret_key: str = "minioadmin"
