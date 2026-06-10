@@ -25,7 +25,8 @@ RUN uv sync --no-cache --no-dev
 COPY alembic.ini ./
 COPY migrations ./migrations
 COPY entrypoint.sh ./entrypoint.sh
-RUN chmod +x ./entrypoint.sh
+RUN sed -i 's/\r$//' ./entrypoint.sh \
+    && chmod +x ./entrypoint.sh
 
 ENV PATH="/app/.venv/bin:$PATH"
 
