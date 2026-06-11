@@ -2,7 +2,10 @@ import type { ComponentProps, DragEvent } from "react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import { FileList } from "@files/file-list"
-import { FileUploadDropzone, UploadActivityPanel } from "@files/file-upload-dropzone"
+import {
+  FileUploadDropzone,
+  UploadActivityPanel,
+} from "@files/file-upload-dropzone"
 import { ErrorField } from "@misc/status-field"
 import { PageWrapper } from "@misc/page-wrapper"
 import {
@@ -29,7 +32,10 @@ import { isPreviewSupportedFile } from "@/lib/file-display"
 import { LinkExpirationDialog } from "@/components/links/link-expiration-dialog"
 import { resolveExpiresAt, type LinkExpiration } from "@/lib/link-expiration"
 import { DownloadActivityPanel } from "@files/file-upload-dropzone"
-import { updateDownloadingItem, type DownloadingItem } from "@/lib/download-activity"
+import {
+  updateDownloadingItem,
+  type DownloadingItem,
+} from "@/lib/download-activity"
 import { useTranslation } from "@/i18n"
 import { getErrorMessage } from "@/lib/errors"
 import {
@@ -79,7 +85,6 @@ async function copyShareUrl(shareToken: string) {
   }
 }
 
-
 export function FilesScreen() {
   const { addLink } = useLinks()
   const { t } = useTranslation()
@@ -92,7 +97,8 @@ export function FilesScreen() {
   const [pendingFileId, setPendingFileId] = useState<string | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
   const [isUploadPanelCollapsed, setIsUploadPanelCollapsed] = useState(false)
-  const [isDownloadPanelCollapsed, setIsDownloadPanelCollapsed] = useState(false)
+  const [isDownloadPanelCollapsed, setIsDownloadPanelCollapsed] =
+    useState(false)
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([])
   const [downloadItems, setDownloadItems] = useState<DownloadingItem[]>([])
   const {
@@ -109,8 +115,12 @@ export function FilesScreen() {
   )
   const [movingFileIds, setMovingFileIds] = useState<Set<string>>(new Set())
   const [movingFolderIds, setMovingFolderIds] = useState<Set<string>>(new Set())
-  const [uploadingFolderIds, setUploadingFolderIds] = useState<Set<string>>(new Set())
-  const [newlyAddedFolderIds, setNewlyAddedFolderIds] = useState<Set<string>>(new Set())
+  const [uploadingFolderIds, setUploadingFolderIds] = useState<Set<string>>(
+    new Set()
+  )
+  const [newlyAddedFolderIds, setNewlyAddedFolderIds] = useState<Set<string>>(
+    new Set()
+  )
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({})
   const [searchQuery, setSearchQuery] = useState("")
   const [notice, setNotice] = useState<string | null>(null)
@@ -157,10 +167,7 @@ export function FilesScreen() {
       setFiles(loadedFiles)
       setFolders(loadedFolders)
 
-      const allFiles = [
-        ...loadedFiles,
-        ...collectFolderFiles(loadedFolders),
-      ]
+      const allFiles = [...loadedFiles, ...collectFolderFiles(loadedFolders)]
 
       setSelectedFileIds(
         (currentSelection) =>
@@ -190,6 +197,7 @@ export function FilesScreen() {
   }, [applyLoadedFiles, t])
 
   const didFetchRef = useRef(false)
+
   useEffect(() => {
     if (didFetchRef.current) return
     didFetchRef.current = true
@@ -252,24 +260,27 @@ export function FilesScreen() {
     delete newlyAddedTimersRef.current[fileId]
   }, [])
 
-  const clearFolderNewlyAdded = useCallback((folderId: string) => {
-    const ancestors: string[] = []
-    let current = folderId
-    const parentMap = buildParentMap(folders)
-    while (current) {
-      ancestors.push(current)
-      current = parentMap.get(current) ?? ""
-    }
-    setNewlyAddedFolderIds((current) => {
-      const next = new Set(current)
-      ancestors.forEach((id) => next.delete(id))
-      return next
-    })
-    ancestors.forEach((id) => {
-      window.clearTimeout(newlyAddedTimersRef.current[id])
-      delete newlyAddedTimersRef.current[id]
-    })
-  }, [folders])
+  const clearFolderNewlyAdded = useCallback(
+    (folderId: string) => {
+      const ancestors: string[] = []
+      let current = folderId
+      const parentMap = buildParentMap(folders)
+      while (current) {
+        ancestors.push(current)
+        current = parentMap.get(current) ?? ""
+      }
+      setNewlyAddedFolderIds((current) => {
+        const next = new Set(current)
+        ancestors.forEach((id) => next.delete(id))
+        return next
+      })
+      ancestors.forEach((id) => {
+        window.clearTimeout(newlyAddedTimersRef.current[id])
+        delete newlyAddedTimersRef.current[id]
+      })
+    },
+    [folders]
+  )
 
   const dismissUploadError = useCallback(() => {
     window.clearTimeout(uploadErrorTimerRef.current)
@@ -391,15 +402,18 @@ export function FilesScreen() {
       setError(null)
       setIsUploadPanelCollapsed(false)
 
-      const hasFolderStructure = filesWithPath.some(
-        (fp) => fp.relativePath.includes("/")
+      const hasFolderStructure = filesWithPath.some((fp) =>
+        fp.relativePath.includes("/")
       )
 
       if (hasFolderStructure) {
         const { allPaths } = buildFolderMapping(filesWithPath)
-        const sortedPaths = allPaths.sort((a, b) => a.split("/").length - b.split("/").length)
+        const sortedPaths = allPaths.sort(
+          (a, b) => a.split("/").length - b.split("/").length
+        )
 
-        const pathToFolder: Map<string, { id: string; name: string }> = new Map()
+        const pathToFolder: Map<string, { id: string; name: string }> =
+          new Map()
 
         for (const folderPath of sortedPaths) {
           const parts = folderPath.split("/")
@@ -415,7 +429,11 @@ export function FilesScreen() {
             const created = await createFolder(folderName, parentId)
             pathToFolder.set(folderPath, { id: created.id, name: created.name })
 
-            const newFolderEntry = { id: created.id, name: created.name, files: [] as FileResponse[] }
+            const newFolderEntry = {
+              id: created.id,
+              name: created.name,
+              files: [] as FileResponse[],
+            }
             if (parentId) {
               setFolders((current) =>
                 addFolderToParent(current, parentId, newFolderEntry)
@@ -434,7 +452,9 @@ export function FilesScreen() {
           const parts = relativePath.split("/")
           parts.pop()
           const folderPath = parts.join("/")
-          const folderId = folderPath ? pathToFolder.get(folderPath)?.id : undefined
+          const folderId = folderPath
+            ? pathToFolder.get(folderPath)?.id
+            : undefined
           const uploadId = createUploadId(file)
 
           setUploadingFiles((current) => [
@@ -449,11 +469,15 @@ export function FilesScreen() {
             ...current,
           ])
 
-          return uploadFile(file, (progress) => {
-            setUploadingFiles((current) =>
-              updateUploadingFile(current, uploadId, progress)
-            )
-          }, folderId)
+          return uploadFile(
+            file,
+            (progress) => {
+              setUploadingFiles((current) =>
+                updateUploadingFile(current, uploadId, progress)
+              )
+            },
+            folderId
+          )
             .then((uploadedFile) => {
               setUploadingFiles((current) =>
                 updateUploadingFile(current, uploadId, {
@@ -472,16 +496,30 @@ export function FilesScreen() {
               markFileAsNewlyAdded(uploadedFile.id)
               if (isPreviewSupportedFile(file.type)) {
                 void readFileAsDataUrl(file)
-                  .then((dataUrl) => setPreviewUrls((prev) => ({ ...prev, [uploadedFile.id]: dataUrl })))
-                  .catch(() => { void loadPreviews([uploadedFile]) })
+                  .then((dataUrl) =>
+                    setPreviewUrls((prev) => ({
+                      ...prev,
+                      [uploadedFile.id]: dataUrl,
+                    }))
+                  )
+                  .catch(() => {
+                    void loadPreviews([uploadedFile])
+                  })
               } else {
                 void loadPreviews([uploadedFile])
               }
             })
             .catch((error) => {
-              const message = getErrorMessage(error, t("files.error.uploadFile"))
+              const message = getErrorMessage(
+                error,
+                t("files.error.uploadFile")
+              )
               setUploadingFiles((current) =>
-                updateUploadingFile(current, uploadId, { done: true, error: true, message })
+                updateUploadingFile(current, uploadId, {
+                  done: true,
+                  error: true,
+                  message,
+                })
               )
             })
         })
@@ -516,7 +554,10 @@ export function FilesScreen() {
         if (results.some((r) => r.status === "rejected")) {
           setError(t("files.error.someUploadFailed"))
           window.clearTimeout(uploadErrorTimerRef.current)
-          uploadErrorTimerRef.current = window.setTimeout(dismissUploadError, 3000)
+          uploadErrorTimerRef.current = window.setTimeout(
+            dismissUploadError,
+            3000
+          )
         }
 
         return
@@ -748,17 +789,9 @@ export function FilesScreen() {
   const handleBulkDelete = useCallback(async () => {
     if (selectedFileIds.size === 0 && selectedFolderIds.size === 0) return
 
-    const selectedFiles = collectSelectedFiles(
-      files,
-      folders,
-      selectedFileIds
-    )
+    const selectedFiles = collectSelectedFiles(files, folders, selectedFileIds)
     const { files: selectedFilesForAction, folderIds } =
-      excludeSelectedFolderContents(
-        folders,
-        selectedFiles,
-        selectedFolderIds
-      )
+      excludeSelectedFolderContents(folders, selectedFiles, selectedFolderIds)
     const fileIds = selectedFilesForAction.map((file) => file.file_id)
 
     const someFileIsDownloading = fileIds.some((fid) =>
@@ -886,24 +919,23 @@ export function FilesScreen() {
     activeDownloadPromisesRef.current.push(downloadPromise)
 
     await downloadPromise
-  }, [files, folders, selectedFileIds, selectedFolderIds, clearFileSelection, t])
+  }, [
+    files,
+    folders,
+    selectedFileIds,
+    selectedFolderIds,
+    clearFileSelection,
+    t,
+  ])
 
   const handleBulkShare = useCallback(() => {
     if (selectedFileIds.size === 0 && selectedFolderIds.size === 0) return
 
     setError(null)
     setNotice(null)
-    const selectedFiles = collectSelectedFiles(
-      files,
-      folders,
-      selectedFileIds
-    )
+    const selectedFiles = collectSelectedFiles(files, folders, selectedFileIds)
     const { files: selectedFilesForAction, folderIds } =
-      excludeSelectedFolderContents(
-        folders,
-        selectedFiles,
-        selectedFolderIds
-      )
+      excludeSelectedFolderContents(folders, selectedFiles, selectedFolderIds)
     pendingShareFilesRef.current = selectedFilesForAction
     pendingShareFolderIdsRef.current = folderIds
     setPendingShareCount(selectedFilesForAction.length + folderIds.length)
@@ -916,7 +948,7 @@ export function FilesScreen() {
       const folderIds = pendingShareFolderIdsRef.current
       if (selectedFiles.length === 0 && folderIds.length === 0) return
 
-      const isBulk = (selectedFiles.length + folderIds.length) > 1
+      const isBulk = selectedFiles.length + folderIds.length > 1
       setPendingFileId(
         isBulk
           ? "bulk-share"
@@ -1019,9 +1051,7 @@ export function FilesScreen() {
 
         await loadFiles()
       } catch (error) {
-        setError(
-          getErrorMessage(error, t("files.error.createFolder"))
-        )
+        setError(getErrorMessage(error, t("files.error.createFolder")))
       } finally {
         setPendingFileId(null)
       }
@@ -1039,8 +1069,7 @@ export function FilesScreen() {
       const prevFolders = folders
 
       const movedFile =
-        files.find((f) => f.id === fileId) ??
-        findFileInFolders(folders, fileId)
+        files.find((f) => f.id === fileId) ?? findFileInFolders(folders, fileId)
 
       if (movedFile?.folder_id === folderId) {
         setMovingFileIds((prev) => {
@@ -1054,7 +1083,11 @@ export function FilesScreen() {
       if (folderId) {
         setFiles((current) => current.filter((f) => f.id !== fileId))
         setFolders((current) =>
-          addFileToFolder(removeFileFromFolders(current, fileId), folderId, movedFile!)
+          addFileToFolder(
+            removeFileFromFolders(current, fileId),
+            folderId,
+            movedFile!
+          )
         )
       } else {
         setFolders((current) => removeFileFromFolders(current, fileId))
@@ -1095,12 +1128,17 @@ export function FilesScreen() {
 
       if (parentId) {
         setFolders((current) =>
-          addFolderToParent(removeFolderFromTree(current, folderId), parentId, sourceFolder)
+          addFolderToParent(
+            removeFolderFromTree(current, folderId),
+            parentId,
+            sourceFolder
+          )
         )
       } else {
-        setFolders((current) =>
-          [...removeFolderFromTree(current, folderId), sourceFolder]
-        )
+        setFolders((current) => [
+          ...removeFolderFromTree(current, folderId),
+          sourceFolder,
+        ])
       }
 
       try {
@@ -1144,11 +1182,15 @@ export function FilesScreen() {
           },
           ...current,
         ])
-        return uploadFile(file, (progress) => {
-          setUploadingFiles((current) =>
-            updateUploadingFile(current, uploadId, progress)
-          )
-        }, folderId)
+        return uploadFile(
+          file,
+          (progress) => {
+            setUploadingFiles((current) =>
+              updateUploadingFile(current, uploadId, progress)
+            )
+          },
+          folderId
+        )
           .then((uploadedFile) => {
             setUploadingFiles((current) =>
               updateUploadingFile(current, uploadId, {
@@ -1163,8 +1205,15 @@ export function FilesScreen() {
             markFileAsNewlyAdded(uploadedFile.id)
             if (isPreviewSupportedFile(file.type)) {
               void readFileAsDataUrl(file)
-                .then((dataUrl) => setPreviewUrls((prev) => ({ ...prev, [uploadedFile.id]: dataUrl })))
-                .catch(() => { void loadPreviews([uploadedFile]) })
+                .then((dataUrl) =>
+                  setPreviewUrls((prev) => ({
+                    ...prev,
+                    [uploadedFile.id]: dataUrl,
+                  }))
+                )
+                .catch(() => {
+                  void loadPreviews([uploadedFile])
+                })
             } else {
               void loadPreviews([uploadedFile])
             }
@@ -1172,7 +1221,11 @@ export function FilesScreen() {
           .catch((error) => {
             const message = getErrorMessage(error, t("files.error.uploadFile"))
             setUploadingFiles((current) =>
-              updateUploadingFile(current, uploadId, { done: true, error: true, message })
+              updateUploadingFile(current, uploadId, {
+                done: true,
+                error: true,
+                message,
+              })
             )
           })
       })
@@ -1186,7 +1239,10 @@ export function FilesScreen() {
       if (results.some((r) => r.status === "rejected")) {
         setError(t("files.error.someUploadFailed"))
         window.clearTimeout(uploadErrorTimerRef.current)
-        uploadErrorTimerRef.current = window.setTimeout(dismissUploadError, 3000)
+        uploadErrorTimerRef.current = window.setTimeout(
+          dismissUploadError,
+          3000
+        )
       }
     },
     [loadPreviews, markFileAsNewlyAdded, dismissUploadError, t]
@@ -1196,7 +1252,8 @@ export function FilesScreen() {
     (fileId: string, targetIndex: number) => {
       setFiles((currentFiles) => {
         const sourceIndex = currentFiles.findIndex((f) => f.id === fileId)
-        if (sourceIndex === -1 || sourceIndex === targetIndex) return currentFiles
+        if (sourceIndex === -1 || sourceIndex === targetIndex)
+          return currentFiles
 
         const nextFiles = [...currentFiles]
         const [movedFile] = nextFiles.splice(sourceIndex, 1)
@@ -1215,12 +1272,9 @@ export function FilesScreen() {
     setDownloadItems([])
   }, [])
 
-  const dismissDownloadItem = useCallback(
-    (itemId: string) => {
-      setDownloadItems((prev) => prev.filter((item) => item.id !== itemId))
-    },
-    []
-  )
+  const dismissDownloadItem = useCallback((itemId: string) => {
+    setDownloadItems((prev) => prev.filter((item) => item.id !== itemId))
+  }, [])
 
   const handleToggleDownloadCollapse = useCallback(() => {
     setIsDownloadPanelCollapsed((collapsed) => !collapsed)

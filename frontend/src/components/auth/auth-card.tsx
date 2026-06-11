@@ -37,9 +37,7 @@ export function AuthCard({
                 <Icon />
                 <div className="flex flex-col gap-1">
                   <h1 className="auth-card-title">{title}</h1>
-                  <p className="auth-card-description">
-                    {description}
-                  </p>
+                  <p className="auth-card-description">{description}</p>
                 </div>
               </div>
               {children}

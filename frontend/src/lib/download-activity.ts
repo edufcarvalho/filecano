@@ -9,9 +9,9 @@ export type DownloadingItem = {
 export function updateDownloadingItem(
   items: DownloadingItem[],
   itemId: string,
-  patch: Partial<DownloadingItem>,
+  patch: Partial<DownloadingItem>
 ) {
   return items.map((item) =>
-    item.id === itemId ? { ...item, ...patch } : item,
+    item.id === itemId ? { ...item, ...patch } : item
   )
 }

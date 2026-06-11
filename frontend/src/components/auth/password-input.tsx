@@ -26,7 +26,9 @@ export function PasswordInput({
       {onVisibilityChange && (
         <button
           type="button"
-          aria-label={isVisible ? t("auth.password.hide") : t("auth.password.show")}
+          aria-label={
+            isVisible ? t("auth.password.hide") : t("auth.password.show")
+          }
           className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground"
           onClick={() => onVisibilityChange(!isVisible)}
           disabled={disabled}

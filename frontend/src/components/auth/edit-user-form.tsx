@@ -40,10 +40,7 @@ type EditUserFormProps = {
   onUserUpdate: (user: Pick<UserResponse, "name" | "email">) => void
 }
 
-export function EditUserForm({
-  user,
-  onUserUpdate,
-}: EditUserFormProps) {
+export function EditUserForm({ user, onUserUpdate }: EditUserFormProps) {
   const { t, i18n } = useTranslation()
   const {
     error,
@@ -65,10 +62,13 @@ export function EditUserForm({
   const [showPasswordFields, setShowPasswordFields] = useState(false)
 
   const newPasswordState = getPasswordState(newPassword)
-  const newPasswordsMatch = newPassword === confirmNewPassword || confirmNewPassword.length === 0
-  const currentPasswordInvalid = error === t("auth.editUser.currentPasswordError")
+  const newPasswordsMatch =
+    newPassword === confirmNewPassword || confirmNewPassword.length === 0
+  const currentPasswordInvalid =
+    error === t("auth.editUser.currentPasswordError")
   const newPasswordInvalid = newPassword.length > 0 && newPasswordState.invalid
-  const confirmNewPasswordInvalid = confirmNewPassword.length > 0 && !newPasswordsMatch
+  const confirmNewPasswordInvalid =
+    confirmNewPassword.length > 0 && !newPasswordsMatch
 
   const filteredLanguages = useMemo(
     () =>
@@ -133,7 +133,9 @@ export function EditUserForm({
       setShowPasswordFields(false)
     } catch (error) {
       setError(
-        error instanceof Error ? error.message : t("auth.editUser.fallbackError")
+        error instanceof Error
+          ? error.message
+          : t("auth.editUser.fallbackError")
       )
     } finally {
       setIsPending(false)
@@ -171,13 +173,17 @@ export function EditUserForm({
                 disabled={isPending}
                 onChange={clearErrors}
               />
-              <Field
-                data-disabled={isPending || undefined}
-              >
+              <Field data-disabled={isPending || undefined}>
                 <FieldLabel htmlFor="language">
                   {t("auth.editUser.languageLabel")}
                 </FieldLabel>
-                <DropdownMenu open={languageDropdownOpen} onOpenChange={(open) => { setLanguageDropdownOpen(open); if (!open) setLanguageSearch("") }}>
+                <DropdownMenu
+                  open={languageDropdownOpen}
+                  onOpenChange={(open) => {
+                    setLanguageDropdownOpen(open)
+                    if (!open) setLanguageSearch("")
+                  }}
+                >
                   <DropdownMenuTrigger asChild>
                     <button
                       id="language"
@@ -199,7 +205,7 @@ export function EditUserForm({
                       <span className="flex-1 text-start text-sm">
                         {languages.find((l) => l.code === i18n.language)?.name}
                       </span>
-                      <ChevronDown className="size-4 shrink-0 icon-muted" />
+                      <ChevronDown className="icon-muted size-4 shrink-0" />
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start">
@@ -223,7 +229,9 @@ export function EditUserForm({
                             onSelect={() => i18n.changeLanguage(lang.code)}
                             className="text-sm"
                           >
-                            <span className={cn(lang.flag, "shrink-0 rounded-sm")} />
+                            <span
+                              className={cn(lang.flag, "shrink-0 rounded-sm")}
+                            />
                             {lang.name}
                           </DropdownMenuItem>
                         ))
@@ -278,7 +286,10 @@ export function EditUserForm({
                     onVisibilityChange={setShowNewPassword}
                   >
                     {newPassword.length > 0 ? (
-                      <PasswordRequirementsList password={newPassword} className="mt-1" />
+                      <PasswordRequirementsList
+                        password={newPassword}
+                        className="mt-1"
+                      />
                     ) : null}
                   </AuthPasswordField>
                   <AuthPasswordField
@@ -286,7 +297,9 @@ export function EditUserForm({
                     label={t("auth.editUser.confirmNewPasswordLabel")}
                     name="confirm_new_password"
                     autoComplete="new-password"
-                    placeholder={t("auth.editUser.confirmNewPasswordPlaceholder")}
+                    placeholder={t(
+                      "auth.editUser.confirmNewPasswordPlaceholder"
+                    )}
                     disabled={isPending}
                     invalid={confirmNewPasswordInvalid}
                     value={confirmNewPassword}

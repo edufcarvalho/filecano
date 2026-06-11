@@ -8,7 +8,9 @@ export function getInitialIsMobile(): boolean | undefined {
 }
 
 export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(getInitialIsMobile)
+  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(
+    getInitialIsMobile
+  )
 
   React.useEffect(() => {
     const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)

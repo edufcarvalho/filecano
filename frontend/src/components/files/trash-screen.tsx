@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 import { FileList } from "@files/file-list"
 import { ErrorField } from "@misc/status-field"
@@ -70,16 +70,6 @@ export function TrashScreen() {
     toggleFileSelection,
     clearSelection,
   } = useFileSelection()
-  const selectedFileIdsRef = useRef(selectedFileIds)
-  const selectedFolderIdsRef = useRef(selectedFolderIds)
-
-  useEffect(() => {
-    selectedFileIdsRef.current = selectedFileIds
-  })
-
-  useEffect(() => {
-    selectedFolderIdsRef.current = selectedFolderIds
-  })
 
   const loadPreviews = useCallback(
     async (
@@ -107,10 +97,7 @@ export function TrashScreen() {
       setFolders(loadedFolders)
       setFiles(loadedOrphans)
 
-      const allFiles = [
-        ...loadedOrphans,
-        ...collectFolderFiles(loadedFolders),
-      ]
+      const allFiles = [...loadedOrphans, ...collectFolderFiles(loadedFolders)]
 
       setSelectedFileIds(
         (currentSelection) =>
@@ -135,20 +122,23 @@ export function TrashScreen() {
     [loadPreviews, setSelectedFileIds, setSelectedFolderIds]
   )
 
-  const loadData = useCallback(async (isCurrent: () => boolean = () => true) => {
-    setError(null)
-    setIsLoading(true)
+  const loadData = useCallback(
+    async (isCurrent: () => boolean = () => true) => {
+      setError(null)
+      setIsLoading(true)
 
-    try {
-      const data = await loadDeletedFiles()
-      await applyLoadedData(data.folders, data.other_files ?? [], isCurrent)
-    } catch (error) {
-      if (!isCurrent()) return
-      setError(getErrorMessage(error, t("files.error.loadDeletedFiles")))
-    } finally {
-      if (isCurrent()) setIsLoading(false)
-    }
-  }, [applyLoadedData, t])
+      try {
+        const data = await loadDeletedFiles()
+        await applyLoadedData(data.folders, data.other_files ?? [], isCurrent)
+      } catch (error) {
+        if (!isCurrent()) return
+        setError(getErrorMessage(error, t("files.error.loadDeletedFiles")))
+      } finally {
+        if (isCurrent()) setIsLoading(false)
+      }
+    },
+    [applyLoadedData, t]
+  )
 
   const removeItems = useCallback(
     (fileIds: Set<string>, folderIds: Set<string>) => {
@@ -174,9 +164,7 @@ export function TrashScreen() {
       })
       setPreviewUrls((currentUrls) =>
         Object.fromEntries(
-          Object.entries(currentUrls).filter(
-            ([fileId]) => !fileIds.has(fileId)
-          )
+          Object.entries(currentUrls).filter(([fileId]) => !fileIds.has(fileId))
         )
       )
     },
@@ -189,7 +177,11 @@ export function TrashScreen() {
     async function loadInitialData() {
       try {
         const data = await loadDeletedFiles()
-        await applyLoadedData(data.folders, data.other_files ?? [], () => isCurrent)
+        await applyLoadedData(
+          data.folders,
+          data.other_files ?? [],
+          () => isCurrent
+        )
       } catch (error) {
         if (!isCurrent) return
         setError(getErrorMessage(error, t("files.error.loadDeletedFiles")))
@@ -206,10 +198,7 @@ export function TrashScreen() {
   }, [applyLoadedData, t])
 
   const selectAll = useCallback(() => {
-    const allFiles = [
-      ...files,
-      ...collectFolderFiles(folders),
-    ]
+    const allFiles = [...files, ...collectFolderFiles(folders)]
     setSelectedFileIds(new Set(allFiles.map((f) => f.id)))
     setSelectedFolderIds(new Set(collectFolderIds(folders)))
   }, [files, folders, setSelectedFileIds, setSelectedFolderIds])
@@ -324,7 +313,9 @@ export function TrashScreen() {
           return next
         })
       } catch (error) {
-        setError(getErrorMessage(error, t("files.error.deleteFolderPermanently")))
+        setError(
+          getErrorMessage(error, t("files.error.deleteFolderPermanently"))
+        )
       } finally {
         setPendingFileId(null)
       }
@@ -333,22 +324,13 @@ export function TrashScreen() {
   )
 
   const handleBulkPermanentDelete = useCallback(async () => {
-    const selectedFileIds = selectedFileIdsRef.current
-    const selectedFolders = selectedFolderIdsRef.current
+    const selectedFolders = selectedFolderIds
 
     if (selectedFileIds.size === 0 && selectedFolders.size === 0) return
 
-    const selectedFiles = collectSelectedFiles(
-      files,
-      folders,
-      selectedFileIds
-    )
+    const selectedFiles = collectSelectedFiles(files, folders, selectedFileIds)
     const { files: selectedFilesForAction, folderIds } =
-      excludeSelectedFolderContents(
-        folders,
-        selectedFiles,
-        selectedFolders
-      )
+      excludeSelectedFolderContents(folders, selectedFiles, selectedFolders)
     const fileIds = selectedFilesForAction.map((file) => file.file_id)
     const fileIdSet = new Set(fileIds)
     const folderIdSet = new Set(folderIds)
@@ -358,36 +340,27 @@ export function TrashScreen() {
 
     try {
       const deletions: Promise<void>[] = []
-      if (fileIds.length > 0) deletions.push(bulkDeleteFiles(fileIds, { permanent: true }))
-      if (folderIds.length > 0) deletions.push(bulkDeleteFolders(folderIds, { permanent: true }))
+      if (fileIds.length > 0)
+        deletions.push(bulkDeleteFiles(fileIds, { permanent: true }))
+      if (folderIds.length > 0)
+        deletions.push(bulkDeleteFolders(folderIds, { permanent: true }))
       await Promise.all(deletions)
       removeItems(fileIdSet, folderIdSet)
     } catch (error) {
-      setError(
-        getErrorMessage(error, t("files.error.deleteFilesPermanently"))
-      )
+      setError(getErrorMessage(error, t("files.error.deleteFilesPermanently")))
     } finally {
       setPendingFileId(null)
     }
-  }, [files, folders, t, removeItems])
+  }, [files, folders, selectedFileIds, selectedFolderIds, t, removeItems])
 
   const handleBulkRestore = useCallback(async () => {
-    const selectedFileIds = selectedFileIdsRef.current
-    const selectedFolders = selectedFolderIdsRef.current
+    const selectedFolders = selectedFolderIds
 
     if (selectedFileIds.size === 0 && selectedFolders.size === 0) return
 
-    const selectedFiles = collectSelectedFiles(
-      files,
-      folders,
-      selectedFileIds
-    )
+    const selectedFiles = collectSelectedFiles(files, folders, selectedFileIds)
     const { files: selectedFilesForAction, folderIds } =
-      excludeSelectedFolderContents(
-        folders,
-        selectedFiles,
-        selectedFolders
-      )
+      excludeSelectedFolderContents(folders, selectedFiles, selectedFolders)
     const fileIds = selectedFilesForAction.map((file) => file.file_id)
     const fileIdSet = new Set(fileIds)
     const folderIdSet = new Set(folderIds)
@@ -406,7 +379,7 @@ export function TrashScreen() {
     } finally {
       setPendingFileId(null)
     }
-  }, [files, folders, t, removeItems])
+  }, [files, folders, selectedFileIds, selectedFolderIds, t, removeItems])
 
   const handleRefresh = useCallback(() => {
     loadData()

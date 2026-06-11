@@ -32,13 +32,8 @@ import {
   type LinkResponse,
 } from "@/lib/api"
 import { useLinks } from "@/lib/links-context"
-import {
-  LinkExpirationDialog,
-} from "@/components/links/link-expiration-dialog"
-import {
-  resolveExpiresAt,
-  type LinkExpiration,
-} from "@/lib/link-expiration"
+import { LinkExpirationDialog } from "@/components/links/link-expiration-dialog"
+import { resolveExpiresAt, type LinkExpiration } from "@/lib/link-expiration"
 import { useTranslation } from "@/i18n"
 import { getErrorMessage } from "@/lib/errors"
 
@@ -89,12 +84,15 @@ export function MyLinksDropdown({ userId }: MyLinksDropdownProps) {
   }, [userId, setLinks, t])
 
   const didFetchLinksRef = useRef(false)
-  const handleOpenChange = useCallback((open: boolean) => {
-    if (open && !didFetchLinksRef.current) {
-      didFetchLinksRef.current = true
-      loadLinks()
-    }
-  }, [loadLinks])
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      if (open && !didFetchLinksRef.current) {
+        didFetchLinksRef.current = true
+        loadLinks()
+      }
+    },
+    [loadLinks]
+  )
 
   const scrollLinkToEnd = useCallback((element: HTMLSpanElement) => {
     element.scrollLeft = element.scrollWidth - element.clientWidth
@@ -251,7 +249,9 @@ export function MyLinksDropdown({ userId }: MyLinksDropdownProps) {
 
     try {
       await deleteLink(token)
-      setLinks((prev: LinkResponse[]) => prev.filter((link) => link.token !== token))
+      setLinks((prev: LinkResponse[]) =>
+        prev.filter((link) => link.token !== token)
+      )
     } catch (err) {
       setError(getErrorMessage(err, t("links.deleteError")))
     }
@@ -267,10 +267,7 @@ export function MyLinksDropdown({ userId }: MyLinksDropdownProps) {
     if (!token) return
 
     try {
-      const result = await restoreLink(
-        token,
-        resolveExpiresAt(expiration)
-      )
+      const result = await restoreLink(token, resolveExpiresAt(expiration))
       setLinks((prev: LinkResponse[]) =>
         prev.map((link) =>
           link.token === token
@@ -291,215 +288,217 @@ export function MyLinksDropdown({ userId }: MyLinksDropdownProps) {
 
   return (
     <>
-    <DropdownMenu onOpenChange={handleOpenChange}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="gap-2 px-2 sm:px-2.5"
-          aria-label={t("links.myLinksAria")}
+      <DropdownMenu onOpenChange={handleOpenChange}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-2 px-2 sm:px-2.5"
+            aria-label={t("links.myLinksAria")}
+          >
+            <LinkIcon className="size-4" />
+            <span className="hidden sm:inline">{t("links.myLinks")}</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="center"
+          className="w-fit max-w-[calc(100vw-1rem)] min-w-0"
         >
-          <LinkIcon className="size-4" />
-          <span className="hidden sm:inline">{t("links.myLinks")}</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="center"
-        className="w-fit max-w-[calc(100vw-1rem)] min-w-0"
-      >
-        <DropdownMenuGroup
-          className="grid max-h-[11rem] max-w-full justify-start overflow-y-auto overscroll-y-contain pr-1"
-          style={{
-            gridTemplateColumns:
-              "auto fit-content(min(390px, calc(100vw - 8rem))) auto",
-          }}
-        >
-          {loading && (
-            <DropdownMenuItem className="col-span-3" disabled>
-              {t("links.loading")}
-            </DropdownMenuItem>
-          )}
-          {error && (
-            <DropdownMenuItem className="col-span-3 text-destructive">
-              {error}
-            </DropdownMenuItem>
-          )}
-          {!loading && links.length === 0 && (
-            <div className="col-span-3 flex flex-col items-center gap-2 py-6">
-              <UnlinkIcon className="size-8 text-muted-foreground" />
-              <p className="px-4 text-center text-sm text-muted-foreground">
-                {t("links.emptyState")}
-              </p>
+          <DropdownMenuGroup
+            className="grid max-h-[11rem] max-w-full justify-start overflow-y-auto overscroll-y-contain pr-1"
+            style={{
+              gridTemplateColumns:
+                "auto fit-content(min(390px, calc(100vw - 8rem))) auto",
+            }}
+          >
+            {loading && (
+              <DropdownMenuItem className="col-span-3" disabled>
+                {t("links.loading")}
+              </DropdownMenuItem>
+            )}
+            {error && (
+              <DropdownMenuItem className="col-span-3 text-destructive">
+                {error}
+              </DropdownMenuItem>
+            )}
+            {!loading && links.length === 0 && (
+              <div className="col-span-3 flex flex-col items-center gap-2 py-6">
+                <UnlinkIcon className="size-8 text-muted-foreground" />
+                <p className="px-4 text-center text-sm text-muted-foreground">
+                  {t("links.emptyState")}
+                </p>
+              </div>
+            )}
+            {links.map((link) => (
+              <Fragment key={link.id}>
+                {editingToken === link.token ? (
+                  <div className="col-span-3 grid min-w-0 grid-cols-subgrid items-center gap-[2px] rounded-md bg-muted/30 px-1.5 py-1 text-muted-foreground">
+                    <Link2Icon className="size-4 shrink-0 text-muted-foreground" />
+                    <span
+                      ref={editLinkCellRef}
+                      className="flex min-w-0 items-center overflow-x-auto overscroll-x-contain text-sm whitespace-nowrap text-muted-foreground [scrollbar-width:thin]"
+                    >
+                      <span className="shrink-0">
+                        {window.location.origin}/share/
+                      </span>
+                      <Input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="h-6 min-w-[4ch] flex-none border-0 px-0 py-0 text-sm shadow-none focus-visible:border-transparent focus-visible:ring-0 md:text-sm dark:bg-transparent"
+                        style={{
+                          width: `${Math.max(editName.length, 4) + 1}ch`,
+                        }}
+                        placeholder="name"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleSaveEdit()
+                          if (e.key === "Escape") handleCancelEdit()
+                        }}
+                        autoFocus
+                      />
+                    </span>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        variant="dropdown-menu-action"
+                        size="dropdown-menu-action"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleSaveEdit()
+                        }}
+                        aria-label={t("links.saveLinkName")}
+                        title={t("links.saveLinkName")}
+                      >
+                        <CheckIcon />
+                      </Button>
+                      <Button
+                        variant="dropdown-menu-action"
+                        size="dropdown-menu-action"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleCancelEdit()
+                        }}
+                        aria-label={t("links.cancelEditLinkName")}
+                        title={t("links.cancelEditLinkName")}
+                      >
+                        <XIcon />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <DropdownMenuItem
+                    className={`col-span-3 grid min-w-0 grid-cols-subgrid items-center gap-[2px] bg-muted/30 text-muted-foreground focus:bg-muted/60${isLinkExpired(link.expires_at) ? "opacity-50" : ""}`}
+                    onClick={() => {
+                      if (!isLinkExpired(link.expires_at)) {
+                        handleLinkClick(link.token, link.custom_name)
+                      }
+                    }}
+                  >
+                    <Link2Icon className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="relative min-w-0 text-sm text-muted-foreground">
+                      <span
+                        ref={setLinkCellRef(link.id)}
+                        onScroll={(event) =>
+                          handleLinkScroll(link.id, event.currentTarget)
+                        }
+                        className="block min-w-0 overflow-x-auto overscroll-x-contain whitespace-nowrap [scrollbar-width:thin]"
+                      >
+                        {getLinkUrl(link.token, link.custom_name)}
+                      </span>
+                      {truncatedLinks[link.id] && (
+                        <span
+                          aria-hidden="true"
+                          className="pointer-events-none absolute top-0 left-0 flex h-full items-center bg-muted/30 pr-1 group-focus/dropdown-menu-item:bg-muted/60"
+                        >
+                          ...
+                        </span>
+                      )}
+                    </span>
+                    <div className="flex shrink-0 items-center gap-1">
+                      {isLinkExpired(link.expires_at) ? (
+                        <>
+                          <Button
+                            variant="dropdown-menu-action"
+                            size="dropdown-menu-action"
+                            type="button"
+                            disabled
+                            title={t("links.linkExpired")}
+                          >
+                            <ClockAlertIcon />
+                          </Button>
+                          <Button
+                            variant="dropdown-menu-action"
+                            size="dropdown-menu-action"
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleRestore(link.token)
+                            }}
+                            title={t("links.restoreLink")}
+                          >
+                            <ArchiveRestoreIcon />
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            variant="dropdown-menu-action"
+                            size="dropdown-menu-action"
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleCopy(link.token, link.custom_name)
+                            }}
+                            title={t("links.copyLink")}
+                          >
+                            <CopyIcon />
+                          </Button>
+                          <Button
+                            variant="dropdown-menu-action"
+                            size="dropdown-menu-action"
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleEdit(link.token, link.custom_name)
+                            }}
+                            title={t("links.editLink")}
+                          >
+                            <PencilIcon />
+                          </Button>
+                        </>
+                      )}
+                      <Button
+                        variant="dropdown-menu-action"
+                        size="dropdown-menu-action"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDelete(link.token)
+                        }}
+                        title={t("links.deleteLink")}
+                      >
+                        <Trash2Icon className="text-destructive" />
+                      </Button>
+                    </div>
+                  </DropdownMenuItem>
+                )}
+              </Fragment>
+            ))}
+          </DropdownMenuGroup>
+          {copySuccess && (
+            <div className="px-2 py-1 text-xs text-green-600">
+              {t("links.linkCopied")}
             </div>
           )}
-          {links.map((link) => (
-            <Fragment key={link.id}>
-              {editingToken === link.token ? (
-                <div className="col-span-3 grid min-w-0 grid-cols-subgrid items-center gap-[2px] rounded-md bg-muted/30 px-1.5 py-1 text-muted-foreground">
-                  <Link2Icon className="size-4 shrink-0 text-muted-foreground" />
-                  <span
-                    ref={editLinkCellRef}
-                    className="flex min-w-0 items-center overflow-x-auto overscroll-x-contain text-sm whitespace-nowrap text-muted-foreground [scrollbar-width:thin]"
-                  >
-                    <span className="shrink-0">
-                      {window.location.origin}/share/
-                    </span>
-                    <Input
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className="h-6 min-w-[4ch] flex-none border-0 px-0 py-0 text-sm shadow-none focus-visible:border-transparent focus-visible:ring-0 md:text-sm dark:bg-transparent"
-                      style={{
-                        width: `${Math.max(editName.length, 4) + 1}ch`,
-                      }}
-                      placeholder="name"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSaveEdit()
-                        if (e.key === "Escape") handleCancelEdit()
-                      }}
-                      autoFocus
-                    />
-                  </span>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <Button
-                      variant="dropdown-menu-action"
-                      size="dropdown-menu-action"
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleSaveEdit()
-                      }}
-                      aria-label={t("links.saveLinkName")}
-                      title={t("links.saveLinkName")}
-                    >
-                      <CheckIcon />
-                    </Button>
-                    <Button
-                      variant="dropdown-menu-action"
-                      size="dropdown-menu-action"
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleCancelEdit()
-                      }}
-                      aria-label={t("links.cancelEditLinkName")}
-                      title={t("links.cancelEditLinkName")}
-                    >
-                      <XIcon />
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <DropdownMenuItem
-                  className={`col-span-3 grid min-w-0 grid-cols-subgrid items-center gap-[2px] bg-muted/30 text-muted-foreground focus:bg-muted/60${isLinkExpired(link.expires_at) ? " opacity-50" : ""}`}
-                  onClick={() => {
-                    if (!isLinkExpired(link.expires_at)) {
-                      handleLinkClick(link.token, link.custom_name)
-                    }
-                  }}
-                >
-                  <Link2Icon className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="relative min-w-0 text-sm text-muted-foreground">
-                    <span
-                      ref={setLinkCellRef(link.id)}
-                      onScroll={(event) =>
-                        handleLinkScroll(link.id, event.currentTarget)
-                      }
-                      className="block min-w-0 overflow-x-auto overscroll-x-contain whitespace-nowrap [scrollbar-width:thin]"
-                    >
-                      {getLinkUrl(link.token, link.custom_name)}
-                    </span>
-                    {truncatedLinks[link.id] && (
-                      <span
-                        aria-hidden="true"
-                        className="pointer-events-none absolute top-0 left-0 flex h-full items-center bg-muted/30 pr-1 group-focus/dropdown-menu-item:bg-muted/60"
-                      >
-                        ...
-                      </span>
-                    )}
-                  </span>
-                  <div className="flex shrink-0 items-center gap-1">
-                    {isLinkExpired(link.expires_at) ? (
-                      <>
-                        <Button
-                          variant="dropdown-menu-action"
-                          size="dropdown-menu-action"
-                          type="button"
-                          disabled
-                          title={t("links.linkExpired")}
-                        >
-                          <ClockAlertIcon />
-                        </Button>
-                        <Button
-                          variant="dropdown-menu-action"
-                          size="dropdown-menu-action"
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleRestore(link.token)
-                          }}
-                          title={t("links.restoreLink")}
-                        >
-                          <ArchiveRestoreIcon />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Button
-                          variant="dropdown-menu-action"
-                          size="dropdown-menu-action"
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleCopy(link.token, link.custom_name)
-                          }}
-                          title={t("links.copyLink")}
-                        >
-                          <CopyIcon />
-                        </Button>
-                        <Button
-                          variant="dropdown-menu-action"
-                          size="dropdown-menu-action"
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleEdit(link.token, link.custom_name)
-                          }}
-                          title={t("links.editLink")}
-                        >
-                          <PencilIcon />
-                        </Button>
-                      </>
-                    )}
-                    <Button
-                      variant="dropdown-menu-action"
-                      size="dropdown-menu-action"
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleDelete(link.token)
-                      }}
-                      title={t("links.deleteLink")}
-                    >
-                      <Trash2Icon className="text-destructive" />
-                    </Button>
-                  </div>
-                </DropdownMenuItem>
-              )}
-            </Fragment>
-          ))}
-        </DropdownMenuGroup>
-        {copySuccess && (
-          <div className="px-2 py-1 text-xs text-green-600">{t("links.linkCopied")}</div>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-    <LinkExpirationDialog
-      open={showRestoreDialog}
-      onOpenChange={setShowRestoreDialog}
-      title={t("links.restoreDialogTitle")}
-      description={t("links.restoreDialogDescription")}
-      onConfirm={executeRestore}
-    />
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <LinkExpirationDialog
+        open={showRestoreDialog}
+        onOpenChange={setShowRestoreDialog}
+        title={t("links.restoreDialogTitle")}
+        description={t("links.restoreDialogDescription")}
+        onConfirm={executeRestore}
+      />
     </>
   )
 }

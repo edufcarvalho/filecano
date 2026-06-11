@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, type ComponentProps, type RefObject } from "react"
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  type ComponentProps,
+  type RefObject,
+} from "react"
 import {
   ChevronDownIcon,
   ChevronUpIcon,
@@ -255,7 +261,10 @@ export function ActivityPanel({
 
   function getProgressPercent(item: ActivityItem): number | null {
     if (isUploadingFile(item) && item.totalBytes > 0) {
-      return Math.min(100, Math.round((item.uploadedBytes / item.totalBytes) * 100))
+      return Math.min(
+        100,
+        Math.round((item.uploadedBytes / item.totalBytes) * 100)
+      )
     }
     return null
   }
@@ -325,7 +334,7 @@ export function ActivityPanel({
                     ) : null}
                   </div>
                   {(!item.done || item.error) &&
-                    (showDeterminate || !isUploadingFile(item)) ? (
+                  (showDeterminate || !isUploadingFile(item)) ? (
                     <div className="upload-progress-bar-container">
                       <div
                         className={cn(
@@ -338,7 +347,9 @@ export function ActivityPanel({
                         )}
                         style={
                           showDeterminate
-                            ? { width: `${item.error ? 100 : progressPercent}%` }
+                            ? {
+                                width: `${item.error ? 100 : progressPercent}%`,
+                              }
                             : undefined
                         }
                       />

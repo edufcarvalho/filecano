@@ -17,11 +17,7 @@ export function BulkActionButton({
     <LoadingButton
       variant={variant}
       size={size}
-      className={cn(
-        "loading-button-base",
-        stretch && "flex-auto",
-        className
-      )}
+      className={cn("loading-button-base", stretch && "flex-auto", className)}
       {...props}
     />
   )

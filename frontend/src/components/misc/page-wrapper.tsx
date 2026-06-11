@@ -34,12 +34,7 @@ export function EmptyState({
   stretch?: boolean
 }) {
   return (
-    <div
-      className={cn(
-        "empty-state-base",
-        stretch ? "h-full" : "min-h-72"
-      )}
-    >
+    <div className={cn("empty-state-base", stretch ? "h-full" : "min-h-72")}>
       {children}
     </div>
   )

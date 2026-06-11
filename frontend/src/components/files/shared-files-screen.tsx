@@ -213,10 +213,7 @@ export function SharedFilesScreen({
     setError(null)
     setPendingFileId("bulk-download")
 
-    const allFiles = [
-      ...files,
-      ...collectFolderFiles(folders),
-    ]
+    const allFiles = [...files, ...collectFolderFiles(folders)]
     const filesToDownload = allFiles.filter(
       (file) => isAvailableFile(file) && selectedFileIds.has(file.id)
     )
@@ -266,23 +263,16 @@ export function SharedFilesScreen({
       !user ||
       !shareToken ||
       (selectedFileIds.size === 0 && selectedFolderIds.size === 0)
-    ) return
+    )
+      return
 
     setError(null)
     setSuccess(null)
     setPendingFileId("bulk-clone")
 
-    const selectedFiles = collectSelectedFiles(
-      files,
-      folders,
-      selectedFileIds
-    )
+    const selectedFiles = collectSelectedFiles(files, folders, selectedFileIds)
     const { files: selectedFilesForAction, folderIds } =
-      excludeSelectedFolderContents(
-        folders,
-        selectedFiles,
-        selectedFolderIds
-      )
+      excludeSelectedFolderContents(folders, selectedFiles, selectedFolderIds)
 
     try {
       const cloned = await cloneSharedFiles(
@@ -296,21 +286,10 @@ export function SharedFilesScreen({
     } finally {
       setPendingFileId(null)
     }
-  }, [
-    files,
-    folders,
-    shareToken,
-    selectedFileIds,
-    selectedFolderIds,
-    t,
-    user,
-  ])
+  }, [files, folders, shareToken, selectedFileIds, selectedFolderIds, t, user])
 
   const selectAllFiles = useCallback(() => {
-    const allFiles = [
-      ...files,
-      ...collectFolderFiles(folders),
-    ]
+    const allFiles = [...files, ...collectFolderFiles(folders)]
     setSelectedFileIds(
       new Set(allFiles.filter(isAvailableFile).map((file) => file.id))
     )

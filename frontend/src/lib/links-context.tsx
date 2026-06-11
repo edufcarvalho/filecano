@@ -1,5 +1,14 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useCallback, useMemo, type ReactNode, type Dispatch, type SetStateAction } from "react"
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useMemo,
+  type ReactNode,
+  type Dispatch,
+  type SetStateAction,
+} from "react"
 import type { LinkResponse } from "@/lib/api"
 
 type LinksContextType = {
@@ -19,11 +28,7 @@ export function LinksProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => ({ links, setLinks, addLink }), [links, addLink])
 
-  return (
-    <LinksContext.Provider value={value}>
-      {children}
-    </LinksContext.Provider>
-  )
+  return <LinksContext.Provider value={value}>{children}</LinksContext.Provider>
 }
 
 export function useLinks() {

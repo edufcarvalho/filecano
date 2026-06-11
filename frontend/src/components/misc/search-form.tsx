@@ -31,7 +31,7 @@ export function SearchForm({
           value={value}
           onChange={(event) => onChange?.(event.target.value)}
         />
-        <SearchIcon className="pointer-events-none absolute top-1/2 start-2 size-4 -translate-y-1/2 opacity-50 select-none" />
+        <SearchIcon className="pointer-events-none absolute start-2 top-1/2 size-4 -translate-y-1/2 opacity-50 select-none" />
       </div>
     </form>
   )

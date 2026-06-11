@@ -212,13 +212,26 @@ export function Folder({
         isNew && "folder-panel-new",
         isSelected && "folder-panel-selected",
         isDeleted && "folder-panel-deleted",
-        isDragOver && "border-primary/40 bg-primary/10 relative z-10"
+        isDragOver && "relative z-10 border-primary/40 bg-primary/10"
       )}
-      onDragOver={onFileDrop || onFolderDrop || onExternalDrop ? handleDragOver : undefined}
-      onDragLeave={onFileDrop || onFolderDrop || onExternalDrop ? handleDragLeave : undefined}
-      onDrop={onFileDrop || onFolderDrop || onExternalDrop ? handleDrop : undefined}
+      onDragOver={
+        onFileDrop || onFolderDrop || onExternalDrop
+          ? handleDragOver
+          : undefined
+      }
+      onDragLeave={
+        onFileDrop || onFolderDrop || onExternalDrop
+          ? handleDragLeave
+          : undefined
+      }
+      onDrop={
+        onFileDrop || onFolderDrop || onExternalDrop ? handleDrop : undefined
+      }
     >
-      <div className="folder-panel-header" onContextMenu={handleHeaderContextMenu}>
+      <div
+        className="folder-panel-header"
+        onContextMenu={handleHeaderContextMenu}
+      >
         {isTrash ? (
           <Button
             type="button"
@@ -232,9 +245,7 @@ export function Folder({
               isSelected && "file-selection-toggle-active"
             )}
           >
-            {isSelected ? (
-              <CheckIcon strokeWidth={7} />
-            ) : null}
+            {isSelected ? <CheckIcon strokeWidth={7} /> : null}
           </Button>
         ) : (
           <Button
@@ -256,7 +267,8 @@ export function Folder({
             onClick={handleSelectionToggle}
             className={cn(
               "file-selection-toggle",
-              ((allSelected || someSelected || isSelected) && folderFileIds.length > 0) ||
+              ((allSelected || someSelected || isSelected) &&
+                folderFileIds.length > 0) ||
                 (isSelected && folderFileIds.length === 0)
                 ? "file-selection-toggle-active"
                 : ""
@@ -317,7 +329,7 @@ export function Folder({
         />
       </div>
       {isOpen ? (
-        <div className="border-t p-3 flex flex-col gap-2">
+        <div className="flex flex-col gap-2 border-t p-3">
           {fileCount > 0 || hasNestedFolders ? (
             children
           ) : (

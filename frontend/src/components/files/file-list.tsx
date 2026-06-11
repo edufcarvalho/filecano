@@ -309,10 +309,7 @@ function FolderNode({
   onFolderToggle,
 }: FolderNodeProps) {
   const { t } = useTranslation()
-  const fileCount = useMemo(
-    () => countFolderFiles(folder),
-    [folder]
-  )
+  const fileCount = useMemo(() => countFolderFiles(folder), [folder])
   const fileIds = collectFolderFileIds(folder)
   const emptyFolderIds = collectEmptyFolderIds(folder.children ?? [])
   const isAllDeleted = isFolderAllDeleted(folder)
@@ -352,12 +349,7 @@ function FolderNode({
 
     onClearSelection?.()
     onToggleFolderSelect(folder.id)
-  }, [
-    folder.id,
-    isFolderSelected,
-    onClearSelection,
-    onToggleFolderSelect,
-  ])
+  }, [folder.id, isFolderSelected, onClearSelection, onToggleFolderSelect])
 
   const handleDeleteFolder = useCallback(() => {
     onDeleteFolder?.(folder.id)
@@ -543,17 +535,28 @@ function FolderNode({
       variant={variant}
       pendingFolderId={pendingFileId}
       onToggleFolderSelection={onToggleFolderSelection ?? (() => {})}
-      onFileDrop={variant === "default" && onMoveFile ? handleFileDrop : undefined}
-      onFolderDrop={variant === "default" && onMoveFolder ? handleFolderDrop : undefined}
+      onFileDrop={
+        variant === "default" && onMoveFile ? handleFileDrop : undefined
+      }
+      onFolderDrop={
+        variant === "default" && onMoveFolder ? handleFolderDrop : undefined
+      }
       onExternalDrop={onExternalDrop ? handleExternalDrop : undefined}
       onContextMenuSelect={handleContextMenuSelect}
       isNew={newlyAddedFolderIds.has(folder.id)}
       isDeleted={variant !== "trash" && isAllDeleted}
       autoOpen={!!(uploadingFolderIds && uploadingFolderIds.has(folder.id))}
-      open={isFolderOpen || !!(uploadingFolderIds && uploadingFolderIds.has(folder.id))}
+      open={
+        isFolderOpen ||
+        !!(uploadingFolderIds && uploadingFolderIds.has(folder.id))
+      }
       isSelected={selectedFolderIds.has(folder.id)}
-      onToggleFolderSelect={onToggleFolderSelect ? handleToggleFolderSelect : undefined}
-      onDeleteFolder={variant === "default" && onDeleteFolder ? handleDeleteFolder : undefined}
+      onToggleFolderSelect={
+        onToggleFolderSelect ? handleToggleFolderSelect : undefined
+      }
+      onDeleteFolder={
+        variant === "default" && onDeleteFolder ? handleDeleteFolder : undefined
+      }
       onToggleOpen={handleToggleOpen}
       movingFolderIds={movingFolderIds}
     >
@@ -836,7 +839,9 @@ export function FileList({
   const totalItemCount = allFiles.length + trashFolderCount
   const hasSelectedFiles = selectedCount > 0
   const allSelected =
-    totalItemCount > 0 && selectedFileIds.size === allFiles.length && selectedFolderIds.size === trashFolderCount
+    totalItemCount > 0 &&
+    selectedFileIds.size === allFiles.length &&
+    selectedFolderIds.size === trashFolderCount
   const fileCountLabel = hasSelectedFiles ? selectedCount : totalFileCount
 
   const handleSearch = useCallback(
@@ -856,12 +861,15 @@ export function FileList({
     new Set()
   )
   const [folderNameError, setFolderNameError] = useState<string | null>(null)
-  const handleFolderNameChange = useCallback((name: string) => {
-    setNewFolderName(name)
-    if (folderNameError && name.trim()) {
-      setFolderNameError(null)
-    }
-  }, [folderNameError])
+  const handleFolderNameChange = useCallback(
+    (name: string) => {
+      setNewFolderName(name)
+      if (folderNameError && name.trim()) {
+        setFolderNameError(null)
+      }
+    },
+    [folderNameError]
+  )
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const [isCardDragOver, setIsCardDragOver] = useState(false)
   const [openFolderIds, setOpenFolderIds] = useState<string[]>([])
@@ -1127,18 +1135,10 @@ export function FileList({
         stretch && "flex-1",
         isCardDragOver && "border-dashed border-primary/40 bg-primary/5"
       )}
-      onDragOver={
-        variant === "default" ? handleCardDragOver : undefined
-      }
-      onDragLeave={
-        variant === "default" ? handleCardDragLeave : undefined
-      }
-      onDrop={
-        variant === "default" ? handleCardDrop : undefined
-      }
-      onDragEnd={
-        variant === "default" ? handleCardDragEnd : undefined
-      }
+      onDragOver={variant === "default" ? handleCardDragOver : undefined}
+      onDragLeave={variant === "default" ? handleCardDragLeave : undefined}
+      onDrop={variant === "default" ? handleCardDrop : undefined}
+      onDragEnd={variant === "default" ? handleCardDragEnd : undefined}
     >
       <CardHeader className="flex flex-col gap-3">
         <div className="flex w-full min-w-0 items-center gap-1">
@@ -1221,7 +1221,7 @@ export function FileList({
             size="sm"
             onClick={handleCreateFolderOpen}
             disabled={pendingFileId !== null}
-            className="sm:hidden w-full"
+            className="w-full sm:hidden"
           >
             <FolderPlusIcon data-icon="inline-start" />
             {t("files.createFolder")}
@@ -1304,7 +1304,8 @@ export function FileList({
                 <div
                   className={cn(
                     "flex flex-col gap-3",
-                    (closedFolders.length > 0 || filteredFiles.length > 0) && "mb-3"
+                    (closedFolders.length > 0 || filteredFiles.length > 0) &&
+                      "mb-3"
                   )}
                 >
                   {openFolders.map(renderFolderNode)}
@@ -1324,9 +1325,7 @@ export function FileList({
                 <div
                   className="file-list-grid"
                   onDragOver={
-                    variant === "default"
-                      ? handleOrphanZoneDragOver
-                      : undefined
+                    variant === "default" ? handleOrphanZoneDragOver : undefined
                   }
                   onDrop={
                     variant === "default" ? handleOrphanZoneDrop : undefined
@@ -1350,9 +1349,7 @@ export function FileList({
                           : undefined
                       }
                       onDrop={
-                        variant === "default"
-                          ? handleReorderDrop
-                          : undefined
+                        variant === "default" ? handleReorderDrop : undefined
                       }
                     >
                       <FileListItem
@@ -1523,10 +1520,7 @@ function ScrollableList({
   if (!stretch) return <>{children}</>
 
   return (
-    <div
-      ref={containerRef}
-      className="scrollable-list-container flex flex-col"
-    >
+    <div ref={containerRef} className="scrollable-list-container flex flex-col">
       {children}
     </div>
   )
@@ -1708,8 +1702,11 @@ const FileListItem = memo(function FileListItem({
   const [contextMenuPosition, setContextMenuPosition] =
     useState<CursorMenuPosition | null>(null)
   const actionsDisabled =
-    variant === "shared" ? pendingFileId !== null || isDeleted : pendingFileId !== null
-  const hasActionsDropdown = variant === "shared" || variant === "trash" || !isEditing
+    variant === "shared"
+      ? pendingFileId !== null || isDeleted
+      : pendingFileId !== null
+  const hasActionsDropdown =
+    variant === "shared" || variant === "trash" || !isEditing
   const actionsDropdownOpen = dropdownActionsOpen && !actionsDisabled
 
   const handleCardClick = useCallback(
@@ -1984,7 +1981,7 @@ function ReorderDropZone({
       onDrop={handleDrop}
       className={cn(
         "rounded-md transition-colors",
-        isDragOver && "ring-2 ring-primary bg-primary/5"
+        isDragOver && "bg-primary/5 ring-2 ring-primary"
       )}
     >
       {children}

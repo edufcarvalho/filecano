@@ -89,7 +89,10 @@ export function LinkExpirationDialog({
       const hoursStr = String(date.getHours()).padStart(2, "0")
       const minutesStr = String(date.getMinutes()).padStart(2, "0")
       const secondsStr = String(date.getSeconds()).padStart(2, "0")
-      onConfirm({ kind: "exact", date: `${year}-${month}-${day}T${hoursStr}:${minutesStr}:${secondsStr}` })
+      onConfirm({
+        kind: "exact",
+        date: `${year}-${month}-${day}T${hoursStr}:${minutesStr}:${secondsStr}`,
+      })
     } else {
       onConfirm({ kind: "from-now", amount, unit })
     }

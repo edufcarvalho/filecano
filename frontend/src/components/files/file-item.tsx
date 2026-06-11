@@ -57,7 +57,10 @@ export function FileActions({
   }
 
   return (
-    <div className={cn(variantClasses[variant], "relative", className)} {...props}>
+    <div
+      className={cn(variantClasses[variant], "relative", className)}
+      {...props}
+    >
       {children}
     </div>
   )
