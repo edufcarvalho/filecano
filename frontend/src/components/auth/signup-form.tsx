@@ -2,7 +2,7 @@ import type { ComponentProps } from "react"
 import { useEffect, useState } from "react"
 
 import { useTranslation } from "@/i18n"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 
 import { Field, FieldDescription } from "@ui/field"
 
@@ -28,6 +28,7 @@ export function SignupForm({
   ...props
 }: SignupFormProps) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const {
     error,
     setError,
@@ -72,6 +73,7 @@ export function SignupForm({
     try {
       const token = await signupUser({ name, email, password })
       onLogin?.(token)
+      navigate("/", { replace: true })
     } catch (error) {
       setError(
         error instanceof Error ? error.message : t("auth.signup.fallbackError")

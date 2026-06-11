@@ -2,7 +2,7 @@ import type { ComponentProps } from "react"
 import { useEffect, useState } from "react"
 
 import { useTranslation } from "@/i18n"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 
 import { Field, FieldDescription } from "@/components/ui/field"
 
@@ -26,6 +26,7 @@ export function LoginForm({
   ...props
 }: LoginFormProps) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const {
     error,
     setError,
@@ -60,6 +61,7 @@ export function LoginForm({
     try {
       const token = await loginUser({ email, password })
       onLogin?.(token)
+      navigate("/", { replace: true })
     } catch (error) {
       setError(
         error instanceof Error
