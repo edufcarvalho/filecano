@@ -205,6 +205,22 @@ class TestFileEndpoints(ApiTestCase):
     )
     return resp.json()["id"]
 
+  def _list_file_ids(self, query=""):
+    resp = self.client.get(
+      f"/api/v1/files{query}", headers=self._auth_headers(self.token)
+    )
+    self.assertEqual(resp.status_code, 200, "file listing should return 200")
+    data = resp.json()
+
+    if isinstance(data, list):
+      return {file["id"] for file in data}
+
+    return {file["id"] for file in data.get("other_files", [])} | {
+      file["id"]
+      for folder in data.get("folders", [])
+      for file in folder.get("files", [])
+    }
+
   def test_upload_file(self):
     """POST /api/v1/files should upload a file."""
     resp = self.client.post(
@@ -422,36 +438,83 @@ class TestFileEndpoints(ApiTestCase):
     """POST /api/v1/files/bulk/delete should soft-delete multiple files."""
     id1 = self._upload_text_file("bulk1.txt")
     id2 = self._upload_text_file("bulk2.txt")
+    expected_ids = {id1, id2}
+
     resp = self.client.post(
       "/api/v1/files/delete/bulk",
       json={"ids": [id1, id2]},
       headers=self._auth_headers(self.token),
     )
     self.assertEqual(resp.status_code, 204, "bulk delete files should return 204")
+    self.assertFalse(
+      expected_ids & self._list_file_ids(),
+      "soft-deleted files should be removed from active flat listing",
+    )
+    self.assertTrue(
+      expected_ids <= self._list_file_ids("?deleted=true"),
+      "soft-deleted files should appear in deleted flat listing",
+    )
+    self.assertTrue(
+      expected_ids <= self._list_file_ids("?by_folder=true&deleted=true"),
+      "soft-deleted files should appear in deleted folder listing",
+    )
 
   def test_bulk_delete_files_permanent(self):
     """POST /api/v1/files/delete/bulk?permanent=true should hard-delete."""
     id1 = self._upload_text_file("bulkperm1.txt")
     id2 = self._upload_text_file("bulkperm2.txt")
+    expected_ids = {id1, id2}
+
     resp = self.client.post(
       "/api/v1/files/delete/bulk?permanent=true",
       json={"ids": [id1, id2]},
       headers=self._auth_headers(self.token),
     )
     self.assertEqual(resp.status_code, 204, "bulk permanent delete should return 204")
+    self.assertFalse(
+      expected_ids & self._list_file_ids(),
+      "hard-deleted files should be removed from active flat listing",
+    )
+    self.assertFalse(
+      expected_ids & self._list_file_ids("?deleted=true"),
+      "hard-deleted files should not appear in deleted flat listing",
+    )
+    self.assertFalse(
+      expected_ids & self._list_file_ids("?by_folder=true&deleted=true"),
+      "hard-deleted files should not appear in deleted folder listing",
+    )
 
   def test_bulk_restore_files(self):
     """POST /api/v1/files/bulk/restore should restore multiple files."""
     id1 = self._upload_text_file("bulkrestore1.txt")
     id2 = self._upload_text_file("bulkrestore2.txt")
+    expected_ids = {id1, id2}
+
     self.client.delete(f"/api/v1/files/{id1}", headers=self._auth_headers(self.token))
     self.client.delete(f"/api/v1/files/{id2}", headers=self._auth_headers(self.token))
+    self.assertTrue(
+      expected_ids <= self._list_file_ids("?deleted=true"),
+      "deleted files should appear in deleted flat listing before restore",
+    )
+
     resp = self.client.post(
       "/api/v1/files/restore/bulk",
       json={"ids": [id1, id2]},
       headers=self._auth_headers(self.token),
     )
     self.assertEqual(resp.status_code, 204, "bulk restore files should return 204")
+    self.assertTrue(
+      expected_ids <= self._list_file_ids(),
+      "restored files should appear in active flat listing",
+    )
+    self.assertTrue(
+      expected_ids <= self._list_file_ids("?by_folder=true"),
+      "restored files should appear in active folder listing",
+    )
+    self.assertFalse(
+      expected_ids & self._list_file_ids("?deleted=true"),
+      "restored files should be removed from deleted flat listing",
+    )
 
   def test_bulk_download_files(self):
     """POST /api/v1/files/download/bulk should return a zip."""

@@ -70,7 +70,9 @@ describe("collectFolderFiles", () => {
         children: [
           makeFolder("child", {
             files: [makeFile({ id: "b" })],
-            children: [makeFolder("grandchild", { files: [makeFile({ id: "c" })] })],
+            children: [
+              makeFolder("grandchild", { files: [makeFile({ id: "c" })] }),
+            ],
           }),
         ],
       }),
@@ -89,7 +91,10 @@ describe("collectFolderFiles", () => {
   it("handles folders with undefined files in children", () => {
     const child = makeFolder("child")
     delete (child as Record<string, unknown>).files
-    const root = makeFolder("root", { files: [makeFile({ id: "a" })], children: [child as FolderResponse] })
+    const root = makeFolder("root", {
+      files: [makeFile({ id: "a" })],
+      children: [child as FolderResponse],
+    })
     const result = collectFolderFiles([root])
     expect(result.map((f) => f.id)).toEqual(["a"])
   })
@@ -184,7 +189,10 @@ describe("isFolderAllDeleted", () => {
 
   it("returns false when some files are not deleted", () => {
     const folder = makeFolder("root", {
-      files: [makeFile({ id: "a", deleted_at: null }), makeFile({ id: "b", deleted_at: "2025-01-01" })],
+      files: [
+        makeFile({ id: "a", deleted_at: null }),
+        makeFile({ id: "b", deleted_at: "2025-01-01" }),
+      ],
     })
     expect(isFolderAllDeleted(folder)).toBe(false)
   })
@@ -192,7 +200,11 @@ describe("isFolderAllDeleted", () => {
   it("returns true when all files including nested children are deleted", () => {
     const folder = makeFolder("root", {
       files: [makeFile({ id: "a", deleted_at: "2025-01-01" })],
-      children: [makeFolder("child", { files: [makeFile({ id: "b", deleted_at: "2025-01-02" })] })],
+      children: [
+        makeFolder("child", {
+          files: [makeFile({ id: "b", deleted_at: "2025-01-02" })],
+        }),
+      ],
     })
     expect(isFolderAllDeleted(folder)).toBe(true)
   })
@@ -237,7 +249,9 @@ describe("collectSelectedFiles", () => {
 describe("removeFileFromFolders", () => {
   it("removes a file from the specified folder", () => {
     const folders: FolderResponse[] = [
-      makeFolder("f1", { files: [makeFile({ id: "a" }), makeFile({ id: "b" })] }),
+      makeFolder("f1", {
+        files: [makeFile({ id: "a" }), makeFile({ id: "b" })],
+      }),
     ]
     const result = removeFileFromFolders(folders, "a")
     expect(result[0].files.map((f) => f.id)).toEqual(["b"])
@@ -267,7 +281,9 @@ describe("updateFileInFolders", () => {
 
   it("does not change unrelated files", () => {
     const folders: FolderResponse[] = [
-      makeFolder("f1", { files: [makeFile({ id: "a" }), makeFile({ id: "b" })] }),
+      makeFolder("f1", {
+        files: [makeFile({ id: "a" }), makeFile({ id: "b" })],
+      }),
     ]
     const updated = makeFile({ id: "a", display_name: "new" })
     const result = updateFileInFolders(folders, "a", updated)
@@ -286,7 +302,9 @@ describe("updateFileInFolders", () => {
     const folders: FolderResponse[] = [
       makeFolder("root", {
         children: [
-          makeFolder("child", { files: [makeFile({ id: "deep", display_name: "old" })] }),
+          makeFolder("child", {
+            files: [makeFile({ id: "deep", display_name: "old" })],
+          }),
         ],
       }),
     ]
@@ -398,7 +416,9 @@ describe("collectDescendantIds", () => {
         children: [
           makeFolder("child", {
             files: [makeFile({ id: "f2" })],
-            children: [makeFolder("grandchild", { files: [makeFile({ id: "f3" })] })],
+            children: [
+              makeFolder("grandchild", { files: [makeFile({ id: "f3" })] }),
+            ],
           }),
         ],
       }),
@@ -409,7 +429,10 @@ describe("collectDescendantIds", () => {
   })
 
   it("returns empty arrays for missing folder", () => {
-    expect(collectDescendantIds([], "missing")).toEqual({ fileIds: [], folderIds: [] })
+    expect(collectDescendantIds([], "missing")).toEqual({
+      fileIds: [],
+      folderIds: [],
+    })
   })
 })
 
@@ -424,7 +447,9 @@ describe("excludeSelectedFolderContents", () => {
       { file_id: "inner-file", folder_id: "root" },
       { file_id: "outer-file", folder_id: null },
     ]
-    const result = excludeSelectedFolderContents(folders, selectedFiles, ["root"])
+    const result = excludeSelectedFolderContents(folders, selectedFiles, [
+      "root",
+    ])
     expect(result.files.map((f) => f.file_id)).toEqual(["outer-file"])
     expect(result.folderIds).toEqual(["root"])
   })
@@ -433,7 +458,11 @@ describe("excludeSelectedFolderContents", () => {
     const folders: FolderResponse[] = [
       makeFolder("parent", { children: [makeFolder("child")] }),
     ]
-    const result = excludeSelectedFolderContents(folders, [], ["parent", "child"])
+    const result = excludeSelectedFolderContents(
+      folders,
+      [],
+      ["parent", "child"]
+    )
     expect(result.folderIds).toEqual(["parent"])
   })
 })
@@ -449,7 +478,9 @@ describe("isDescendantOf", () => {
   it("returns true for grandchild", () => {
     const folders: FolderResponse[] = [
       makeFolder("parent", {
-        children: [makeFolder("child", { children: [makeFolder("grandchild")] })],
+        children: [
+          makeFolder("child", { children: [makeFolder("grandchild")] }),
+        ],
       }),
     ]
     expect(isDescendantOf(folders, "grandchild", "parent")).toBe(true)
@@ -465,7 +496,9 @@ describe("isDescendantOf", () => {
 
   it("returns false when ancestor has children but folder is not among them", () => {
     const folders: FolderResponse[] = [
-      makeFolder("parent", { children: [makeFolder("child1"), makeFolder("child2")] }),
+      makeFolder("parent", {
+        children: [makeFolder("child1"), makeFolder("child2")],
+      }),
       makeFolder("sibling"),
     ]
     expect(isDescendantOf(folders, "sibling", "parent")).toBe(false)
@@ -480,7 +513,9 @@ describe("buildParentMap", () => {
   it("maps each folder to its parent", () => {
     const folders: FolderResponse[] = [
       makeFolder("root", {
-        children: [makeFolder("child", { children: [makeFolder("grandchild")] })],
+        children: [
+          makeFolder("child", { children: [makeFolder("grandchild")] }),
+        ],
       }),
     ]
     const map = buildParentMap(folders)
@@ -530,7 +565,9 @@ describe("addFolderToParent", () => {
 
   it("preserves existing children", () => {
     const existing = makeFolder("existing")
-    const folders: FolderResponse[] = [makeFolder("root", { children: [existing] })]
+    const folders: FolderResponse[] = [
+      makeFolder("root", { children: [existing] }),
+    ]
     const child = makeFolder("new-child")
     const result = addFolderToParent(folders, "root", child)
     expect(result[0].children).toHaveLength(2)

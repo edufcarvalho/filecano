@@ -23,3 +23,8 @@ coverage
 *.njsproj
 *.sln
 *.sw?
+
+# Playright generated data
+playwright-report/
+test-results/
+.last-run.json

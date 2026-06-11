@@ -3,9 +3,16 @@ import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 
+const allowedHosts = process.env.VITE_ALLOWED_HOSTS?.split(",")
+  .map((host) => host.trim())
+  .filter(Boolean) ?? ["localhost", "127.0.0.1", "front", "nginx"]
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  server: {
+    allowedHosts,
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -21,10 +28,17 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes("node_modules/react-dom") || id.includes("node_modules/react/"))
+          if (
+            id.includes("node_modules/react-dom") ||
+            id.includes("node_modules/react/")
+          )
             return "vendor-react"
-          if (id.includes("node_modules/react-router-dom")) return "vendor-router"
-          if (id.includes("node_modules/i18next") || id.includes("node_modules/react-i18next"))
+          if (id.includes("node_modules/react-router-dom"))
+            return "vendor-router"
+          if (
+            id.includes("node_modules/i18next") ||
+            id.includes("node_modules/react-i18next")
+          )
             return "vendor-i18n"
           if (id.includes("node_modules/@radix-ui")) return "vendor-ui"
           if (id.includes("node_modules/lucide-react")) return "vendor-icons"

@@ -136,7 +136,7 @@ def delete_file(
   service.delete_file(current_user, file_id, permanent)
 
 
-@router.post("/delete/bulk/", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/delete/bulk", status_code=status.HTTP_204_NO_CONTENT)
 def bulk_delete_files(
   params: Annotated[BulkParams, Body()],
   permanent: bool = False,

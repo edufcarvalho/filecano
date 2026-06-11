@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest"
-import { updateDownloadingItem, type DownloadingItem } from "@/lib/download-activity"
+import {
+  updateDownloadingItem,
+  type DownloadingItem,
+} from "@/lib/download-activity"
 
 describe("updateDownloadingItem", () => {
   const baseItem: DownloadingItem = {
@@ -10,10 +13,7 @@ describe("updateDownloadingItem", () => {
   }
 
   it("updates the matching item by id", () => {
-    const items = [
-      baseItem,
-      { ...baseItem, id: "item-2", name: "other.zip" },
-    ]
+    const items = [baseItem, { ...baseItem, id: "item-2", name: "other.zip" }]
 
     const result = updateDownloadingItem(items, "item-1", { done: true })
     expect(result[0].done).toBe(true)

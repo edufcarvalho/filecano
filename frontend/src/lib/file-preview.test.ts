@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from "vitest"
-import { readBlobAsDataUrl, readFileAsDataUrl, loadPreviewUrls } from "@/lib/file-preview"
+import {
+  readBlobAsDataUrl,
+  readFileAsDataUrl,
+  loadPreviewUrls,
+} from "@/lib/file-preview"
 import type { FileResponse } from "@/lib/api"
 
 describe("readBlobAsDataUrl", () => {
@@ -17,13 +21,16 @@ describe("readBlobAsDataUrl", () => {
 
   it("rejects when FileReader encounters an error", async () => {
     const originalFileReader = globalThis.FileReader
-    vi.stubGlobal("FileReader", class {
-      onloadend: (() => void) | null = null
-      onerror: (() => void) | null = null
-      readAsDataURL() {
-        setTimeout(() => this.onerror?.(), 0)
+    vi.stubGlobal(
+      "FileReader",
+      class {
+        onloadend: (() => void) | null = null
+        onerror: (() => void) | null = null
+        readAsDataURL() {
+          setTimeout(() => this.onerror?.(), 0)
+        }
       }
-    })
+    )
     const blob = new Blob(["test"])
     await expect(readBlobAsDataUrl(blob)).rejects.toBeUndefined()
     vi.stubGlobal("FileReader", originalFileReader)
@@ -40,17 +47,25 @@ describe("readFileAsDataUrl", () => {
 
 describe("loadPreviewUrls", () => {
   it("fetches previews and updates state for supported files", async () => {
-    const fetchPreview = vi.fn().mockResolvedValue("data:image/png;base64,abc123")
+    const fetchPreview = vi
+      .fn()
+      .mockResolvedValue("data:image/png;base64,abc123")
     let state: Record<string, string> = {}
-    const setPreviewUrls = vi.fn().mockImplementation(
-      (updater: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => {
-        if (typeof updater === "function") {
-          state = updater(state)
-        } else {
-          state = { ...state, ...updater }
+    const setPreviewUrls = vi
+      .fn()
+      .mockImplementation(
+        (
+          updater:
+            | Record<string, string>
+            | ((prev: Record<string, string>) => Record<string, string>)
+        ) => {
+          if (typeof updater === "function") {
+            state = updater(state)
+          } else {
+            state = { ...state, ...updater }
+          }
         }
-      }
-    )
+      )
 
     const files: FileResponse[] = [
       {
@@ -99,7 +114,9 @@ describe("loadPreviewUrls", () => {
   })
 
   it("does not update state when isCurrent is false", async () => {
-    const fetchPreview = vi.fn().mockResolvedValue("data:image/png;base64,abc123")
+    const fetchPreview = vi
+      .fn()
+      .mockResolvedValue("data:image/png;base64,abc123")
     const setPreviewUrls = vi.fn()
 
     const files: FileResponse[] = [

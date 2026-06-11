@@ -12,7 +12,9 @@ describe("getErrorMessage", () => {
     expect(getErrorMessage(42, "fallback")).toBe("fallback")
     expect(getErrorMessage(null, "fallback")).toBe("fallback")
     expect(getErrorMessage(undefined, "fallback")).toBe("fallback")
-    expect(getErrorMessage({ message: "not an error" }, "fallback")).toBe("fallback")
+    expect(getErrorMessage({ message: "not an error" }, "fallback")).toBe(
+      "fallback"
+    )
   })
 
   it("returns the fallback for custom error subclasses", () => {
@@ -22,6 +24,8 @@ describe("getErrorMessage", () => {
         this.name = "CustomError"
       }
     }
-    expect(getErrorMessage(new CustomError("custom"), "fallback")).toBe("custom")
+    expect(getErrorMessage(new CustomError("custom"), "fallback")).toBe(
+      "custom"
+    )
   })
 })

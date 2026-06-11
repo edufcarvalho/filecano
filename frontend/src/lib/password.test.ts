@@ -45,7 +45,9 @@ describe("validatePassword", () => {
 
   it("returns multiple error keys for a password failing multiple requirements", () => {
     const result = validatePassword("abc")
-    expect(result).toEqual(expect.arrayContaining(["password.req.length", "password.req.uppercase"]))
+    expect(result).toEqual(
+      expect.arrayContaining(["password.req.length", "password.req.uppercase"])
+    )
   })
 
   it("accepts password at minimum length", () => {

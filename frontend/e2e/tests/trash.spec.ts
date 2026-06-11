@@ -1,42 +1,77 @@
-import { test, expect } from "@playwright/test"
-import { uniqueEmail, signupUser, PASSWORD } from "../fixtures/test-helpers.ts"
+import {
+  createAndLoginUser,
+  deleteFile,
+  expect,
+  listAllFiles,
+  openFileActions,
+  test,
+  uploadTestFile,
+} from "../fixtures/test-helpers.ts"
 
 test.describe("Trash", () => {
-  test("can navigate to trash from user menu", async ({ page }) => {
-    const email = uniqueEmail()
-    await signupUser(page, "TN", email, PASSWORD)
+  test("navigates to trash and shows an empty state", async ({
+    page,
+    request,
+  }) => {
+    await createAndLoginUser(page, request, "Empty Trash User")
 
     await page.locator(".user-menu-base").click()
     await page.getByRole("menuitem", { name: "Trash", exact: true }).click()
-    await expect(page).toHaveURL("/trash", { timeout: 5000 })
+    await expect(page).toHaveURL("/trash")
+    await expect(page.getByText("Trash is empty")).toBeVisible()
   })
 
-  test("shows empty trash state when no deleted files", async ({ page }) => {
-    const email = uniqueEmail()
-    await signupUser(page, "Empty Trash User", email, PASSWORD)
+  test("restores a deleted file from trash", async ({ page, request }) => {
+    const user = await createAndLoginUser(page, request, "Restore Trash User")
+    const file = await uploadTestFile(request, user, "restore-me.txt")
+    await deleteFile(request, user, file.id)
 
     await page.goto("/trash")
-    await expect(page.getByText("Trash is empty")).toBeVisible({
-      timeout: 5000,
-    })
+    await expect(
+      page.getByRole("heading", { name: "restore-me" })
+    ).toBeVisible()
+
+    await openFileActions(page, "restore-me")
+    await page.getByRole("menuitem", { name: "Restore" }).click()
+    await expect(page.getByRole("heading", { name: "restore-me" })).toBeHidden()
+
+    const activeFiles = await listAllFiles(request, user)
+    expect(activeFiles.some((activeFile) => activeFile.id === file.id)).toBe(
+      true
+    )
   })
 
-  test("can refresh trash list", async ({ page }) => {
-    const email = uniqueEmail()
-    await signupUser(page, "TR", email, PASSWORD)
+  test("permanently erases a deleted file and supports trash search", async ({
+    page,
+    request,
+  }) => {
+    const user = await createAndLoginUser(page, request, "Erase Trash User")
+    const keep = await uploadTestFile(request, user, "keep-in-trash.txt")
+    const erase = await uploadTestFile(request, user, "erase-from-trash.txt")
+    await deleteFile(request, user, keep.id)
+    await deleteFile(request, user, erase.id)
 
     await page.goto("/trash")
-    const refreshBtn = page.getByRole("button", { name: "Refresh", exact: true })
-    await expect(refreshBtn).toBeVisible({ timeout: 5000 })
-    await refreshBtn.click()
-  })
+    await page.getByPlaceholder("Search files..").fill("erase")
+    await expect(
+      page.getByRole("heading", { name: "erase-from-trash" })
+    ).toBeVisible()
+    await expect(
+      page.getByRole("heading", { name: "keep-in-trash" })
+    ).toBeHidden()
 
-  test("can search within trash", async ({ page }) => {
-    const email = uniqueEmail()
-    await signupUser(page, "Trash Search User", email, PASSWORD)
+    await openFileActions(page, "erase-from-trash")
+    await page.getByRole("menuitem", { name: "Erase" }).click()
+    await expect(
+      page.getByRole("heading", { name: "erase-from-trash" })
+    ).toBeHidden()
 
-    await page.goto("/trash")
-    const searchInput = page.getByPlaceholder("Search files..")
-    await expect(searchInput).toBeVisible({ timeout: 5000 })
+    const deletedFiles = await listAllFiles(request, user, true)
+    expect(
+      deletedFiles.some((deletedFile) => deletedFile.id === erase.id)
+    ).toBe(false)
+    expect(deletedFiles.some((deletedFile) => deletedFile.id === keep.id)).toBe(
+      true
+    )
   })
 })

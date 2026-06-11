@@ -9,7 +9,9 @@ import {
 } from "@/lib/file-upload"
 import type { UploadingFile } from "@/lib/file-upload"
 
-function makeUploadingFile(overrides: Partial<UploadingFile> = {}): UploadingFile {
+function makeUploadingFile(
+  overrides: Partial<UploadingFile> = {}
+): UploadingFile {
   return {
     id: "upload-1",
     name: "test.png",
@@ -24,7 +26,10 @@ function makeUploadingFile(overrides: Partial<UploadingFile> = {}): UploadingFil
 describe("updateUploadingFile", () => {
   it("updates the matching file by id", () => {
     const files = [makeUploadingFile(), makeUploadingFile({ id: "upload-2" })]
-    const result = updateUploadingFile(files, "upload-1", { done: true, uploadedBytes: 1024 })
+    const result = updateUploadingFile(files, "upload-1", {
+      done: true,
+      uploadedBytes: 1024,
+    })
     expect(result[0].done).toBe(true)
     expect(result[0].uploadedBytes).toBe(1024)
   })
@@ -112,7 +117,9 @@ describe("buildFolderMapping", () => {
     const result = buildFolderMapping(fileWithPath)
     expect(result.folderFiles.size).toBe(1)
     expect(result.folderFiles.get("docs/reports")).toBeDefined()
-    expect(result.folderFiles.get("docs/reports")![0].file.name).toBe("report.txt")
+    expect(result.folderFiles.get("docs/reports")![0].file.name).toBe(
+      "report.txt"
+    )
   })
 
   it("builds parent path relationships", () => {
@@ -191,9 +198,7 @@ describe("getPastedFiles from items", () => {
     const event = {
       clipboardData: {
         files: [] as File[],
-        items: [
-          { kind: "file", getAsFile: () => file },
-        ],
+        items: [{ kind: "file", getAsFile: () => file }],
       },
     } as unknown as ClipboardEvent
     const result = getPastedFiles(event)
@@ -205,9 +210,7 @@ describe("getPastedFiles from items", () => {
     const event = {
       clipboardData: {
         files: [] as File[],
-        items: [
-          { kind: "file", getAsFile: () => file },
-        ],
+        items: [{ kind: "file", getAsFile: () => file }],
       },
     } as unknown as ClipboardEvent
     const result = getPastedFiles(event)
@@ -219,9 +222,7 @@ describe("getPastedFiles from items", () => {
     const event = {
       clipboardData: {
         files: [] as File[],
-        items: [
-          { kind: "file", getAsFile: () => file },
-        ],
+        items: [{ kind: "file", getAsFile: () => file }],
       },
     } as unknown as ClipboardEvent
     const result = getPastedFiles(event)
@@ -233,9 +234,7 @@ describe("getPastedFiles from items", () => {
     const event = {
       clipboardData: {
         files: [] as File[],
-        items: [
-          { kind: "file", getAsFile: () => file },
-        ],
+        items: [{ kind: "file", getAsFile: () => file }],
       },
     } as unknown as ClipboardEvent
     const result = getPastedFiles(event)
@@ -243,13 +242,13 @@ describe("getPastedFiles from items", () => {
   })
 
   it("does not rename non-preview-supported files", () => {
-    const file = new File(["content"], "data", { type: "application/octet-stream" })
+    const file = new File(["content"], "data", {
+      type: "application/octet-stream",
+    })
     const event = {
       clipboardData: {
         files: [] as File[],
-        items: [
-          { kind: "file", getAsFile: () => file },
-        ],
+        items: [{ kind: "file", getAsFile: () => file }],
       },
     } as unknown as ClipboardEvent
     const result = getPastedFiles(event)
@@ -316,24 +315,34 @@ describe("getFilesFromDataTransferItems", () => {
           isDirectory: true,
           fullPath: "/dir",
           createReader: () => ({
-            readEntries: (cb: (batch: { isFile: boolean; isDirectory: boolean; fullPath: string; file?: (fcb: (f: File) => void) => void }[]) => void) => {
+            readEntries: (
+              cb: (
+                batch: {
+                  isFile: boolean
+                  isDirectory: boolean
+                  fullPath: string
+                  file?: (fcb: (f: File) => void) => void
+                }[]
+              ) => void
+            ) => {
               callCount++
               if (callCount === 1) {
-                setTimeout(() =>
-                  cb([
-                    {
-                      isFile: true,
-                      isDirectory: false,
-                      fullPath: "/dir/a.txt",
-                      file: (fcb: (f: File) => void) => fcb(file1),
-                    },
-                    {
-                      isFile: true,
-                      isDirectory: false,
-                      fullPath: "/dir/b.txt",
-                      file: (fcb: (f: File) => void) => fcb(file2),
-                    },
-                  ]),
+                setTimeout(
+                  () =>
+                    cb([
+                      {
+                        isFile: true,
+                        isDirectory: false,
+                        fullPath: "/dir/a.txt",
+                        file: (fcb: (f: File) => void) => fcb(file1),
+                      },
+                      {
+                        isFile: true,
+                        isDirectory: false,
+                        fullPath: "/dir/b.txt",
+                        file: (fcb: (f: File) => void) => fcb(file2),
+                      },
+                    ]),
                   0
                 )
               } else {

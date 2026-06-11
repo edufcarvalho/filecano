@@ -55,10 +55,7 @@ describe("i18n config", () => {
 
   it("persists language choice on language change", () => {
     i18n.changeLanguage("pt")
-    expect(localStorage.setItem).toHaveBeenCalledWith(
-      "filecano:language",
-      "pt"
-    )
+    expect(localStorage.setItem).toHaveBeenCalledWith("filecano:language", "pt")
   })
 
   it("supports t() translation function", () => {

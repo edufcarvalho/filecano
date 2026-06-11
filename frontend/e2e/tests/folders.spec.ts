@@ -1,73 +1,75 @@
-import { test, expect } from "@playwright/test"
-import { uniqueEmail, signupUser, PASSWORD } from "../fixtures/test-helpers.ts"
+import {
+  createAndLoginUser,
+  createFolder,
+  expect,
+  listFolderedFiles,
+  test,
+  uploadTestFile,
+  waitForFileVisible,
+} from "../fixtures/test-helpers.ts"
 
 test.describe("Folder Management", () => {
-  test("can create a new folder", async ({ page }) => {
-    const email = uniqueEmail()
-    await signupUser(page, "Folder Create User", email, PASSWORD)
+  test("creates an empty folder and validates blank names", async ({
+    page,
+    request,
+  }) => {
+    const user = await createAndLoginUser(page, request, "Folder Create User")
 
-    const createBtn = page.getByRole("button", { name: "Create folder" }).first()
-    await createBtn.click()
-
+    await page.getByRole("button", { name: "Create folder" }).first().click()
     const dialog = page.getByRole("dialog")
-    await expect(dialog).toBeVisible({ timeout: 3000 })
-    await dialog.getByPlaceholder("Enter folder name").fill("My New Folder")
+    await expect(dialog).toBeVisible()
     await dialog.getByRole("button", { name: "Create folder" }).click()
+    await expect(page.getByText("Folder name must not be blank")).toBeVisible()
 
-    await expect(dialog).not.toBeVisible({ timeout: 5000 })
-    await expect(page.getByText("My New Folder")).toBeVisible({ timeout: 5000 })
+    await dialog.getByPlaceholder("Enter folder name").fill("Invoices")
+    await dialog.getByRole("button", { name: "Create folder" }).click()
+    await expect(dialog).not.toBeVisible()
+    await expect(page.getByText("Invoices")).toBeVisible()
+
+    const data = await listFolderedFiles(request, user)
+    expect(data.folders.map((folder) => folder.name)).toContain("Invoices")
   })
 
-  test("create folder requires a name", async ({ page }) => {
-    const email = uniqueEmail()
-    await signupUser(page, "Folder Valid User", email, PASSWORD)
+  test("creates a folder with selected orphan files", async ({
+    page,
+    request,
+  }) => {
+    const user = await createAndLoginUser(page, request, "Folder Files User")
+    const file = await uploadTestFile(request, user, "orphan-note.txt")
+    await page.reload()
 
-    const createBtn = page.getByRole("button", { name: "Create folder" }).first()
-    await createBtn.click()
-
+    await waitForFileVisible(page, "orphan-note")
+    await page.getByRole("button", { name: "Create folder" }).first().click()
     const dialog = page.getByRole("dialog")
-    await expect(dialog).toBeVisible({ timeout: 3000 })
-    await dialog.locator("button").filter({ hasText: "Create folder" }).click()
-
-    await expect(page.getByText("Folder name must not be blank")).toBeVisible({
-      timeout: 3000,
-    })
-  })
-
-  test("can create folder with selected files", async ({ page }) => {
-    const email = uniqueEmail()
-    await signupUser(page, "Folder Files User", email, PASSWORD)
-
-    // First upload a file via file input directly
-    // Create a test file
-    const fileContent = "test file content for folder test"
-
-    // Open create folder dialog
-    const createBtn = page.getByRole("button", { name: "Create folder" }).first()
-    await createBtn.click()
-
-    const dialog = page.getByRole("dialog")
-    await expect(dialog).toBeVisible({ timeout: 3000 })
     await dialog.getByPlaceholder("Enter folder name").fill("Reports")
+    await dialog.getByText("orphan-note").click()
     await dialog.getByRole("button", { name: "Create folder" }).click()
 
-    await expect(dialog).not.toBeVisible({ timeout: 5000 })
-    await expect(page.getByText("Reports")).toBeVisible({ timeout: 5000 })
+    await expect(dialog).not.toBeVisible()
+    await expect(page.getByText("Reports")).toBeVisible()
+    await expect(
+      page.getByRole("heading", { name: "orphan-note" })
+    ).toBeHidden()
+
+    const data = await listFolderedFiles(request, user)
+    const reports = data.folders.find((folder) => folder.name === "Reports")
+    expect(reports?.files.map((folderFile) => folderFile.id)).toContain(file.id)
   })
 
-  test("displays folders after creation", async ({ page }) => {
-    const email = uniqueEmail()
-    await signupUser(page, "Folder Display User", email, PASSWORD)
+  test("displays nested folders and files seeded through the backend", async ({
+    page,
+    request,
+  }) => {
+    const user = await createAndLoginUser(page, request, "Nested Folder User")
+    const parent = await createFolder(request, user, "Projects")
+    const child = await createFolder(request, user, "Designs", parent.id)
+    await uploadTestFile(request, user, "wireframe.txt", "wireframe", child.id)
 
-    // Create a folder
-    const createBtn = page.getByRole("button", { name: "Create folder" }).first()
-    await createBtn.click()
-    const dialog = page.getByRole("dialog")
-    await expect(dialog).toBeVisible({ timeout: 3000 })
-    await dialog.getByPlaceholder("Enter folder name").fill("Documents")
-    await dialog.getByRole("button", { name: "Create folder" }).click()
-    await expect(dialog).not.toBeVisible({ timeout: 5000 })
-
-    await expect(page.getByText("Documents")).toBeVisible({ timeout: 5000 })
+    await page.reload()
+    await expect(page.getByText("Projects")).toBeVisible()
+    await page.getByText("Projects").click()
+    await expect(page.getByText("Designs")).toBeVisible()
+    await page.getByText("Designs").click()
+    await waitForFileVisible(page, "wireframe")
   })
 })
